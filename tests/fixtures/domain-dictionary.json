@@ -1,0 +1,958 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FolioEngineDomainDecouplingDictionary",
+  "description": "Exhaustive machine-readable anti-domain, pro-generic translation dictionary and test fixture for extracting masid into standalone @folio/engine.",
+  "version": "1.1.0",
+  "meta": {
+    "targetEngine": "folio",
+    "targetPackage": "@folio/engine",
+    "sourceDomain": "masid (LSSS NHS / DepEd)",
+    "enforcementRules": [
+      "Zero domain-specific tokens or identifiers in folio codebase",
+      "Strict structural genericity with zero visual craft degradation",
+      "3-Pass file audit verification protocol before marking file decoupled"
+    ]
+  },
+  "bannedTermsRegex": "\\b(lorenzo|lsss|lsssnhs|sarmiento|masid|enzo|enza|deped|sip|pillar|pillars|civic|kra|sbm|division|school)\\b",
+  "categories": {
+    "functionsAndMethods": {
+      "description": "Exhaustive registry of all functions, methods, and routines bearing domain terms.",
+      "entries": [
+        {
+          "sourceFile": "src/services/canvasLayoutService.ts",
+          "sourceFunction": "getPillarCanvas(pillarId: string, isDevMode?: boolean): PillarCanvasDocument",
+          "targetFunction": "getDocumentCanvas(documentId: string, isDevMode?: boolean): CanvasDocument",
+          "rationale": "Fetches canvas AST for a specific document without pillar domain binding."
+        },
+        {
+          "sourceFile": "src/services/canvasLayoutService.ts",
+          "sourceFunction": "getLivePillarCanvas(pillarId: string): PillarCanvasDocument",
+          "targetFunction": "getLiveDocumentCanvas(documentId: string): CanvasDocument",
+          "rationale": "Retrieves published live AST document from storage."
+        },
+        {
+          "sourceFile": "src/services/canvasLayoutService.ts",
+          "sourceFunction": "savePillarCanvas(pillarId: string, document: PillarCanvasDocument, isDevMode?: boolean): PillarCanvasDocument",
+          "targetFunction": "saveDocumentCanvas(documentId: string, document: CanvasDocument, isDevMode?: boolean): CanvasDocument",
+          "rationale": "Persists modified document AST to live or draft storage."
+        },
+        {
+          "sourceFile": "src/services/canvasLayoutService.ts",
+          "sourceFunction": "saveLivePillarCanvas(document: PillarCanvasDocument): PillarCanvasDocument",
+          "targetFunction": "saveLiveDocumentCanvas(document: CanvasDocument): CanvasDocument",
+          "rationale": "Direct live storage overwrite for canvas AST."
+        },
+        {
+          "sourceFile": "src/services/canvasLayoutService.ts",
+          "sourceFunction": "resetPillarCanvas(pillarId: string, isDevMode?: boolean): PillarCanvasDocument",
+          "targetFunction": "resetDocumentCanvas(documentId: string, isDevMode?: boolean): CanvasDocument",
+          "rationale": "Restores document AST to factory default structure."
+        },
+        {
+          "sourceFile": "src/services/canvasLayoutService.ts",
+          "sourceFunction": "deployPillarCanvasToCloud(pillarId: string): Promise<boolean>",
+          "targetFunction": "deployDocumentCanvasToCloud(documentId: string): Promise<boolean>",
+          "rationale": "Publishes local document AST to cloud storage bucket."
+        },
+        {
+          "sourceFile": "src/services/chartSourceService.ts",
+          "sourceFunction": "fetchChartConfigsByPillar(pillarId: PillarCode): Promise<SheetChartConfig[]>",
+          "targetFunction": "fetchChartConfigsByNode(nodeId: string): Promise<SheetChartConfig[]>",
+          "rationale": "Retrieves chart configurations associated with a sequence node."
+        },
+        {
+          "sourceFile": "src/services/edgePreBakeService.ts",
+          "sourceFunction": "gatherEvidenceMetadata(pillarId: string, options?: unknown): Record<string, SyncedEvidenceMetadata>",
+          "targetFunction": "gatherSourceMetadata(nodeId: string, options?: unknown): Record<string, SyncedSourceMetadata>",
+          "rationale": "Collects attachment metadata during edge pre-baking."
+        },
+        {
+          "sourceFile": "src/services/edgePreBakeService.ts",
+          "sourceFunction": "compilePublicPillarPayload(pillarId: string, snapshot: unknown, options?: unknown): PublicPillarPayload",
+          "targetFunction": "compilePublicNodePayload(nodeId: string, snapshot: unknown, options?: unknown): PublicNodePayload",
+          "rationale": "Compiles static payload for edge KV distribution."
+        },
+        {
+          "sourceFile": "src/services/evidenceService.ts",
+          "sourceFunction": "sanitizeLiveEvidenceSource(source: LiveEvidenceSource): LiveEvidenceSource",
+          "targetFunction": "sanitizeLiveSource(source: LiveSourceItem): LiveSourceItem",
+          "rationale": "Validates and sanitizes external attachment source URLs."
+        },
+        {
+          "sourceFile": "src/services/evidenceService.ts",
+          "sourceFunction": "fetchLiveEvidenceSources(options?: unknown): Promise<LiveEvidenceRegistry>",
+          "targetFunction": "fetchLiveSources(options?: unknown): Promise<LiveSourceRegistry>",
+          "rationale": "Fetches external asset registry from persistence layer."
+        },
+        {
+          "sourceFile": "src/services/evidenceService.ts",
+          "sourceFunction": "getLiveEvidenceSource(pointId: string): Promise<LiveEvidenceSource | null>",
+          "targetFunction": "getLiveSource(pointId: string): Promise<LiveSourceItem | null>",
+          "rationale": "Retrieves specific attachment source by content key."
+        },
+        {
+          "sourceFile": "src/services/evidenceService.ts",
+          "sourceFunction": "getEvidenceSourceSync(pointId: string): LiveEvidenceSource | null",
+          "targetFunction": "getSourceSync(pointId: string): LiveSourceItem | null",
+          "rationale": "Synchronous cache retrieval for external source."
+        },
+        {
+          "sourceFile": "src/services/evidenceService.ts",
+          "sourceFunction": "upsertLiveEvidenceSource(payload: UpsertEvidencePayload): Promise<LiveEvidenceSource>",
+          "targetFunction": "upsertLiveSource(payload: UpsertSourcePayload): Promise<LiveSourceItem>",
+          "rationale": "Inserts or updates external folder attachment record."
+        },
+        {
+          "sourceFile": "src/services/evidenceService.ts",
+          "sourceFunction": "resetEvidenceCache(): void",
+          "targetFunction": "resetSourceCache(): void",
+          "rationale": "Clears in-memory source cache."
+        },
+        {
+          "sourceFile": "src/utils/evidence.ts",
+          "sourceFunction": "getEvidenceSource(pointId: string): EvidenceSource | null",
+          "targetFunction": "getSource(pointId: string): SourceItem | null",
+          "rationale": "Lookup utility for source attachments."
+        },
+        {
+          "sourceFile": "src/utils/pillar-subchapters.ts",
+          "sourceFunction": "getPillarSubchapters(pillar: SIPPillar): NavItem[]",
+          "targetFunction": "getDocumentSections(node: NodeItem): NavItem[]",
+          "rationale": "Extracts table of contents items from document node."
+        },
+        {
+          "sourceFile": "src/hooks/use-hash-route.ts",
+          "sourceFunction": "navigateToPillar(pillarId: PillarCode): void",
+          "targetFunction": "navigateToNode(nodeId: string): void",
+          "rationale": "Updates browser hash navigation to active waypoint."
+        },
+        {
+          "sourceFile": "src/data/pillar-photo-configs.ts",
+          "sourceFunction": "getPillarPhotoConfig(pillarId: string): PillarPhotoConfig | undefined",
+          "targetFunction": "getNodePhotoConfig(nodeId: string): NodePhotoConfig | undefined",
+          "rationale": "Resolves default hero photography for sequence waypoint."
+        }
+      ]
+    },
+    "hooks": {
+      "description": "Exhaustive registry of all React hooks with domain naming.",
+      "entries": [
+        {
+          "sourceHook": "usePillarCanvas(pillarId: string): UsePillarCanvasReturn",
+          "targetHook": "useDocumentCanvas(documentId: string): UseDocumentCanvasReturn",
+          "sourceFile": "src/hooks/usePillarCanvas.ts",
+          "targetFile": "src/hooks/useDocumentCanvas.ts",
+          "rationale": "Primary hook managing canvas AST element mutations and selection."
+        },
+        {
+          "sourceHook": "usePillarSectionNumbers(pillarId: string): UsePillarSectionNumbersReturn",
+          "targetHook": "useDocumentSectionNumbers(documentId: string): UseDocumentSectionNumbersReturn",
+          "sourceFile": "src/hooks/use-dynamic-section-numbers.ts",
+          "targetFile": "src/hooks/use-dynamic-section-numbers.ts",
+          "rationale": "Calculates sequential 01, 02 numbering across sections."
+        },
+        {
+          "sourceHook": "useEvidencePoint(pointId: string): UseEvidencePointResult",
+          "targetHook": "useSourcePoint(pointId: string): UseSourcePointResult",
+          "sourceFile": "src/hooks/useEvidencePoint.ts",
+          "targetFile": "src/hooks/useSourcePoint.ts",
+          "rationale": "Subscribes to external folder sync state for an attachment point."
+        },
+        {
+          "sourceHook": "useDrivePhotoSync(pointId: string, folderUrl?: string): UseDrivePhotoSyncResult",
+          "targetHook": "useExternalFolderSync(pointId: string, folderUrl?: string): UseExternalFolderSyncResult",
+          "sourceFile": "src/hooks/useDrivePhotoSync.ts",
+          "targetFile": "src/hooks/useExternalFolderSync.ts",
+          "rationale": "Polls and reconciles remote media folder items."
+        }
+      ]
+    },
+    "constantsAndEnums": {
+      "description": "Exhaustive registry of exported constants, arrays, and lookup objects.",
+      "entries": [
+        {
+          "sourceFile": "src/services/canvasLayoutService.ts",
+          "sourceConstant": "PILLAR_IDS",
+          "targetConstant": "NODE_IDS",
+          "sourceValue": "['access', 'equity', 'quality', 'resiliency', 'governance'] as const",
+          "targetValue": "string[] (dynamically passed via engine.config.ts)",
+          "rationale": "Decouples hardcoded 5-pillar array into dynamic N-node sequence."
+        },
+        {
+          "sourceFile": "src/types/edge.ts",
+          "sourceConstant": "VALID_PILLARS",
+          "targetConstant": "VALID_NODE_IDS",
+          "sourceValue": "readonly PillarCode[]",
+          "targetValue": "readonly string[]",
+          "rationale": "Decouples edge validation from educational pillar codes."
+        },
+        {
+          "sourceFile": "src/components/roadmap/serpentine-generator.ts",
+          "sourceConstant": "PILLAR_CONFIGS",
+          "targetConstant": "NODE_CONFIGS",
+          "sourceValue": "5 hardcoded pillar objects with colors and stages",
+          "targetValue": "NodeItem[] from engine.config.ts",
+          "rationale": "Enables dynamic Bézier track height and anchor calculations for N items."
+        },
+        {
+          "sourceFile": "src/hooks/use-hash-route.ts",
+          "sourceConstant": "PILLAR_TO_STAGE",
+          "targetConstant": "NODE_TO_STAGE",
+          "sourceValue": "Record<PillarCode, number>",
+          "targetValue": "Record<string, number>",
+          "rationale": "Maps waypoint IDs to numerical sequence order."
+        },
+        {
+          "sourceFile": "src/hooks/use-hash-route.ts",
+          "sourceConstant": "STAGE_TO_PILLAR",
+          "targetConstant": "STAGE_TO_NODE",
+          "sourceValue": "Record<number, PillarCode>",
+          "targetValue": "Record<number, string>",
+          "rationale": "Maps numerical sequence order to waypoint IDs."
+        },
+        {
+          "sourceFile": "src/data/pillar-photo-configs.ts",
+          "sourceConstant": "PILLAR_PHOTO_CONFIGS",
+          "targetConstant": "NODE_PHOTO_CONFIGS",
+          "sourceValue": "PillarPhotoConfig[] with /images/pillars/* paths",
+          "targetValue": "NodePhotoConfig[] with neutral sample photos",
+          "rationale": "Mock photography fixtures for standalone showcase."
+        },
+        {
+          "sourceFile": "src/services/evidenceService.ts",
+          "sourceConstant": "STORAGE_KEY_EVIDENCE_CACHE",
+          "targetConstant": "STORAGE_KEY_SOURCE_CACHE",
+          "sourceValue": "'masid_evidence_cache_v2'",
+          "targetValue": "'engine_source_cache_v1'",
+          "rationale": "Neutral local cache key for external sources."
+        },
+        {
+          "sourceFile": "src/services/evidenceService.ts",
+          "sourceConstant": "EVENT_EVIDENCE_SOURCE_CHANGE",
+          "targetConstant": "EVENT_SOURCE_CHANGE",
+          "sourceValue": "'masid-evidence-source-change'",
+          "targetValue": "'engine-source-change'",
+          "rationale": "Custom window broadcast event for reactive attachment updates."
+        },
+        {
+          "sourceFile": "src/utils/chartColors.ts",
+          "sourceConstant": "PILLAR_ACCENT_TOKENS",
+          "targetConstant": "NODE_ACCENT_TOKENS",
+          "sourceValue": "Record<PillarCode, string>",
+          "targetValue": "Record<string, string>",
+          "rationale": "Maps waypoint IDs to CSS token variables."
+        }
+      ]
+    },
+    "variablesAndParameters": {
+      "description": "Exhaustive registry of local variables, loop iterators, parameters, and state fields.",
+      "entries": [
+        {
+          "sourceName": "pillarId",
+          "targetName": "nodeId",
+          "scope": "Function parameters, component props, database fields",
+          "rationale": "Universal identifier for sequence waypoint."
+        },
+        {
+          "sourceName": "pillar_id",
+          "targetName": "node_id",
+          "scope": "SQL columns, Edge KV URL parameters",
+          "rationale": "Snake-case database and HTTP identifier."
+        },
+        {
+          "sourceName": "activePillar",
+          "targetName": "activeNode",
+          "scope": "React state in App.tsx and RoadmapSection.tsx",
+          "rationale": "Tracks current waypoint in viewport."
+        },
+        {
+          "sourceName": "currentPillar",
+          "targetName": "currentNode",
+          "scope": "Component props in PillarPage.tsx",
+          "rationale": "Selected waypoint object."
+        },
+        {
+          "sourceName": "effectivePillar",
+          "targetName": "effectiveNode",
+          "scope": "Fallback resolution in PillarSidebar.tsx",
+          "rationale": "Active waypoint fallback resolution."
+        },
+        {
+          "sourceName": "pillarNum / pillarNumber",
+          "targetName": "nodeIndex / nodeNumber",
+          "scope": "Calculation and numbering in PhotoFlightEngine and PillarPage",
+          "rationale": "Sequential integer position of waypoint."
+        },
+        {
+          "sourceName": "pillars / pillarsList",
+          "targetName": "nodes / nodesList",
+          "scope": "Arrays of waypoint data across views",
+          "rationale": "Plural collection of sequence items."
+        },
+        {
+          "sourceName": "pillarBaked",
+          "targetName": "nodeBakedChart",
+          "scope": "useSheetChartData.ts chart resolution",
+          "rationale": "Pre-baked chart dataset match for node."
+        },
+        {
+          "sourceName": "pillarPayload",
+          "targetName": "nodePayload",
+          "scope": "edgePreBakeService.ts payload compilation",
+          "rationale": "Compiled static edge payload for node."
+        },
+        {
+          "sourceName": "transformedPillars",
+          "targetName": "transformedNodes",
+          "scope": "edgePreBakeService.ts bundle compilation",
+          "rationale": "Array of compiled node outputs."
+        },
+        {
+          "sourceName": "serializedPillar",
+          "targetName": "serializedNode",
+          "scope": "edgePreBakeService.ts JSON stringification",
+          "rationale": "Serialized string of node payload."
+        },
+        {
+          "sourceName": "evidenceKey",
+          "targetName": "sourceKey",
+          "scope": "use-dynamic-section-numbers.ts key generator",
+          "rationale": "Content DB key for attachment section."
+        },
+        {
+          "sourceName": "isEvidenceNumbered",
+          "targetName": "isSourceNumbered",
+          "scope": "use-dynamic-section-numbers.ts boolean flag",
+          "rationale": "Whether attachment section renders numbering badge."
+        },
+        {
+          "sourceName": "evidenceItems",
+          "targetName": "sourceItems",
+          "scope": "CanvasGallery.tsx and SIPPillar schema",
+          "rationale": "Array of external attachment records."
+        },
+        {
+          "sourceName": "evidenceMetadata",
+          "targetName": "sourceMetadata",
+          "scope": "PublicPillarPayload and edgePreBakeService",
+          "rationale": "Dictionary of attachment metadata."
+        },
+        {
+          "sourceName": "enzoSides",
+          "targetName": "polygonSides",
+          "scope": "EnzoLogo.tsx math parameters",
+          "rationale": "Number of vertices for parametric polygon."
+        },
+        {
+          "sourceName": "enzoWaviness",
+          "targetName": "waviness",
+          "scope": "EnzoLogo.tsx math parameters",
+          "rationale": "Amplitude of Bézier undulating lobes."
+        }
+      ]
+    },
+    "dataContractFields": {
+      "description": "Exhaustive registry of properties inside data models and mock JSON files.",
+      "entries": [
+        {
+          "sourceField": "pillarNumber",
+          "targetField": "index",
+          "parentContract": "SIPPillar",
+          "rationale": "Zero- or one-indexed sequential rank."
+        },
+        {
+          "sourceField": "chapterNumber",
+          "targetField": "index (retired alias)",
+          "parentContract": "SIPPillar",
+          "rationale": "Deprecated educational chapter alias."
+        },
+        {
+          "sourceField": "depedTitle",
+          "targetField": "title",
+          "parentContract": "SIPPillar",
+          "rationale": "Primary milestone headline."
+        },
+        {
+          "sourceField": "laypersonTitle",
+          "targetField": "subtitle",
+          "parentContract": "SIPPillar",
+          "rationale": "Secondary explanatory subtitle."
+        },
+        {
+          "sourceField": "humanHook",
+          "targetField": "summary",
+          "parentContract": "SIPPillar",
+          "rationale": "Introductory summary blurb."
+        },
+        {
+          "sourceField": "enzoReflection",
+          "targetField": "metadata.quote / retired",
+          "parentContract": "SIPPillar",
+          "rationale": "School mascot character reflection."
+        },
+        {
+          "sourceField": "depedReference",
+          "targetField": "referenceNumber / metadata.reference",
+          "parentContract": "EvidenceItem",
+          "rationale": "DepEd department order citation."
+        },
+        {
+          "sourceField": "hasProjectData",
+          "targetField": "metadata.hasPendingData",
+          "parentContract": "SIPPillar",
+          "rationale": "Placeholder status flag."
+        },
+        {
+          "sourceField": "projectDataPlaceholderMessage",
+          "targetField": "metadata.pendingDataMessage",
+          "parentContract": "SIPPillar",
+          "rationale": "Customizable empty state message."
+        }
+      ]
+    },
+    "contentDbKeys": {
+      "description": "Exhaustive registry of dynamic Content DB point IDs and template keys.",
+      "entries": [
+        {
+          "sourceKeyPattern": "pillar.${pillarId}.title",
+          "targetKeyPattern": "node.${nodeId}.title",
+          "rationale": "Title of sequence milestone."
+        },
+        {
+          "sourceKeyPattern": "pillar.${pillarId}.subtitle",
+          "targetKeyPattern": "node.${nodeId}.subtitle",
+          "rationale": "Subtitle of sequence milestone."
+        },
+        {
+          "sourceKeyPattern": "pillar.${pillarId}.kicker",
+          "targetKeyPattern": "node.${nodeId}.kicker",
+          "rationale": "Category kicker eyebrow above title."
+        },
+        {
+          "sourceKeyPattern": "pillar.${pillarId}.tagline",
+          "targetKeyPattern": "node.${nodeId}.tagline",
+          "rationale": "Card tagline in stepped sequence track."
+        },
+        {
+          "sourceKeyPattern": "pillar.${pillarId}.humanHook",
+          "targetKeyPattern": "node.${nodeId}.summary",
+          "rationale": "Introductory blurb."
+        },
+        {
+          "sourceKeyPattern": "pillar.${pillarId}.enzoReflection",
+          "targetKeyPattern": "node.${nodeId}.annotation",
+          "rationale": "Callout or annotation quote."
+        },
+        {
+          "sourceKeyPattern": "pillar.${pillarId}.section.evidence.title",
+          "targetKeyPattern": "doc.${docId}.section.source.title",
+          "rationale": "Title of attachment gallery section."
+        },
+        {
+          "sourceKeyPattern": "pillar.${pillarId}.section.chart.title",
+          "targetKeyPattern": "doc.${docId}.section.chart.title",
+          "rationale": "Title of data visualization section."
+        },
+        {
+          "sourceKeyPattern": "pillar.${pillarId}.section.evidence.title.isNumbered",
+          "targetKeyPattern": "doc.${docId}.section.source.title.isNumbered",
+          "rationale": "Sequential badge toggle for attachment section."
+        }
+      ]
+    },
+    "filePaths": {
+      "description": "File and directory renames required to extract the engine without domain residue.",
+      "entries": [
+        {
+          "sourcePath": "src/components/canvas/PillarCanvas.tsx",
+          "targetPath": "src/components/canvas/DocumentCanvas.tsx",
+          "rationale": "Pillar is an educational/SIP-specific grouping. DocumentCanvas represents a generic recursive block canvas."
+        },
+        {
+          "sourcePath": "src/components/pillar/PillarHeroPhoto.tsx",
+          "targetPath": "src/components/sequence/NodeHeroPhoto.tsx",
+          "rationale": "Decouples hero photo from pillar domain terminology."
+        },
+        {
+          "sourcePath": "src/components/pillar/PillarSidebar.tsx",
+          "targetPath": "src/components/canvas/DocumentSidebar.tsx",
+          "rationale": "Generic table-of-contents sidebar for recursive canvas navigation."
+        },
+        {
+          "sourcePath": "src/components/pillar/PillarPage.tsx",
+          "targetPath": "src/components/canvas/DocumentPage.tsx",
+          "rationale": "Canvas document host page."
+        },
+        {
+          "sourcePath": "src/components/pillar/PillarBreadcrumb.tsx",
+          "targetPath": "src/components/ui/Breadcrumb.tsx",
+          "rationale": "Canonical breadcrumb navigation primitive."
+        },
+        {
+          "sourcePath": "src/components/layout/CivicHeader.tsx",
+          "targetPath": "src/components/layout/AppHeader.tsx",
+          "rationale": "'Civic' is civic/institutional domain baggage; AppHeader is canonical neutral chrome."
+        },
+        {
+          "sourcePath": "src/components/layout/CivicFooter.tsx",
+          "targetPath": "src/components/layout/AppFooter.tsx",
+          "rationale": "Neutral structural footer primitive."
+        },
+        {
+          "sourcePath": "src/components/feedback/CivicToast.tsx",
+          "targetPath": "src/components/ui/Toast.tsx",
+          "rationale": "Canonical status and feedback toast notification primitive."
+        },
+        {
+          "sourcePath": "src/components/ui/EnzoLogo.tsx",
+          "targetPath": "src/components/ui/ParametricShape.tsx",
+          "rationale": "'Enzo' is the school mascot; the component is a pure mathematical cubic-Bézier polygon generator."
+        },
+        {
+          "sourcePath": "src/components/roadmap/RoadmapTrack.tsx",
+          "targetPath": "src/components/sequence/StepSequenceTrack.tsx",
+          "rationale": "Neutral parametric N-node scrollytelling track."
+        },
+        {
+          "sourcePath": "src/components/roadmap/RoadmapSection.tsx",
+          "targetPath": "src/components/sequence/StepSequenceSection.tsx",
+          "rationale": "Container section for stepped progression graph."
+        },
+        {
+          "sourcePath": "src/components/roadmap/RoadmapNode.tsx",
+          "targetPath": "src/components/sequence/StepSequenceNode.tsx",
+          "rationale": "Interactive sequence waypoint node."
+        },
+        {
+          "sourcePath": "src/types/sip.ts",
+          "targetPath": "src/types/node.ts",
+          "rationale": "Replaces SIP-specific definitions with generic NodeItem and Sequence contracts."
+        },
+        {
+          "sourcePath": "src/types/evidence.ts",
+          "targetPath": "src/types/source.ts",
+          "rationale": "'Evidence' is accreditation domain jargon; 'Source' or 'Attachment' is universal."
+        },
+        {
+          "sourcePath": "src/data/sip-pillars.json",
+          "targetPath": "src/data/sample-nodes.json",
+          "rationale": "Showcase test fixtures representing neutral project phases."
+        },
+        {
+          "sourcePath": "src/data/evidence-sources.json",
+          "targetPath": "src/data/sample-sources.json",
+          "rationale": "Generic external dataset/attachment source registry."
+        },
+        {
+          "sourcePath": "src/services/evidenceService.ts",
+          "targetPath": "src/services/sourceService.ts",
+          "rationale": "Generic data source and attachment hydration facade."
+        },
+        {
+          "sourcePath": "functions/api/public/pillar/[pillarId].ts",
+          "targetPath": "functions/api/public/node/[id].ts",
+          "rationale": "Generic edge KV dynamic node payload delivery."
+        },
+        {
+          "sourcePath": "supabase/migrations/04_engine_evidence.sql",
+          "targetPath": "supabase/migrations/04_engine_sources.sql",
+          "rationale": "Generic source metadata ledger table."
+        }
+      ]
+    },
+    "typeContracts": {
+      "description": "TypeScript interfaces, types, and enums to generalize.",
+      "entries": [
+        {
+          "sourceType": "PillarCode",
+          "targetType": "NodeId",
+          "sourceDefinition": "'access' | 'equity' | 'quality' | 'resiliency' | 'governance'",
+          "targetDefinition": "string",
+          "rationale": "Unlocks dynamic N-node sequence without rigid 5-pillar bounds."
+        },
+        {
+          "sourceType": "SipPillar / SIPPillar",
+          "targetType": "NodeItem",
+          "sourceDefinition": "interface SIPPillar { id: PillarCode; pillarNumber: 1..5; ... }",
+          "targetDefinition": "interface NodeItem { id: string; index: number; title: string; subtitle?: string; accentColor: string; accentTint?: string; heroImage?: { src: string; alt: string; caption?: string }; metadata?: Record<string, unknown>; }",
+          "rationale": "Generic parametric sequence milestone contract."
+        },
+        {
+          "sourceType": "PillarCanvasDocument",
+          "targetType": "CanvasDocument",
+          "sourceDefinition": "interface PillarCanvasDocument { pillarId: string; version: number; sections: SectionElement[]; updatedAt: string; }",
+          "targetDefinition": "interface CanvasDocument { documentId: string; version: number; sections: SectionElement[]; updatedAt: string; }",
+          "rationale": "Decouples recursive canvas root document from pillarId."
+        },
+        {
+          "sourceType": "PublicPillarPayload",
+          "targetType": "PublicNodePayload",
+          "sourceDefinition": "interface PublicPillarPayload { pillarId: string; snapshotId: string; canvas: PillarCanvasDocument; ... }",
+          "targetDefinition": "interface PublicNodePayload { nodeId: string; snapshotId: string; canvas: CanvasDocument; ... }",
+          "rationale": "Decouples edge payload contract from pillar domain."
+        },
+        {
+          "sourceType": "SyncedEvidenceMetadata",
+          "targetType": "SyncedSourceMetadata",
+          "sourceDefinition": "interface SyncedEvidenceMetadata { pointId: string; items?: SyncedEvidenceItem[]; ... }",
+          "targetDefinition": "interface SyncedSourceMetadata { pointId: string; items?: SyncedSourceItem[]; ... }",
+          "rationale": "Universal source attachment metadata contract."
+        },
+        {
+          "sourceType": "PillarMetadata",
+          "targetType": "NodeMetadata",
+          "sourceDefinition": "Record<string, unknown>",
+          "targetDefinition": "Record<string, unknown>",
+          "rationale": "Abstract key-value metadata container."
+        },
+        {
+          "sourceType": "PillarCanvasProps",
+          "targetType": "DocumentCanvasProps",
+          "sourceDefinition": "interface PillarCanvasProps { pillarId: string; isAuthoringActive?: boolean; }",
+          "targetDefinition": "interface DocumentCanvasProps { documentId: string; isAuthoringActive?: boolean; }",
+          "rationale": "Abstract recursive block canvas input props."
+        },
+        {
+          "sourceType": "CivicHeaderProps",
+          "targetType": "AppHeaderProps",
+          "sourceDefinition": "interface CivicHeaderProps { activeStage?: number; ... }",
+          "targetDefinition": "interface AppHeaderProps { activeStage?: number; ... }",
+          "rationale": "Neutral header chrome props."
+        },
+        {
+          "sourceType": "CivicToastProps",
+          "targetType": "ToastProps",
+          "sourceDefinition": "interface CivicToastProps { message: string; ... }",
+          "targetDefinition": "interface ToastProps { message: string; ... }",
+          "rationale": "Neutral notification toast props."
+        },
+        {
+          "sourceType": "EvidenceItem / SyncedEvidenceItem",
+          "targetType": "SourceItem / SyncedSourceItem",
+          "sourceDefinition": "interface EvidenceItem { id: string; title: string; photo: CanonicalPhoto; ... }",
+          "targetDefinition": "interface SourceItem { id: string; title: string; photo: CanonicalPhoto; ... }",
+          "rationale": "Universal source/attachment record."
+        },
+        {
+          "sourceType": "LiveEvidenceSource",
+          "targetType": "LiveSourceItem",
+          "sourceDefinition": "interface LiveEvidenceSource { pointId: string; folderUrl: string; ... }",
+          "targetDefinition": "interface LiveSourceItem { pointId: string; folderUrl: string; ... }",
+          "rationale": "Universal live attachment folder record."
+        },
+        {
+          "sourceType": "PillarSubchapter",
+          "targetType": "DocumentSection",
+          "sourceDefinition": "interface PillarSubchapter extends NavItem { ... }",
+          "targetDefinition": "interface DocumentSection extends NavItem { ... }",
+          "rationale": "Hierarchical document section navigation model."
+        }
+      ]
+    },
+    "cssTokensAndClasses": {
+      "description": "CSS variables and module class names to strip of domain coupling.",
+      "entries": [
+        {
+          "sourceToken": "--color-pillar-1",
+          "targetToken": "--color-node-1",
+          "rationale": "Decoupled sequence step accent."
+        },
+        {
+          "sourceToken": "--color-pillar-1-tint",
+          "targetToken": "--color-node-1-tint",
+          "rationale": "Decoupled sequence step light tint."
+        },
+        {
+          "sourceToken": "--color-pillar-1-border",
+          "targetToken": "--color-node-1-border",
+          "rationale": "Decoupled sequence step border hue."
+        },
+        {
+          "sourceToken": "--color-pillar-2",
+          "targetToken": "--color-node-2",
+          "rationale": "Decoupled sequence step accent."
+        },
+        {
+          "sourceToken": "--color-pillar-2-tint",
+          "targetToken": "--color-node-2-tint",
+          "rationale": "Decoupled sequence step light tint."
+        },
+        {
+          "sourceToken": "--color-pillar-2-border",
+          "targetToken": "--color-node-2-border",
+          "rationale": "Decoupled sequence step border hue."
+        },
+        {
+          "sourceToken": "--color-pillar-3",
+          "targetToken": "--color-node-3",
+          "rationale": "Decoupled sequence step accent."
+        },
+        {
+          "sourceToken": "--color-pillar-3-tint",
+          "targetToken": "--color-node-3-tint",
+          "rationale": "Decoupled sequence step light tint."
+        },
+        {
+          "sourceToken": "--color-pillar-3-border",
+          "targetToken": "--color-node-3-border",
+          "rationale": "Decoupled sequence step border hue."
+        },
+        {
+          "sourceToken": "--color-pillar-4",
+          "targetToken": "--color-node-4",
+          "rationale": "Decoupled sequence step accent."
+        },
+        {
+          "sourceToken": "--color-pillar-4-tint",
+          "targetToken": "--color-node-4-tint",
+          "rationale": "Decoupled sequence step light tint."
+        },
+        {
+          "sourceToken": "--color-pillar-4-border",
+          "targetToken": "--color-node-4-border",
+          "rationale": "Decoupled sequence step border hue."
+        },
+        {
+          "sourceToken": "--color-pillar-5",
+          "targetToken": "--color-node-5",
+          "rationale": "Decoupled sequence step accent."
+        },
+        {
+          "sourceToken": "--color-pillar-5-tint",
+          "targetToken": "--color-node-5-tint",
+          "rationale": "Decoupled sequence step light tint."
+        },
+        {
+          "sourceToken": "--color-pillar-5-border",
+          "targetToken": "--color-node-5-border",
+          "rationale": "Decoupled sequence step border hue."
+        },
+        {
+          "sourceToken": "--brand-maroon",
+          "targetToken": "--color-brand-primary",
+          "rationale": "Generic semantic primary brand hue."
+        },
+        {
+          "sourceToken": "--brand-gold",
+          "targetToken": "--color-brand-accent",
+          "rationale": "Generic semantic secondary accent hue."
+        },
+        {
+          "sourceToken": "--ink-maroon",
+          "targetToken": "--color-text-brand",
+          "rationale": "Semantic text tint token."
+        },
+        {
+          "sourceToken": "--gold-border",
+          "targetToken": "--color-border-accent",
+          "rationale": "Semantic border accent token."
+        },
+        {
+          "sourceToken": "--civic-badge-bg",
+          "targetToken": "--badge-surface",
+          "rationale": "Neutral badge background."
+        },
+        {
+          "sourceToken": ".civicHeader",
+          "targetToken": ".appHeader",
+          "rationale": "Class selector in CSS modules."
+        },
+        {
+          "sourceToken": ".civicFooter",
+          "targetToken": ".appFooter",
+          "rationale": "Class selector in CSS modules."
+        },
+        {
+          "sourceToken": ".civicToast",
+          "targetToken": ".toast",
+          "rationale": "Class selector in CSS modules."
+        },
+        {
+          "sourceToken": ".pillarCard",
+          "targetToken": ".nodeCard",
+          "rationale": "Class selector in CSS modules."
+        },
+        {
+          "sourceToken": ".pillarHero",
+          "targetToken": ".heroContainer",
+          "rationale": "Class selector in CSS modules."
+        },
+        {
+          "sourceToken": ".enzoMark",
+          "targetToken": ".parametricMark",
+          "rationale": "Class selector in CSS modules."
+        }
+      ]
+    },
+    "storageAndApiContracts": {
+      "description": "Local storage keys, edge KV bindings, Supabase tables, and route paths.",
+      "entries": [
+        {
+          "sourceEntity": "masid_dev_pin",
+          "targetEntity": "engine_dev_pin",
+          "type": "localStorageKey"
+        },
+        {
+          "sourceEntity": "masid_live_content_overrides",
+          "targetEntity": "engine_live_content_overrides",
+          "type": "localStorageKey"
+        },
+        {
+          "sourceEntity": "masid_draft_content_overrides",
+          "targetEntity": "engine_draft_content_overrides",
+          "type": "localStorageKey"
+        },
+        {
+          "sourceEntity": "masid_history_db",
+          "targetEntity": "engine_history_db",
+          "type": "localStorageKey"
+        },
+        {
+          "sourceEntity": "KV_MASID_PUBLIC",
+          "targetEntity": "KV_ENGINE_PUBLIC",
+          "type": "cloudflareBinding"
+        },
+        {
+          "sourceEntity": "masid-media",
+          "targetEntity": "engine-media",
+          "type": "supabaseBucket"
+        },
+        {
+          "sourceEntity": "sip_evidence",
+          "targetEntity": "engine_sources",
+          "type": "supabaseTable"
+        },
+        {
+          "sourceEntity": "masid_dev_lock",
+          "targetEntity": "engine_lock",
+          "type": "supabaseTable"
+        },
+        {
+          "sourceEntity": "/api/public/pillar/:pillarId",
+          "targetEntity": "/api/public/node/:id",
+          "type": "edgeEndpoint"
+        },
+        {
+          "sourceEntity": "#pillar/:pillarId",
+          "targetEntity": "#node/:id",
+          "type": "hashRoute"
+        }
+      ]
+    },
+    "copyAndTextFallbacks": {
+      "description": "Purge all hardcoded domain text and eliminate pseudo-generalization (no substituting one bespoke storyline for another). All copy is 100% dynamic and tenant-driven.",
+      "entries": [
+        {
+          "bannedText": "Pillar [0-9]: .* | Access | Equity | Quality | Resiliency | Enabling Governance",
+          "genericReplacement": "DYNAMIC ({node.title}) / ZERO HARDCODED NARRATIVE",
+          "rationale": "The engine contains zero hardcoded milestone names, storylines, or phase narratives. All milestone titles, subtitles, and descriptions are strictly dynamic data properties supplied by the tenant via NodeItem[] or engine.config.ts. Structural fallback is purely positional: `Node ${index + 1}`."
+        },
+        {
+          "bannedText": "Lorenzo S. Sarmiento Sr. National High School | LSSS NHS",
+          "genericReplacement": "DYNAMIC ({config.title}) / ZERO HARDCODED TENANT",
+          "rationale": "Organization and school names are never hardcoded in the engine chrome or templates. Consumed dynamically from tenant configuration props."
+        },
+        {
+          "bannedText": "School Improvement Plan | SIP",
+          "genericReplacement": "DYNAMIC ({config.subtitle}) / REMOVED",
+          "rationale": "Accreditation and educational framework strings are purged from the engine. Headings and subtitles are purely dynamic configuration."
+        },
+        {
+          "bannedText": "DepEd | Department of Education | Schools Division",
+          "genericReplacement": "REMOVED / TENANT CONFIG",
+          "rationale": "All institutional body attributions and department orders are purged from core engine components."
+        },
+        {
+          "bannedText": "Enzo | Enza | Mascot Reflections",
+          "genericReplacement": "REMOVED / ParametricShape",
+          "rationale": "All mascot names, character reflections, and persona dialogues are completely purged. Replaced by a pure mathematical geometric mark (ParametricShape) without character personas."
+        },
+        {
+          "bannedText": "Academic Year 2024-2028 | SY 2024-2025",
+          "genericReplacement": "DYNAMIC ({config.timeframe}) / REMOVED",
+          "rationale": "Academic year conventions and date stamps are purged from the engine shell. Any displayed timeframe is a dynamic property."
+        }
+      ]
+    },
+    "structuralAndLogicNarratives": {
+      "description": "Exhaustive registry of bespoke architectural narratives baked directly into logic, math formulas, algorithms, routing, and state machines.",
+      "entries": [
+        {
+          "narrativeId": "FIXED_5_NODE_LOOP_IN_PERSISTENCE",
+          "affectedFiles": [
+            "src/services/historyService.ts",
+            "src/services/draftService.ts",
+            "src/services/canvasLayoutService.ts",
+            "src/services/edgePreBakeService.ts"
+          ],
+          "legacyLogicPattern": "for (const pillarId of PILLAR_IDS) where PILLAR_IDS = ['access', 'equity', 'quality', 'resiliency', 'governance']",
+          "decoupledEngineLogic": "Iterate dynamically over Object.keys(canvases) or config.nodes.map(n => n.id). Snapshot creation, diffing, draft publishing, and edge KV pre-baking must handle arbitrary N nodes (N >= 1) with zero hardcoded arrays.",
+          "rationale": "Hardcoded loops prevent multi-tenant scaling and silently discard or fail data operations on non-5-pillar tenant sequences."
+        },
+        {
+          "narrativeId": "STAGE_TO_SLUG_BIDIRECTIONAL_FSM",
+          "affectedFiles": [
+            "src/hooks/use-hash-route.ts"
+          ],
+          "legacyLogicPattern": "PILLAR_TO_STAGE: Record<PillarCode, number> and STAGE_TO_PILLAR: Record<number, PillarCode> with VALID_PILLARS.includes() gatekeeper",
+          "decoupledEngineLogic": "Dynamic route parser matching against config.nodes.find(n => n.id === candidateId || String(n.index) === candidateId). Unknown slugs resolve to configurable 404, not hardcoded 5-pillar checks.",
+          "rationale": "Static dictionary gatekeeper rejects any tenant route slug not named access, equity, quality, resiliency, or governance."
+        },
+        {
+          "narrativeId": "SERPENTINE_MATH_5_NODE_COORDINATES",
+          "affectedFiles": [
+            "src/components/roadmap/serpentine-generator.ts",
+            "src/components/roadmap/use-roadmap-scroll.ts"
+          ],
+          "legacyLogicPattern": "travelY = 4 * segmentH, static 5-point points array, and chapterFoldH = travel / 4 with p1/p5 queries",
+          "decoupledEngineLogic": "Parametric N-node mathematical curve: travelY = Math.max(0, nodes.length - 1) * segmentH. Node coordinates computed via nodes.map((node, i) => ({ x: i % 2 === 0 ? leftX : rightX, y: y0 + i * segmentH, flank: i % 2 === 0 ? 'left' : 'right' })). Scroll progress divides by (nodes.length - 1).",
+          "rationale": "Hardcoded coordinate arrays break track rendering and camera scroll calculation when node count != 5."
+        },
+        {
+          "narrativeId": "TYPE_SYSTEM_GATEKEEPING_UNION",
+          "affectedFiles": [
+            "src/types/chart.ts",
+            "src/types/evidence.ts",
+            "src/services/chartSourceService.ts"
+          ],
+          "legacyLogicPattern": "SheetChartConfig.pillarId: PillarCode where PillarCode = 'access' | 'equity' | 'quality' | 'resiliency' | 'governance'",
+          "decoupledEngineLogic": "nodeId: string across all chart configurations, datasets, and source registries. Functions accept fetchChartConfigsByNode(nodeId: string).",
+          "rationale": "TypeScript union gatekeeping causes compilation errors if a downstream tenant binds a chart or source to an unlisted ID."
+        },
+        {
+          "narrativeId": "STATIC_5_STAGE_TOC_ALGORITHM",
+          "affectedFiles": [
+            "src/utils/pillar-subchapters.ts",
+            "src/components/pillar/PillarSidebar.tsx"
+          ],
+          "legacyLogicPattern": "Synthesizes navigation anchors from stageLabels array ('Where We Are', etc.) and hardcoded '#pillar-evidence' anchor",
+          "decoupledEngineLogic": "Recursive Document Canvas AST Crawler: extracts Table of Contents bookmarks dynamically from document.sections.map(s => ({ id: s.id, label: s.title, number: s.number })). Zero hardcoded stage names or assumed evidence tabs.",
+          "rationale": "True document TOC must derive from the block AST, not a hardcoded 5-stage transformation formula."
+        },
+        {
+          "narrativeId": "HARDWIRED_TENANT_STORAGE_AND_BUS_NAMESPACES",
+          "affectedFiles": [
+            "src/utils/contentDb.ts",
+            "src/services/devLockService.ts",
+            "src/services/evidenceService.ts"
+          ],
+          "legacyLogicPattern": "masid_dev_lock, masid_live_content_overrides, masid-live-content-change, BroadcastChannel('masid_tab_session_dedup')",
+          "decoupledEngineLogic": "Configurable storage and event prefixes defaulting to engine_* (e.g. engine_dev_lock, engine_live_content_overrides, engine-live-content-change, BroadcastChannel('engine_tab_session_dedup')).",
+          "rationale": "Hardwired storage keys and window events cause cross-talk and mutex collisions between multiple applications running on the same origin."
+        }
+      ]
+    }
+  },
+  "aestheticCraftInvariants": {
+    "description": "Rules guaranteeing that pro-generic structural decoupling NEVER degrades visual craftsmanship.",
+    "rules": [
+      "Retain parametric cubic-Bézier SVG curve generation for the sequence track (no straight line or boring card-stack degradation)",
+      "Retain full D3-scale SVG chart studio with interactive drawer customization (Bar, Line, Donut, Scatter, Histogram, Table)",
+      "Retain 4-State Interactive Matrix on all UI primitives (Default, Hover, Active, Focus, Disabled)",
+      "Retain Universal Zero Outline Policy (no intrusive focus rings or halo borders; calm tactile depressions only)",
+      "Retain continuous-scroll scrollytelling feel with 1-page-height section budgets and hero image anchors",
+      "Retain recursive AST Document Canvas block authoring engine (Section, Subsection, Text, Photo, Gallery, Chart)",
+      "Retain Coordinator/Developer Mode dual-channel content DB (live vs draft, undo/redo, mutex lock, snapshot audit)"
+    ]
+  }
+}
