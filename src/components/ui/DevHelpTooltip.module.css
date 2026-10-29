@@ -34,7 +34,7 @@
   z-index: 9999;
   max-width: 260px;
   padding: var(--space-2) var(--space-3);
-  background: rgba(15, 23, 42, 0.92);
+  background: var(--folio-surface-tooltip);
   backdrop-filter: blur(var(--folio-backdrop-blur));
   -webkit-backdrop-filter: blur(var(--folio-backdrop-blur));
   color: var(--folio-text-inverse);
@@ -43,7 +43,7 @@
   line-height: var(--leading-normal);
   font-weight: 400;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--folio-border-inverse);
   box-shadow: var(--shadow-lg);
   pointer-events: none;
   text-align: left;

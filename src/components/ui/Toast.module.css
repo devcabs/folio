@@ -46,18 +46,18 @@
 
 /* Color Variants */
 .toastSuccess {
-  border-color: rgba(22, 163, 74, 0.3);
-  box-shadow: 0 4px 12px -2px rgba(22, 163, 74, 0.2), var(--shadow-md);
+  border-color: var(--folio-border-success);
+  box-shadow: var(--folio-shadow-success), var(--shadow-md);
 }
 
 .toastError {
-  border-color: rgba(220, 38, 38, 0.3);
-  box-shadow: 0 4px 12px -2px rgba(220, 38, 38, 0.2), var(--shadow-md);
+  border-color: var(--folio-border-error);
+  box-shadow: var(--folio-shadow-error), var(--shadow-md);
 }
 
 .toastInfo {
-  border-color: rgba(37, 99, 235, 0.3);
-  box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.2), var(--shadow-md);
+  border-color: var(--folio-border-accent-subtle);
+  box-shadow: var(--folio-shadow-accent), var(--shadow-md);
 }
 
 .iconWrapper {

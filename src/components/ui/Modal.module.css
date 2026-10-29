@@ -9,7 +9,7 @@
   width: 100vw;
   height: 100vh;
   z-index: 9000;
-  background-color: rgba(15, 23, 42, 0.45);
+  background-color: var(--folio-surface-scrim);
   backdrop-filter: blur(var(--folio-backdrop-blur));
   -webkit-backdrop-filter: blur(var(--folio-backdrop-blur));
   display: flex;

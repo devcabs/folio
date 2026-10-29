@@ -8,7 +8,7 @@
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(15, 23, 42, 0.45);
+  background-color: var(--folio-surface-scrim);
   backdrop-filter: blur(var(--folio-backdrop-blur));
   -webkit-backdrop-filter: blur(var(--folio-backdrop-blur));
   z-index: 8000;
@@ -261,7 +261,7 @@
 }
 
 .tabButton.tabCompleted {
-  border-color: rgba(22, 163, 74, 0.4);
+  border-color: var(--folio-border-success);
   color: var(--folio-success);
 }
 

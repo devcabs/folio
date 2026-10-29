@@ -13,11 +13,17 @@
   --folio-surface-muted: #f1f5f9;
   --folio-surface-glass: rgba(255, 255, 255, 0.85);
   --folio-surface-tint: rgba(15, 23, 42, 0.04);
+  --folio-surface-scrim: rgba(15, 23, 42, 0.45);
+  --folio-surface-tooltip: rgba(15, 23, 42, 0.92);
 
   --folio-border-subtle: rgba(15, 23, 42, 0.08);
   --folio-border-default: rgba(15, 23, 42, 0.14);
   --folio-border-strong: rgba(15, 23, 42, 0.22);
   --folio-border-accent: rgba(37, 99, 235, 0.4);
+  --folio-border-accent-subtle: rgba(37, 99, 235, 0.35);
+  --folio-border-inverse: rgba(255, 255, 255, 0.15);
+  --folio-border-success: rgba(22, 163, 74, 0.35);
+  --folio-border-error: rgba(220, 38, 38, 0.35);
 
   --folio-backdrop-blur: 16px;
 
@@ -146,4 +152,7 @@
   --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
   --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
   --shadow-glass: 0 8px 32px rgba(15, 23, 42, 0.08);
+  --folio-shadow-success: 0 4px 12px -2px rgba(22, 163, 74, 0.2);
+  --folio-shadow-error: 0 4px 12px -2px rgba(220, 38, 38, 0.2);
+  --folio-shadow-accent: 0 4px 12px -2px rgba(37, 99, 235, 0.2);
 }
