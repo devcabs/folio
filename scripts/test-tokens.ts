@@ -1,6 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+const rootDir = path.resolve(__dirname, '../');
+
 function findCssModuleFiles(dir: string): string[] {
   let results: string[] = [];
   if (!fs.existsSync(dir)) return results;
@@ -20,14 +22,12 @@ function findCssModuleFiles(dir: string): string[] {
 const HEX_COLOR_REGEX = /#[0-9a-fA-F]{3,8}\b/g;
 const RAW_RGBA_REGEX = /rgba?\([^)]+\)/g;
 
-// Load banned terms from the fixture dictionary dynamically
-const fixturePath = path.resolve(process.cwd(), 'tests/fixtures/domain-dictionary.json');
+const fixturePath = path.join(rootDir, 'tests/fixtures/domain-dictionary.json');
 let bannedColorRegex: RegExp;
 if (fs.existsSync(fixturePath)) {
   const dict = JSON.parse(fs.readFileSync(fixturePath, 'utf-8'));
   bannedColorRegex = new RegExp(dict.bannedTermsRegex, 'i');
 } else {
-  // Fallback pattern if fixture missing
   bannedColorRegex = /banned-token-pattern-fallback/i;
 }
 
@@ -35,6 +35,7 @@ const REQUIRED_CORE_TOKENS = [
   '--folio-surface-canvas',
   '--folio-surface-card',
   '--folio-surface-glass',
+  '--folio-surface-scrim',
   '--folio-text-primary',
   '--folio-text-secondary',
   '--folio-text-muted',
@@ -56,8 +57,7 @@ let failureCount = 0;
 
 console.log('--- @folio/engine Token Purity Audit ---');
 
-// 1. Audit tokens.css for banned domain color names
-const tokensPath = path.resolve(process.cwd(), 'src/styles/tokens.css');
+const tokensPath = path.join(rootDir, 'src/styles/tokens.css');
 if (!fs.existsSync(tokensPath)) {
   console.error(`❌ Missing tokens file: ${tokensPath}`);
   process.exit(1);
@@ -78,7 +78,6 @@ tokenLines.forEach((line, idx) => {
   }
 });
 
-// 2. Verify all required core tokens are declared
 REQUIRED_CORE_TOKENS.forEach((token) => {
   if (!tokensContent.includes(token)) {
     console.error(`❌ Missing required design token: "${token}"`);
@@ -86,10 +85,9 @@ REQUIRED_CORE_TOKENS.forEach((token) => {
   }
 });
 
-// 3. Audit all CSS modules for hardcoded colors
-const cssModuleFiles = findCssModuleFiles(path.resolve(process.cwd(), 'src'));
+const cssModuleFiles = findCssModuleFiles(path.join(rootDir, 'src'));
 for (const file of cssModuleFiles) {
-  const relPath = path.relative(process.cwd(), file);
+  const relPath = path.relative(rootDir, file);
   const content = fs.readFileSync(file, 'utf-8');
   const lines = content.split('\n');
 

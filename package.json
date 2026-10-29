@@ -42,8 +42,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:lib": "vite build -c vite.config.lib.ts && tsc -p tsconfig.lib.json",
+    "test": "vitest run",
     "test:purity": "vitest run tests/purity",
-    "test:tokens": "tsx scripts/test-tokens.ts"
+    "test:tokens": "vitest run tests/purity/token-purity.test.ts",
+    "build:lib": "vitest run tests/purity && vite build -c vite.config.lib.ts && tsc -p tsconfig.lib.json"
   }
 }
