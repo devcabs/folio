@@ -1,0 +1,52 @@
+.container {
+  --shape-size: 42px;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--shape-size);
+  height: var(--shape-size);
+  flex-shrink: 0;
+  transform-origin: center;
+  color: var(--folio-accent);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.sizeSm {
+  --shape-size: 32px;
+}
+
+.sizeMd {
+  --shape-size: 42px;
+}
+
+.sizeLg {
+  --shape-size: 54px;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: block;
+}
+
+.path {
+  transition: stroke var(--duration-fast) var(--ease-out);
+}
+
+.container:hover {
+  transform: scale(1.06);
+}
+
+.letter {
+  position: absolute;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: calc(var(--shape-size) * 0.44);
+  color: currentColor;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}

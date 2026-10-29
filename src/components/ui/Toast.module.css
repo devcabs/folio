@@ -1,0 +1,164 @@
+/**
+ * Toast.module.css — @folio/engine
+ * Lightweight floating feedback capsule strictly adhering to Universal Zero Outline Policy.
+ */
+
+.toastPortal {
+  position: fixed;
+  top: var(--space-4);
+  left: var(--space-4);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  background: var(--folio-surface-card);
+  border: 1px solid var(--folio-border-subtle);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-lg);
+  color: var(--folio-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-small);
+  font-weight: 500;
+  line-height: var(--leading-tight);
+  animation: slideDownFade var(--duration-normal) var(--ease-out);
+  max-width: min(380px, calc(100vw - var(--space-8)));
+  pointer-events: auto;
+}
+
+@supports (top: env(safe-area-inset-top)) {
+  .toastPortal {
+    top: max(var(--space-4), env(safe-area-inset-top));
+    left: max(var(--space-4), env(safe-area-inset-left));
+  }
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Color Variants */
+.toastSuccess {
+  border-color: rgba(22, 163, 74, 0.3);
+  box-shadow: 0 4px 12px -2px rgba(22, 163, 74, 0.2), var(--shadow-md);
+}
+
+.toastError {
+  border-color: rgba(220, 38, 38, 0.3);
+  box-shadow: 0 4px 12px -2px rgba(220, 38, 38, 0.2), var(--shadow-md);
+}
+
+.toastInfo {
+  border-color: rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.2), var(--shadow-md);
+}
+
+.iconWrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.successIcon {
+  background-color: var(--folio-success-tint);
+  color: var(--folio-success);
+}
+
+.errorIcon {
+  background-color: var(--folio-error-tint);
+  color: var(--folio-error);
+}
+
+.infoIcon {
+  background-color: var(--folio-accent-tint);
+  color: var(--folio-accent);
+}
+
+.svgIcon {
+  width: 11px;
+  height: 11px;
+}
+
+.message {
+  color: var(--folio-text-primary);
+  font-size: var(--text-small);
+  letter-spacing: -0.01em;
+  font-weight: 500;
+}
+
+.dismissButton {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--folio-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: var(--radius-pill);
+  margin-left: var(--space-1);
+  transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+
+.dismissButton:hover {
+  color: var(--folio-text-primary);
+  background-color: var(--folio-surface-muted);
+  outline: none;
+}
+
+.dismissButton:active {
+  outline: none;
+  transform: translateY(1px);
+}
+
+.dismissButton:focus-visible {
+  outline: none;
+  background-color: var(--folio-surface-muted);
+}
+
+.actionButton {
+  margin-left: var(--space-1);
+  margin-right: var(--space-1);
+  padding: 2px 8px;
+  background: var(--folio-surface-card);
+  color: var(--folio-primary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--folio-border-default);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.actionButton:hover {
+  background-color: var(--folio-surface-muted);
+  color: var(--folio-primary-hover);
+  outline: none;
+}
+
+.actionButton:active {
+  outline: none;
+  transform: translateY(1px);
+}
+
+.actionButton:focus-visible {
+  outline: none;
+}

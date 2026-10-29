@@ -1,0 +1,63 @@
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin: 0 0 0 3px;
+  border: none;
+  background: transparent;
+  color: var(--folio-text-muted);
+  cursor: default;
+  vertical-align: middle;
+  line-height: 1;
+  outline: none;
+  transition: color var(--duration-fast) var(--ease-out);
+  user-select: none;
+}
+
+.trigger:hover,
+.trigger:focus-visible {
+  color: var(--folio-accent);
+  outline: none;
+}
+
+.icon {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+
+.bubble {
+  position: fixed;
+  z-index: 9999;
+  max-width: 260px;
+  padding: var(--space-2) var(--space-3);
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(var(--folio-backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--folio-backdrop-blur));
+  color: var(--folio-text-inverse);
+  font-family: var(--font-sans);
+  font-size: var(--text-small);
+  line-height: var(--leading-normal);
+  font-weight: 400;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  text-align: left;
+  animation: tooltipFadeIn var(--duration-fast) var(--ease-out);
+  word-wrap: break-word;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

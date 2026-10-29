@@ -1,0 +1,138 @@
+/**
+ * Modal.module.css — @folio/engine
+ * Accessible modal overlay strictly adhering to Universal Zero Outline Policy.
+ */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9000;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(var(--folio-backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--folio-backdrop-blur));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: fadeIn var(--duration-fast) var(--ease-out);
+}
+
+.modalCard {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: auto;
+  background-color: var(--folio-surface-card);
+  border: 1px solid var(--folio-border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  animation: modalEnter var(--duration-normal) var(--ease-out);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  color: var(--folio-text-primary);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+
+.closeButton {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  color: var(--folio-text-muted);
+  font-size: var(--text-small);
+  cursor: pointer;
+  outline: none;
+  transition: all var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+
+.closeButton:hover {
+  background-color: var(--folio-surface-muted);
+  color: var(--folio-text-primary);
+  border-color: var(--folio-border-subtle);
+}
+
+.closeButton:focus-visible {
+  outline: none;
+  border-color: var(--folio-border-subtle);
+  background-color: var(--folio-surface-muted);
+}
+
+.absoluteCloseButton {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  color: var(--folio-text-muted);
+  font-size: var(--text-small);
+  cursor: pointer;
+  outline: none;
+  transition: all var(--duration-fast) var(--ease-out);
+  z-index: 1;
+}
+
+.absoluteCloseButton:hover {
+  background-color: var(--folio-surface-muted);
+  color: var(--folio-text-primary);
+  border-color: var(--folio-border-subtle);
+}
+
+.absoluteCloseButton:focus-visible {
+  outline: none;
+  border-color: var(--folio-border-subtle);
+  background-color: var(--folio-surface-muted);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

@@ -1,0 +1,188 @@
+/**
+ * Button.module.css — @folio/engine
+ * Core architectural button system with strict 4-state matrix and zero outline policy.
+ */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  min-height: unset;
+  min-width: unset;
+  box-sizing: border-box;
+  white-space: nowrap;
+  transition: transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.btnContent {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: inherit;
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Sizes
+   -------------------------------------------------------------------------- */
+.sizeXs {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 10px;
+  font-size: var(--text-small);
+  gap: var(--space-1);
+  line-height: 1;
+}
+
+.sizeSm {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 16px;
+  font-size: var(--text-caption);
+  gap: var(--space-2);
+  line-height: 1;
+}
+
+.sizeMd {
+  height: 44px;
+  min-height: 44px;
+  padding: 0 20px;
+  font-size: var(--text-body);
+  gap: var(--space-3);
+  line-height: 1;
+}
+
+.sizeLg {
+  height: 50px;
+  min-height: 50px;
+  padding: 0 26px;
+  font-size: var(--text-subhead);
+  gap: var(--space-4);
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Variants
+   -------------------------------------------------------------------------- */
+
+/* Variant: Primary */
+.variantPrimary {
+  background: var(--folio-primary);
+  color: var(--folio-text-inverse);
+  box-shadow: var(--shadow-sm);
+}
+
+.variantPrimary:hover {
+  background: var(--folio-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.variantPrimary:active {
+  background: var(--folio-primary-active);
+  transform: translateY(1px);
+}
+
+/* Variant: Action (Accent Emphasis) */
+.variantAction {
+  background: var(--folio-accent);
+  color: var(--folio-text-inverse);
+  box-shadow: var(--shadow-sm);
+}
+
+.variantAction:hover {
+  background: var(--folio-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.variantAction:active {
+  background: var(--folio-accent-active);
+  transform: translateY(1px);
+}
+
+/* Variant: Secondary */
+.variantSecondary {
+  background: var(--folio-surface-card);
+  color: var(--folio-text-primary);
+  border-color: var(--folio-border-default);
+  box-shadow: var(--shadow-sm);
+}
+
+.variantSecondary:hover {
+  background: var(--folio-surface-muted);
+  border-color: var(--folio-border-strong);
+  transform: translateY(-1px);
+}
+
+.variantSecondary:active {
+  transform: translateY(1px);
+}
+
+/* Variant: Outline */
+.variantOutline {
+  background: transparent;
+  color: var(--folio-text-primary);
+  border-color: var(--folio-border-default);
+}
+
+.variantOutline:hover {
+  background: var(--folio-surface-tint);
+  border-color: var(--folio-border-strong);
+  transform: translateY(-1px);
+}
+
+.variantOutline:active {
+  transform: translateY(1px);
+}
+
+/* Variant: Ghost */
+.variantGhost {
+  background: transparent;
+  color: var(--folio-text-secondary);
+  border-color: transparent;
+}
+
+.variantGhost:hover {
+  background: var(--folio-surface-tint);
+  color: var(--folio-text-primary);
+}
+
+.variantGhost:active {
+  transform: translateY(1px);
+}
+
+/* --------------------------------------------------------------------------
+   Universal Zero Outline Policy & Disabled States
+   -------------------------------------------------------------------------- */
+.btn:focus,
+.btn:focus-visible,
+.btn:active {
+  outline: none;
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
+}
