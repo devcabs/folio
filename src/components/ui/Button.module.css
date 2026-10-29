@@ -30,7 +30,7 @@
 
 .btnContent {
   position: relative;
-  z-index: 2;
+  z-index: var(--z-content);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -43,8 +43,8 @@
    Sizes
    -------------------------------------------------------------------------- */
 .sizeXs {
-  height: 26px;
-  min-height: 26px;
+  height: var(--size-control-xs);
+  min-height: var(--size-control-xs);
   padding: 0 10px;
   font-size: var(--text-small);
   gap: var(--space-1);
@@ -52,8 +52,8 @@
 }
 
 .sizeSm {
-  height: 36px;
-  min-height: 36px;
+  height: var(--size-control-sm);
+  min-height: var(--size-control-sm);
   padding: 0 16px;
   font-size: var(--text-caption);
   gap: var(--space-2);
@@ -61,8 +61,8 @@
 }
 
 .sizeMd {
-  height: 44px;
-  min-height: 44px;
+  height: var(--size-control-md);
+  min-height: var(--size-control-md);
   padding: 0 20px;
   font-size: var(--text-body);
   gap: var(--space-3);
@@ -70,8 +70,8 @@
 }
 
 .sizeLg {
-  height: 50px;
-  min-height: 50px;
+  height: var(--size-control-lg);
+  min-height: var(--size-control-lg);
   padding: 0 26px;
   font-size: var(--text-subhead);
   gap: var(--space-4);

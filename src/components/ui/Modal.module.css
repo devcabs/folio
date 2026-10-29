@@ -8,7 +8,7 @@
   inset: 0;
   width: 100vw;
   height: 100vh;
-  z-index: 9000;
+  z-index: var(--z-modal);
   background-color: var(--folio-surface-scrim);
   backdrop-filter: blur(var(--folio-backdrop-blur));
   -webkit-backdrop-filter: blur(var(--folio-backdrop-blur));
@@ -25,7 +25,7 @@
 .modalCard {
   position: relative;
   width: 100%;
-  max-width: 480px;
+  max-width: var(--width-modal-max);
   margin: auto;
   background-color: var(--folio-surface-card);
   border: 1px solid var(--folio-border-default);
@@ -57,8 +57,8 @@
 }
 
 .closeButton {
-  width: 28px;
-  height: 28px;
+  width: var(--size-btn-close);
+  height: var(--size-btn-close);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -89,8 +89,8 @@
   position: absolute;
   top: var(--space-4);
   right: var(--space-4);
-  width: 28px;
-  height: 28px;
+  width: var(--size-btn-close);
+  height: var(--size-btn-close);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -102,7 +102,7 @@
   cursor: pointer;
   outline: none;
   transition: all var(--duration-fast) var(--ease-out);
-  z-index: 1;
+  z-index: var(--z-raised);
 }
 
 .absoluteCloseButton:hover {

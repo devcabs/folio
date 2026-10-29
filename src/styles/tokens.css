@@ -98,6 +98,7 @@
   --text-body: 1rem;
   --text-caption: 0.875rem;
   --text-small: 0.75rem;
+  --text-micro: 0.6875rem; /* 11px */
 
   --leading-tight: 1.15;
   --leading-normal: 1.5;
@@ -110,7 +111,9 @@
   /* ==========================================================================
      6. Modular Spacing & Geometry Scale (Strict 4px/8px Scale)
      ========================================================================== */
+  --space-0-5: 2px;
   --space-1: 4px;
+  --space-1-5: 6px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
@@ -138,7 +141,46 @@
   --radius-pill: 9999px;
 
   /* ==========================================================================
-     7. Motion & Elevation
+     7. Semantic Z-Index Layering Scale
+     ========================================================================== */
+  --z-base: 0;
+  --z-raised: 1;
+  --z-content: 2;
+  --z-sticky: 100;
+  --z-drawer: 8000;
+  --z-drawer-content: 8001;
+  --z-modal: 9000;
+  --z-topmost: 9999;
+
+  /* ==========================================================================
+     8. Control & Icon Dimension Scale
+     ========================================================================== */
+  --size-control-xs: 26px;
+  --size-control-sm: 36px;
+  --size-control-md: 44px;
+  --size-control-lg: 50px;
+
+  --size-icon-xs: 11px;
+  --size-icon-sm: 13px;
+  --size-icon-sm-trigger: 14px;
+  --size-icon-md: 18px;
+  --size-icon-lg: 24px;
+
+  --size-btn-dismiss: 16px;
+  --size-btn-close: 28px;
+  --size-btn-close-lg: 36px;
+  --size-badge-tab: 18px;
+
+  --width-modal-max: 480px;
+  --width-tooltip-max: 260px;
+  --width-toast-max: 380px;
+  --width-drawer-sm: 380px;
+  --width-drawer-md: 540px;
+  --width-drawer-lg: 720px;
+  --width-drawer-xl: 960px;
+
+  /* ==========================================================================
+     9. Motion & Elevation
      ========================================================================== */
   --duration-fast: 150ms;
   --duration-normal: 250ms;

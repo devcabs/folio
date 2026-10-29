@@ -2,10 +2,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: var(--size-icon-sm-trigger);
+  height: var(--size-icon-sm-trigger);
   padding: 0;
-  margin: 0 0 0 3px;
+  margin-left: var(--space-0-5);
   border: none;
   background: transparent;
   color: var(--folio-text-muted);
@@ -24,15 +24,15 @@
 }
 
 .icon {
-  width: 13px;
-  height: 13px;
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
   display: block;
 }
 
 .bubble {
   position: fixed;
-  z-index: 9999;
-  max-width: 260px;
+  z-index: var(--z-topmost);
+  max-width: var(--width-tooltip-max);
   padding: var(--space-2) var(--space-3);
   background: var(--folio-surface-tooltip);
   backdrop-filter: blur(var(--folio-backdrop-blur));

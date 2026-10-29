@@ -7,11 +7,11 @@
   position: fixed;
   top: var(--space-4);
   left: var(--space-4);
-  z-index: 9999;
+  z-index: var(--z-topmost);
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 6px var(--space-3);
+  padding: var(--space-1-5) var(--space-3);
   background: var(--folio-surface-card);
   border: 1px solid var(--folio-border-subtle);
   border-radius: var(--radius-pill);
@@ -22,7 +22,7 @@
   font-weight: 500;
   line-height: var(--leading-tight);
   animation: slideDownFade var(--duration-normal) var(--ease-out);
-  max-width: min(380px, calc(100vw - var(--space-8)));
+  max-width: min(var(--width-toast-max), calc(100vw - var(--space-8)));
   pointer-events: auto;
 }
 
@@ -64,8 +64,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: var(--size-icon-md);
+  height: var(--size-icon-md);
   border-radius: var(--radius-pill);
   flex-shrink: 0;
 }
@@ -86,14 +86,14 @@
 }
 
 .svgIcon {
-  width: 11px;
-  height: 11px;
+  width: var(--size-icon-xs);
+  height: var(--size-icon-xs);
 }
 
 .message {
   color: var(--folio-text-primary);
   font-size: var(--text-small);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-tight);
   font-weight: 500;
 }
 
@@ -106,10 +106,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: var(--size-btn-dismiss);
+  height: var(--size-btn-dismiss);
   padding: 0;
-  font-size: 11px;
+  font-size: var(--text-micro);
   line-height: 1;
   border-radius: var(--radius-pill);
   margin-left: var(--space-1);
@@ -135,11 +135,11 @@
 .actionButton {
   margin-left: var(--space-1);
   margin-right: var(--space-1);
-  padding: 2px 8px;
+  padding: var(--space-0-5) var(--space-2);
   background: var(--folio-surface-card);
   color: var(--folio-primary);
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--text-micro);
   font-weight: 600;
   border: 1px solid var(--folio-border-default);
   border-radius: var(--radius-pill);
