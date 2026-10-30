@@ -1,0 +1,424 @@
+/**
+ * Design System Tokens — Folio Engine
+ * the host application
+ * Aesthetic: Modern Academic Editorial (portrait_inspiration Shell Architecture)
+ * 
+ * Consolidated Semantic Token Standard:
+ * - 5 Typographic Semantic Roles
+ * - Spatial Intent Spacing (Padding, Gap, Flow)
+ * - 3 Structural Radii (Control, Surface, Pill)
+ * - 4 Semantic Elevation Layers (+ Gold Glow)
+ * - 4 Distinct Surfaces
+ */
+
+:root {
+   /* ==========================================================================
+     1. Surfaces & Canvas
+     ========================================================================== */
+   --bg-canvas: #fcfbfa;
+   /* Tactile off-white editorial background */
+   --bg-surface: #ffffff;
+   /* Crisp pure white for cards & bento boxes */
+   --bg-surface-muted: #f7f5f2;
+   /* Subtle secondary card & neutral pill background */
+   --bg-surface-glass: rgba(255, 255, 255, 0.92);
+   /* Floating glass capsule navbar & pill bar */
+   --overlay-scrim: rgba(15, 23, 42, 0.45);
+   /* Deep vignette overlay on photographic media */
+   --overlay-overflow: rgba(15, 23, 42, 0.62);
+   --overlay-overflow-hover: rgba(15, 23, 42, 0.5);
+   --text-shadow-contrast: 0 2px 10px rgba(0, 0, 0, 0.6);
+   --lightbox-scrim: rgba(28, 25, 23, 0.92);
+   /* Full-screen accessible lightbox dark scrim */
+   --lightbox-chrome-bg: rgba(28, 25, 23, 0.75);
+   /* Frosted header and footer chrome background */
+   --lightbox-control-bg: rgba(255, 255, 255, 0.12);
+   /* Translucent control buttons inside lightbox */
+   --lightbox-control-hover: rgba(255, 255, 255, 0.22);
+   /* Control button hover state inside lightbox */
+   --lightbox-control-active: rgba(255, 255, 255, 0.28);
+   /* Control button active state inside lightbox */
+   --lightbox-strip-bg: rgba(20, 18, 16, 0.65);
+   /* Translucent grounding container background for photo strip */
+   --lightbox-thumb-bg: rgba(255, 255, 255, 0.08);
+   /* Resting placeholder background for thumbnails */
+   --lightbox-thumb-border: rgba(255, 255, 255, 0.2);
+   /* Subtle resting perimeter border for unselected thumbnails */
+   --lightbox-thumb-active-border: var(--folio-accent);
+   /* Sunburst accent border highlight for active photo thumbnail */
+   --lightbox-thumb-active-glow: rgba(245, 158, 11, 0.35);
+   /* Soft golden illumination on active photo thumbnail */
+   --backdrop-blur: 16px;
+   /* Universal frosted glass backdrop blur */
+
+   --ambient-glow-accent: rgba(245, 158, 11, 0.09);
+   --ambient-glow-primary: rgba(136, 19, 55, 0.06);
+
+   --border-subtle: rgba(136, 19, 55, 0.08);
+   /* Low-contrast structural border tinted with primary */
+   --border-default: rgba(136, 19, 55, 0.14);
+   --border-strong: rgba(136, 19, 55, 0.22);
+   --border-focus: rgba(245, 158, 11, 0.6);
+   /* Golden sunburst subtle accent / border tint */
+   --border-hero-card: rgba(245, 158, 11, 0.18);
+   /* Perimeter border for hero background card */
+   --focus-ring-primary: rgba(136, 19, 55, 0.15);
+   /* [Design System Rule]: Universal Zero Outline Policy — never applied as an outline ring on active, selected, or focused components; preserve calm natural resting borders with outline: none */
+   --color-separator: #cbd5e1;
+
+   /* ==========================================================================
+     2. Text & Contrast Hierarchy (WCAG 2.1 AA Compliant)
+     ========================================================================== */
+   --text-primary: #2a0812;
+   /* Deep academic primary ink (>12:1 contrast on canvas) */
+   --text-secondary: #4b5563;
+   /* Refined slate body (>7:1 contrast on canvas) */
+   --text-muted: #78716c;
+   /* Captions, timestamps, and metadata (>4.5:1 contrast) */
+   --text-inverse: #ffffff;
+   /* Pure white text on brand primary/accent buttons */
+   --text-kicker-blue: #385d77;
+   /* Academic slate-blue for kicker badge */
+   --text-nav-active: #111827;
+   /* High contrast dark hover for navigation */
+
+   /* ==========================================================================
+     3. Institutional Brand Identity
+     ========================================================================== */
+   --folio-primary: #881337;
+   /* Official Primary */
+   --brand-primary-dark: #800020;
+   /* Deep burgundy shade */
+   --brand-primary-tint: #ffe4e6;
+   /* Soft pill/badge background */
+   --folio-accent: #f59e0b;
+   /* Official Sunburst Golden Yellow */
+   --brand-accent-dark: #d97706;
+   /* High-contrast amber text alternative */
+   --brand-accent-tint: #fef3c7;
+   /* Warm golden accent wash */
+
+   /* ==========================================================================
+     4. The 5 Logo-Derived Node Node Colors
+     ========================================================================== */
+   /* Node 1 - Open Book */
+   --color-node-1: #0284c7;
+   --color-node-1-tint: #e0f2fe;
+   --color-node-1-border: rgba(2, 132, 199, 0.2);
+
+   /* Node 2 - Core Maroon Field */
+   --color-node-2: #881337;
+   --color-node-2-tint: #ffe4e6;
+   --color-node-2-border: rgba(136, 19, 55, 0.2);
+
+   /* Node 3 - Flaming Torch */
+   --color-node-3: #f59e0b;
+   --color-node-3-tint: #fef3c7;
+   --color-node-3-border: rgba(245, 158, 11, 0.2);
+
+   /* Node 4 - Protective Laurel */
+   --color-node-4: #15803d;
+   --color-node-4-tint: #dcfce7;
+   --color-node-4-border: rgba(21, 128, 61, 0.2);
+   --status-glow-green: rgba(21, 128, 61, 0.4);
+   --status-glow-green-fade: rgba(21, 128, 61, 0);
+
+   /* Node 5 - Sunburst Rays */
+   --color-node-5: #d97706;
+   --color-node-5-tint: #ffedd5;
+   --color-node-5-border: rgba(217, 119, 6, 0.2);
+
+   /* ==========================================================================
+     4b. Chart Engine Palette & Contrast Tiers (Task 7.7)
+     ========================================================================== */
+   /* Replacement for duplicate 6: Academic Indigo */
+   --color-chart-indigo: #4f46e5;
+   --color-chart-indigo-dark: #312e81;
+   --color-chart-indigo-tint: #e0e7ff;
+
+   /* Replacement for duplicate 7: Academic Teal */
+   --color-chart-teal: #0d9488;
+   --color-chart-teal-dark: #134e4a;
+   --color-chart-teal-tint: #ccfbf1;
+
+   /* Expanded Bright Academic Chart Colors (Prioritizing vibrant hues over dull darks) */
+   --color-chart-cyan: #06b6d4;
+   --color-chart-cyan-tint: #cffafe;
+   --color-chart-purple: #9333ea;
+   --color-chart-purple-tint: #f3e8ff;
+   --color-chart-rose: #e11d48;
+   --color-chart-rose-tint: #ffe4e6;
+   --color-chart-coral: #ea580c;
+   --color-chart-coral-tint: #ffedd5;
+   --color-chart-lime: #65a30d;
+   --color-chart-lime-tint: #ecfccb;
+   --color-chart-blue: #2563eb;
+   --color-chart-blue-tint: #dbeafe;
+   --color-chart-violet: #7c3aed;
+   --color-chart-violet-tint: #ede9fe;
+
+   /* Dedicated Super-Dark Contrast Variants (for >5 chart elements) */
+   --color-chart-primary-dark: #5b061c;
+   --color-chart-accent-dark: #78350f;
+   --color-chart-blue-dark: #0c4a6e;
+   --color-chart-green-dark: #052e16;
+   --color-chart-amber-dark: #451a03;
+
+   /* ==========================================================================
+     5. Institutional Metallic Gradients
+     ========================================================================== */
+   /* Individual Metallic Stop Tokens (for SVG & UI) */
+   --metallic-stop-deep: #5b061c;
+   --metallic-stop-bronze: #b45309;
+   --metallic-stop-primary: #881337;
+   --metallic-stop-sheen: #fde68a;
+   --metallic-stop-accent: #f59e0b;
+   --metallic-stop-shadow: #700d25;
+   --metallic-stop-amber: #d97706;
+
+   /* Dimensional Metallic Maroon & Gold (Velvet Maroon -> Bronze -> Specular Gold -> Sunburst Gold) */
+   --gradient-brand: linear-gradient(
+     165deg,
+     var(--metallic-stop-deep) 10%,
+     var(--metallic-stop-bronze) 20%,
+     var(--metallic-stop-primary) 42%,
+     var(--metallic-stop-sheen) 58%,
+     var(--metallic-stop-accent) 72%,
+     var(--metallic-stop-shadow) 85%,
+     var(--metallic-stop-amber) 100%
+   );
+
+   /* Metallic Conic Gleam (Dual specular accent highlights sweeping across institutional primary) */
+   --gradient-conic: conic-gradient(
+     from 0deg,
+     var(--metallic-stop-deep) 0deg,
+     var(--metallic-stop-primary) 40deg,
+     var(--metallic-stop-bronze) 80deg,
+     var(--metallic-stop-sheen) 115deg,
+     var(--metallic-stop-accent) 145deg,
+     var(--metallic-stop-deep) 180deg,
+     var(--metallic-stop-primary) 220deg,
+     var(--metallic-stop-bronze) 260deg,
+     var(--metallic-stop-sheen) 295deg,
+     var(--metallic-stop-accent) 325deg,
+     var(--metallic-stop-deep) 360deg
+   );
+
+   /* Aliases for backwards compatibility */
+   --gradient-engine: var(--gradient-brand);
+   --gradient-engine-text: var(--gradient-brand);
+   --gradient-engine-conic: var(--gradient-conic);
+
+   /* Hero Background Card — Portrait.so multi-radial mesh pattern:
+      Soft brand-tinted blobs at top corners bleeding into pure white.
+      Equivalent to portrait.so's pastel rainbow mesh, adapted to primary × accent.
+      Card stays LIGHT throughout — no dark base. */
+   --gradient-hero-card-top: rgba(136, 19, 55, 0.09);
+   --gradient-hero-card: 
+     radial-gradient(ellipse 85% 55% at 18% -8%, rgba(136, 19, 55, 0.10) 0%, transparent 62%),
+     radial-gradient(ellipse 70% 50% at 82% -8%, rgba(245, 158, 11, 0.13) 0%, transparent 58%),
+     radial-gradient(ellipse 55% 35% at 50%  2%, rgba(254, 243, 199, 0.22) 0%, transparent 52%),
+     #ffffff;
+   --gradient-accent-primary: var(--gradient-hero-card);
+ }
+
+
+
+ :root {
+
+   /* ==========================================================================
+     6. Typography System (5 Semantic Roles)
+     ========================================================================== */
+   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+   --font-serif: var(--font-display);
+   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+   --font-body: var(--font-sans);
+   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+   --tracking-tight: -0.025em;
+   /* -2.5% tracking for editorial elegance */
+   --leading-tight: 1.15;
+   /* Compact headline line-height */
+   --leading-snug: 1.25;
+   /* Subtitle line-height */
+   --leading-normal: 1.55;
+   /* Body narrative line-height */
+
+   /* The 5 Semantic Font Size Roles */
+   --text-display: clamp(2.25rem, 5vw + 0.5rem, 3.75rem);
+   /* Hero / Primary page anchor */
+   --text-display-mobile: 2.1rem;
+   /* Hero display floor override for <640px breakpoint */
+   --text-subtitle-hero: clamp(1rem, 1.3vw, 1.15rem);
+   /* Hero narrative subtitle — fluid between body and subhead */
+   --text-title: clamp(1.35rem, 2.5vw + 0.3rem, 1.85rem);
+   /* Section headings & roadmap nodes */
+   --text-subhead: 1.125rem;
+   /* Card titles & lead narrative */
+   --text-body: 1rem;
+   /* Standard body, nav links & buttons */
+   --text-caption: 0.8125rem;
+   /* Metadata, badges, kickers, timestamps */
+   --text-caption-sm: 0.75rem;
+   /* Micro captions, subtle datestamps */
+
+   /* ==========================================================================
+     7. Spacing System (Spatial Intent Semantics)
+     ========================================================================== */
+   /* Inset / Padding (Internal breathing room inside boxes) */
+   --space-pad-control-y: 6px;
+   --space-pad-control-x: 16px;
+   --space-pad-surface: 20px;
+   /* Cards, bento boxes */
+   --space-pad-container: 32px;
+   /* Major sections, container padding */
+
+   /* Inline / Gap (Separation between adjacent siblings in a row or flex) */
+   --space-gap-tight: 4px;
+   /* Micro-separation: icon + label */
+   --space-gap-inline: 8px;
+   /* Sibling items: tags, badges, pill actions */
+   --space-gap-layout: 16px;
+   /* Grid columns, card internal layout gaps */
+   --space-gap-wide: 24px;
+   /* Wide layout modules, header item separation */
+   --space-gap-editorial: 48px;
+   /* Major editorial split: photo bay to text columns */
+
+   /* Stack / Flow (Vertical layout rhythm between blocks) */
+   --space-flow-tight: 8px;
+   /* Kicker to title, label to input */
+   --space-flow-block: 16px;
+   /* Paragraph to paragraph, card gap */
+   --space-flow-layout: 24px;
+   /* Section-level content separation */
+   --space-flow-section: 48px;
+   /* Major page fold separation */
+   --space-flow-hero: 80px;
+   /* Large hero vertical padding */
+
+   /* Canonical Layout Widths (AppHeader, Content Area, Breadcrumbs & Footer Parity) */
+   --layout-max-width: 1240px;
+   --layout-gutter-desktop: var(--space-gap-wide);
+   --layout-gutter-mobile: var(--space-gap-layout);
+
+   /* ==========================================================================
+     8. Geometry & Border Radii (3 Structural Roles)
+     ========================================================================== */
+   --radius-control: 8px;
+   /* Buttons, inputs, small tags, tooltips */
+   --radius-surface: 20px;
+   /* Bento cards, roadmap nodes, containers */
+   --radius-full: 9999px;
+   /* Capsule navbar, status pills, round avatars */
+   --radius-pill: var(--radius-full);
+   /* Canonical pill token alias */
+   --radius-2xl: 28px;
+   --radius-3xl: 36px;
+   --radius-card-hero: var(--radius-3xl);
+
+   /* Button geometry */
+   --btn-min-height: 44px;
+
+   /* ==========================================================================
+     9. Elevation & Soft Depth (4 Semantic Layers + Gold Glow)
+     ========================================================================== */
+   --elevation-flat: 0 1px 2px rgba(136, 19, 55, 0.05);
+   /* Border-reinforced subtle lift */
+   --elevation-raised: 0 2px 8px -2px rgba(136, 19, 55, 0.08), 0 1px 3px rgba(0, 0, 0, 0.03);
+   /* Interactive controls & pills */
+   --elevation-raised-hover: 0 4px 14px -2px rgba(136, 19, 55, 0.12);
+   /* Lift on hover */
+   --elevation-overlay: 0 4px 20px -2px rgba(76, 5, 25, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
+   /* Floating navbar, cards */
+   --elevation-modal: 0 20px 48px -10px rgba(59, 7, 18, 0.16);
+   /* Takeover drawers, expanded pages */
+   --elevation-glow-accent: 0 0 24px rgba(245, 158, 11, 0.25);
+   /* Golden sunburst accent glow */
+   --shadow-hero-card: 0 4px 28px -4px rgba(136, 19, 55, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+   /* Tactile canvas card depth with specular highlight */
+
+   /* ==========================================================================
+     10. Motion & Interactive Curves
+     ========================================================================== */
+   --duration-fast: 150ms;
+   --duration-normal: 250ms;
+   --duration-slow: 400ms;
+   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+   /* ==========================================================================
+     11. Scale Aliases & System Bridges
+     ========================================================================== */
+   --bg-surface-elevated: var(--bg-surface);
+   --text-h1: var(--text-display);
+   --text-h2: var(--text-title);
+   --text-h3: var(--text-subhead);
+   --text-body-lg: 1.125rem;
+   --text-body-sm: 0.875rem;
+   --text-xs: var(--text-caption-sm);
+   --text-sm: var(--text-caption);
+   --font-size-xs: var(--text-caption-sm);
+   --font-size-sm: var(--text-body-sm);
+   --font-size-base: var(--text-body);
+
+   --space-0-5: 2px;
+   --space-1: 4px;
+   --space-1-5: 6px;
+   --space-2: 8px;
+   --space-3: 12px;
+   --space-4: 16px;
+   --space-5: 20px;
+   --space-6: 24px;
+   --space-8: 32px;
+   --space-10: 40px;
+   --space-12: 48px;
+   --space-16: 64px;
+
+   --radius-sm: 4px;
+   --radius-md: 8px;
+   --radius-lg: 16px;
+   --radius-xl: 24px;
+
+   --btn-padding-y: 10px;
+   --btn-padding-x: 24px;
+
+   --shadow-sm: var(--elevation-flat);
+   --shadow-card: var(--elevation-raised);
+   --shadow-elevated: var(--elevation-overlay);
+   --shadow-lg: var(--elevation-overlay);
+   --shadow-modal: var(--elevation-modal);
+   --shadow-glow-accent: var(--elevation-glow-accent);
+
+   /* ==========================================================================
+     12. Z-Index Layer Tokens
+     ========================================================================== */
+   --z-base: 0;
+   --z-raised: 10;
+   --z-sticky: 100;
+   --z-header: 1000;
+   --z-fab: 1100;
+   --z-dropdown: 2000;
+   --z-admin-btn: 8000;
+   --z-admin-btn-hover: 8500;
+   --z-canvas-control: 8600;
+   --z-canvas-popover: 8700;
+   --z-canvas-dropdown: 8800;
+   --z-dev-badge: 99999;
+   --z-drawer: 100000;
+   --z-modal: 100100;
+   --z-topmost: 110000;
+
+   /* ==========================================================================
+     13. Developer & Administrative Affordance Tokens
+     ========================================================================== */
+   --admin-pill-bg: var(--brand-accent-tint);
+   --admin-pill-text: #92400e;
+   --admin-pill-border: rgba(217, 119, 6, 0.35);
+   --admin-pill-shadow: 0 1px 3px rgba(180, 83, 9, 0.15);
+   --admin-pill-hover-bg: var(--folio-accent);
+   --admin-pill-hover-text: #78350f;
+   --admin-pill-hover-border: var(--brand-accent-dark);
+   --admin-pill-shadow-hover: 0 3px 8px rgba(180, 83, 9, 0.25);
+}
