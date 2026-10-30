@@ -75,6 +75,14 @@ for (const file of sourceFiles) {
   const content = fs.readFileSync(file, 'utf-8');
   const lines = content.split('\n');
 
+  // Collect component-scoped CSS variables declared within this file
+  const localDefs = new Set<string>();
+  const LOCAL_DEF_REGEX = /^\s*(--[a-zA-Z0-9_-]+)\s*:/gm;
+  let localMatch: RegExpExecArray | null;
+  while ((localMatch = LOCAL_DEF_REGEX.exec(content)) !== null) {
+    localDefs.add(localMatch[1].trim());
+  }
+
   lines.forEach((line, idx) => {
     // Skip single-line comments
     const trimmed = line.trim();
@@ -85,7 +93,7 @@ for (const file of sourceFiles) {
     let usageMatch: RegExpExecArray | null;
     while ((usageMatch = VAR_USAGE_REGEX.exec(line)) !== null) {
       const usedToken = usageMatch[1];
-      if (!definedTokens.has(usedToken)) {
+      if (!definedTokens.has(usedToken) && !localDefs.has(usedToken)) {
         console.error(
           `❌ [${relPath}:${idx + 1}] Undefined token: "${usedToken}" in expression: "${line.trim()}"`
         );

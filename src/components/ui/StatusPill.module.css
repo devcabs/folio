@@ -1,0 +1,229 @@
+/**
+ * StatusPill Module Styles — Canonical Design System Component
+ * Universal pill badge, action, & status element strictly consuming tokens.css
+ */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-gap-inline);
+  padding: 0.35rem 0.95rem;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  line-height: 1.4;
+  text-decoration: none;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) ease,
+              border-color var(--duration-fast) ease,
+              color var(--duration-fast) ease;
+}
+
+.pill:focus,
+.pill:focus-visible,
+.pill:active {
+  outline: none;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.label {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.externalIcon {
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.75;
+  margin-left: -2px;
+}
+
+/* --- Sizes --- */
+.sizeSm {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 11px;
+  font-size: var(--font-size-2xs, 11px);
+  gap: var(--space-gap-tight);
+}
+
+.sizeMd {
+  padding: 0.35rem 0.95rem;
+  font-size: var(--text-caption);
+  gap: var(--space-gap-inline);
+}
+
+/* --- Pulse Indicator Dot --- */
+.pulseDot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background-color: currentColor;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.pulseDot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid currentColor;
+  animation: pulseRipple 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+  opacity: 0.6;
+}
+
+@keyframes pulseRipple {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  70% {
+    transform: scale(2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* --- Core Color Variants --- */
+
+/* White Pill (Reference Hero Kicker style) */
+.white {
+  background-color: var(--bg-surface);
+  color: var(--text-kicker-blue);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--elevation-raised);
+  padding: 0.45rem 1.4rem;
+  font-size: var(--text-caption);
+}
+
+.white:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-raised-hover);
+}
+
+/* Node 1: Open Doors (Blue) */
+.blue {
+  background-color: var(--color-node-1-tint);
+  color: var(--color-node-1);
+  border: 1px solid var(--color-node-1-border);
+}
+
+/* Node 2: Fair Chances (Maroon) */
+.primary {
+  background-color: var(--color-node-2-tint);
+  color: var(--folio-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Node 3: Real Learning (Gold) */
+.accent {
+  background-color: var(--color-node-3-tint);
+  color: var(--brand-accent-dark);
+  border: 1px solid var(--color-node-3-border);
+}
+
+/* Node 4: Safe Campus (Green) */
+.green {
+  background-color: var(--color-node-4-tint);
+  color: var(--color-node-4);
+  border: 1px solid var(--color-node-4-border);
+}
+
+/* Node 5: Open Books (Amber) */
+.amber {
+  background-color: var(--color-node-5-tint);
+  color: var(--color-node-5);
+  border: 1px solid var(--color-node-5-border);
+}
+
+/* Neutral Fallback */
+.neutral {
+  background-color: var(--bg-surface-muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+/* --- New Semantic Additions --- */
+
+/* Monospace / Benchmark Badge */
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-sm);
+  background-color: var(--bg-surface-muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.65rem;
+}
+
+/* Official Drive / External Link Pill */
+.link {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 11px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  text-decoration: none;
+  cursor: pointer;
+  gap: var(--space-1-5);
+}
+
+.link:hover {
+  background-color: var(--brand-primary-tint);
+  color: var(--folio-primary);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.link:active {
+  transform: translateY(0);
+}
+
+/* Interactive Clickable Chip / Filter Trigger */
+.interactive {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--elevation-flat);
+  cursor: pointer;
+  padding: 0.35rem 0.85rem;
+}
+
+.interactive:hover {
+  background-color: var(--brand-primary-tint);
+  color: var(--folio-primary);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-raised);
+}
+
+.interactive:active {
+  transform: translateY(0.5px);
+  box-shadow: var(--elevation-flat);
+}

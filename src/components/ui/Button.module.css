@@ -1,0 +1,364 @@
+/**
+ * Canonical Button System — Folio Engine
+ * Core architectural button supporting design system variants:
+ * - revolving-outline (default for hero CTA & search)
+ * - primary (brand primary)
+ * - secondary (clean subtle surface)
+ * - ghost (frameless action)
+ */
+
+/* Base button contract shared across all variants */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  min-height: unset;
+  min-width: unset;
+  box-sizing: border-box;
+  white-space: nowrap;
+  transition: transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+/* High-layer content plate ensuring label & icons sit above any pseudo-element masks */
+.btnContent {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: inherit;
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Sizes
+   -------------------------------------------------------------------------- */
+.sizeXs {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 10px;
+  font-size: var(--font-size-2xs, 11px);
+  gap: var(--space-1);
+  border-radius: var(--radius-full);
+  line-height: 1;
+}
+
+.sizeSm {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 16px;
+  font-size: var(--text-caption);
+  gap: var(--space-gap-tight);
+  border-radius: var(--radius-full);
+  line-height: 1;
+}
+
+.sizeMd {
+  height: 44px;
+  min-height: 44px;
+  padding: 0 20px;
+  font-size: var(--text-body);
+  gap: var(--space-gap-inline);
+  border-radius: var(--radius-full);
+  line-height: 1;
+}
+
+.sizeLg {
+  height: 50px;
+  min-height: 50px;
+  padding: 0 26px;
+  font-size: var(--text-subhead);
+  gap: var(--space-gap-layout);
+  border-radius: var(--radius-full);
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Variant: Revolving Outline (Default Hero CTA & Search)
+   -------------------------------------------------------------------------- */
+.variantRevolvingOutline {
+  --outline-width: 3.5px;
+  --outline-gradient: var(--gradient-conic);
+  --btn-bg: var(--bg-surface);
+  --btn-color: var(--text-primary);
+  --btn-elevation: var(--elevation-raised);
+  --btn-elevation-hover: var(--elevation-raised-hover);
+  --btn-animation-duration: 0.5s;
+  --btn-animation-timing: ease-in;
+  --btn-animation-iterations: 2; /* 2 cycles * 0.5s = exactly 1.0s maximum runtime on hover */
+
+  border: none;
+  background: transparent;
+  color: var(--btn-color);
+  box-shadow: var(--btn-elevation);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Conic gradient disc rotating behind the button — guaranteed true circle covering all diagonals */
+.variantRevolvingOutline::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(350%, 350px);
+  aspect-ratio: 1 / 1;
+  background: var(--outline-gradient);
+  transform: translate(-50%, -50%) rotate(0deg);
+  z-index: 0;
+  opacity: 0.9;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+/* Center surface mask creating the outline width */
+.variantRevolvingOutline::after {
+  content: '';
+  position: absolute;
+  inset: var(--outline-width);
+  background: var(--btn-bg);
+  border-radius: var(--radius-full);
+  z-index: 1;
+}
+
+/* Hover mode: calm, stable, tactile elevation without spinning or visual noise */
+.variantRevolvingOutline:hover,
+.variantRevolvingOutline:focus-visible {
+  box-shadow: var(--btn-elevation-hover);
+  transform: translateY(-1px);
+}
+
+.variantRevolvingOutline:hover::before,
+.variantRevolvingOutline:focus-visible::before {
+  opacity: 1;
+}
+
+/* Active / Pressed state: tactile micro-depression */
+.variantRevolvingOutline:active {
+  transform: translateY(1px);
+}
+
+/* --------------------------------------------------------------------------
+   When revolving is disabled/stopped (e.g. Journey started / Nodes 1-5):
+   Completely extinguish the revolving pseudo-elements.
+   Guarantees that still-hovering, active, or focused mouse/pointer states
+   CANNOT re-trigger or continue the animation under any circumstances.
+   -------------------------------------------------------------------------- */
+.variantRevolvingOutline.revolvingStopped,
+.variantRevolvingOutline.revolvingStopped:hover,
+.variantRevolvingOutline.revolvingStopped:active,
+.variantRevolvingOutline.revolvingStopped:focus,
+.variantRevolvingOutline.revolvingStopped:focus-visible {
+  border: 1px solid var(--border-default) !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--elevation-flat) !important;
+  outline: none !important;
+}
+
+.variantRevolvingOutline.revolvingStopped:hover {
+  background: var(--bg-surface-muted) !important;
+  border-color: var(--border-strong) !important;
+  box-shadow: var(--elevation-raised) !important;
+  transform: translateY(-1px);
+}
+
+.variantRevolvingOutline.revolvingStopped:active {
+  transform: translateY(1px);
+}
+
+/* Remove ::before and ::after from rendering tree when revolving is stopped */
+.variantRevolvingOutline.revolvingStopped::before,
+.variantRevolvingOutline.revolvingStopped:hover::before,
+.variantRevolvingOutline.revolvingStopped:active::before,
+.variantRevolvingOutline.revolvingStopped:focus::before,
+.variantRevolvingOutline.revolvingStopped:focus-visible::before,
+.variantRevolvingOutline.revolvingStopped::after,
+.variantRevolvingOutline.revolvingStopped:hover::after,
+.variantRevolvingOutline.revolvingStopped:active::after,
+.variantRevolvingOutline.revolvingStopped:focus::after,
+.variantRevolvingOutline.revolvingStopped:focus-visible::after {
+  content: none !important;
+  display: none !important;
+  animation: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transform: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   Variant: Primary (Institutional Primary)
+   -------------------------------------------------------------------------- */
+.variantPrimary {
+  background: var(--folio-primary);
+  color: var(--text-inverse);
+  box-shadow: var(--elevation-raised);
+}
+
+.variantPrimary:hover {
+  background: var(--brand-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-raised-hover);
+}
+
+.variantPrimary:active {
+  transform: translateY(1px);
+}
+
+/* --------------------------------------------------------------------------
+   Variant: Secondary (Crisp Surface with Border)
+   -------------------------------------------------------------------------- */
+.variantSecondary {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+  box-shadow: var(--elevation-flat);
+}
+
+.variantSecondary:hover {
+  background: var(--bg-surface-muted);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.variantSecondary:active {
+  transform: translateY(1px);
+}
+
+/* --------------------------------------------------------------------------
+   Variant: Ghost (Frameless Action)
+   -------------------------------------------------------------------------- */
+.variantGhost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.variantGhost:hover {
+  background: var(--bg-surface-muted);
+  color: var(--text-primary);
+}
+
+.variantGhost:active {
+  transform: translateY(1px);
+}
+
+/* --------------------------------------------------------------------------
+   Variant: Admin (Academic Editorial Affordance & Edit Controls)
+   -------------------------------------------------------------------------- */
+.variantAdmin {
+  position: relative;
+  z-index: var(--z-admin-btn);
+  background: var(--admin-pill-bg);
+  color: var(--admin-pill-text);
+  border: 1px solid var(--admin-pill-border);
+  box-shadow: var(--admin-pill-shadow);
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.variantAdmin:hover {
+  z-index: var(--z-admin-btn-hover);
+  background: var(--admin-pill-hover-bg);
+  color: var(--admin-pill-hover-text);
+  border-color: var(--admin-pill-hover-border);
+  box-shadow: var(--admin-pill-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.variantAdmin:active {
+  transform: translateY(0);
+}
+
+.variantAdmin:focus,
+.variantAdmin:focus-visible {
+  outline: none;
+  border-color: var(--admin-pill-hover-border);
+}
+
+
+/* --------------------------------------------------------------------------
+   Accessibility Focus & Disabled States
+   -------------------------------------------------------------------------- */
+.btn:focus,
+.btn:focus-visible,
+.btn:active {
+  outline: none;
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Keyframe rotation */
+@keyframes revolveBorder {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Ambient Pulse: Subtle Dignified Breath (Zero Geometric Distortion)
+   -------------------------------------------------------------------------- */
+.pulse {
+  animation: btnBreathe 3s ease-in-out infinite;
+  will-change: box-shadow;
+}
+
+/* Subtle, dignified breathing shadow — zero subpixel text blur or geometry scaling */
+@keyframes btnBreathe {
+  0%, 100% {
+    box-shadow: var(--btn-elevation);
+  }
+  50% {
+    box-shadow: var(--elevation-raised-hover);
+  }
+}
+
+/* Interactive States: Pulse pauses on hover/focus for calm tactile control */
+@media (hover: hover) {
+  .pulse:hover {
+    animation: none;
+    transform: translateY(-1px);
+    box-shadow: var(--btn-elevation-hover);
+  }
+}
+
+.pulse:focus,
+.pulse:focus-visible {
+  animation: none;
+  outline: none;
+}
+
+.pulse:active {
+  animation: none;
+  transform: translateY(1px);
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,166 @@
+/**
+ * RoadmapTrack.module.css
+ * Real-Time Generated Serpentine Track & 5 Node Milestone Points
+ * 100% Token Pure — Folio Design System
+ */
+
+.trackContainer {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.svgTrack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 1;
+}
+
+/* ==========================================================================
+   3-Layer Track Stroke Hierarchy
+   ========================================================================== */
+
+/* 1. Foundation Ribbon: Wide structural underlay */
+.foundationPath {
+  stroke: var(--border-subtle);
+  stroke-width: 14px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+/* 2. Institutional Spine: Tactile dashed center line */
+.spinePath {
+  stroke: var(--border-default);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 8 12;
+  fill: none;
+}
+
+/* 2.5 Golden Glow Aura: Luminous Sunburst Gold radiance flanking the moving path */
+/* Mobile-first: wider stroke at lower opacity avoids CPU-rasterized drop-shadow filter on iOS */
+.progressGlow {
+  stroke: var(--folio-accent);
+  stroke-width: 10px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  opacity: 0.45;
+  will-change: stroke-dashoffset;
+}
+
+/* Desktop-only rich glow (GPU can handle the filter pipeline) */
+@media (min-width: 1024px) and (hover: hover) {
+  .progressGlow {
+    stroke-width: 7px;
+    opacity: 0.9;
+    filter: drop-shadow(0 0 6px var(--folio-accent)) drop-shadow(0 0 12px var(--brand-accent-tint));
+  }
+}
+
+/* 3. Active Progress Ink: Dynamic Primary ink flow */
+.progressInk {
+  stroke: var(--folio-primary);
+  stroke-width: 3.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  will-change: stroke-dashoffset;
+  /* Direct scroll-synced rendering: no CSS transition fighting high-frequency touch frames */
+}
+
+/* Viewport-Adaptive Path Stroke Widths */
+@media (max-width: 640px) {
+  .foundationPath {
+    stroke-width: 10px;
+  }
+  .spinePath {
+    stroke-width: 2px;
+    stroke-dasharray: 6 10;
+  }
+  .progressGlow {
+    stroke-width: 7px;
+  }
+  .progressInk {
+    stroke-width: 2.5px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1023px) {
+  .foundationPath {
+    stroke-width: 12px;
+  }
+  .spinePath {
+    stroke-width: 2.5px;
+  }
+  .progressGlow {
+    stroke-width: 8.5px;
+  }
+  .progressInk {
+    stroke-width: 3px;
+  }
+}
+
+/* ==========================================================================
+   5 Node Milestone Points (Concentric Dual-Ring Illumination)
+   ========================================================================== */
+
+.nodeGroup {
+  pointer-events: auto;
+}
+
+.nodeOuter {
+  fill: var(--bg-surface);
+  stroke: var(--border-subtle);
+  stroke-width: 2px;
+  transition: r var(--duration-normal) var(--ease-out),
+              fill var(--duration-normal) var(--ease-out),
+              stroke var(--duration-normal) var(--ease-out);
+}
+
+.nodeCore {
+  fill: var(--bg-surface-muted);
+  stroke: var(--border-default);
+  stroke-width: 1.5px;
+  transition: r var(--duration-normal) var(--ease-out),
+              fill var(--duration-normal) var(--ease-out),
+              stroke var(--duration-normal) var(--ease-out);
+}
+
+/* Direct Illuminated State */
+.nodeActive .nodeOuter,
+.nodeOuterActive {
+  fill: var(--brand-primary-tint);
+  stroke: var(--folio-primary);
+}
+
+.nodeActive .nodeCore,
+.nodeCoreActive {
+  fill: var(--node-accent, var(--folio-primary));
+  stroke: var(--node-accent, var(--folio-primary));
+}
+
+/* ==========================================================================
+   Accessibility: Reduced Motion
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .nodeOuter,
+  .nodeCore {
+    transition: none !important;
+  }
+  .progressGlow {
+    filter: none;
+    opacity: 0.6;
+  }
+}
+

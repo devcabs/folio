@@ -1,0 +1,125 @@
+/**
+ * FAB.module.css
+ * Floating Action Button (FAB) — Folio Engine
+ * Pinned viewport action capsule featuring the institutional revolving outline
+ * 100% Token Pure — Folio Design System
+ */
+
+.fabContainer {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px) + max(env(keyboard-inset-height, 0px), var(--keyboard-offset, 0px)));
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(20px) scale(0.88);
+  filter: blur(4px);
+  will-change: transform, opacity, filter, bottom;
+  transition: opacity var(--duration-normal) var(--ease-out),
+              transform var(--duration-slow) var(--ease-spring),
+              filter var(--duration-normal) var(--ease-out),
+              bottom var(--duration-fast) var(--ease-out);
+}
+
+.positionRight {
+  right: calc(24px + env(safe-area-inset-right, 0px));
+  left: auto;
+}
+
+.positionLeft {
+  left: calc(24px + env(safe-area-inset-left, 0px));
+  right: auto;
+}
+
+.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  filter: blur(0px);
+}
+
+.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(16px) scale(0.9);
+  filter: blur(3px);
+  transition: opacity var(--duration-fast) var(--ease-out),
+              transform var(--duration-normal) var(--ease-out),
+              filter var(--duration-fast) var(--ease-out);
+}
+
+.fabButton {
+  box-shadow: var(--elevation-overlay);
+  min-height: 46px;
+  padding: 0 20px;
+  gap: var(--space-gap-inline);
+}
+
+/* Zero Outline Policy — Universal Calm Focus */
+.fabButton:focus,
+.fabButton:focus-visible,
+.fabButton:active {
+  outline: none;
+}
+
+.fabLabel {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.fabArrow {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--folio-primary);
+  line-height: 1;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.fabArrowDown {
+  transform: translateY(0);
+}
+
+.fabArrowUp {
+  transform: translateY(0);
+}
+
+@media (hover: hover) {
+  .fabButton:hover .fabArrowDown {
+    transform: translateY(2.5px);
+  }
+
+  .fabButton:hover .fabArrowUp {
+    transform: translateY(-2.5px);
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 640px) {
+  .fabContainer {
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px) + max(env(keyboard-inset-height, 0px), var(--keyboard-offset, 0px)));
+  }
+
+  .positionRight {
+    right: calc(16px + env(safe-area-inset-right, 0px));
+  }
+
+  .positionLeft {
+    left: calc(16px + env(safe-area-inset-left, 0px));
+  }
+
+  .fabButton {
+    min-height: 42px;
+    padding: 0 16px;
+    font-size: 0.8125rem;
+  }
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .fabContainer,
+  .fabButton,
+  .fabArrow {
+    transition: none !important;
+    filter: none !important;
+  }
+}

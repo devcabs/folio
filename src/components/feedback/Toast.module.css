@@ -1,0 +1,165 @@
+/**
+ * Toast.module.css
+ * Lightweight floating status capsule for Folio Engine
+ * Adheres strictly to Universal Zero Outline Policy and design tokens.
+ */
+
+.toastPortal {
+  position: fixed;
+  top: var(--space-4);
+  left: var(--space-4);
+  z-index: var(--z-topmost);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  box-shadow: var(--elevation-modal);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  line-height: var(--leading-tight);
+  animation: slideDownFade var(--duration-normal) var(--ease-out);
+  max-width: min(380px, calc(100vw - var(--space-8)));
+  pointer-events: auto;
+}
+
+@supports (top: env(safe-area-inset-top)) {
+  .toastPortal {
+    top: max(var(--space-4), env(safe-area-inset-top));
+    left: max(var(--space-4), env(safe-area-inset-left));
+  }
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Color Variants */
+.toastSuccess {
+  border-color: var(--color-node-4-border);
+  box-shadow: 0 4px 12px -2px var(--color-node-4-border), var(--elevation-modal);
+}
+
+.toastError {
+  border-color: var(--color-node-2-border);
+  box-shadow: 0 4px 12px -2px var(--color-node-2-border), var(--elevation-modal);
+}
+
+.toastInfo {
+  border-color: var(--color-node-3-border);
+  box-shadow: 0 4px 12px -2px var(--color-node-3-border), var(--elevation-modal);
+}
+
+.iconWrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.successIcon {
+  background-color: var(--color-node-4-tint);
+  color: var(--color-node-4);
+}
+
+.errorIcon {
+  background-color: var(--brand-primary-tint);
+  color: var(--folio-primary);
+}
+
+.infoIcon {
+  background-color: var(--brand-accent-tint);
+  color: var(--brand-accent-dark);
+}
+
+.svgIcon {
+  width: 11px;
+  height: 11px;
+}
+
+.message {
+  color: var(--text-primary);
+  font-size: var(--font-size-xs);
+  letter-spacing: -0.01em;
+  font-weight: 500;
+}
+
+.dismissButton {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-1);
+  transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+
+.dismissButton:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-surface-muted);
+  outline: none;
+}
+
+.dismissButton:active {
+  outline: none;
+  transform: translateY(1px);
+}
+
+.dismissButton:focus-visible {
+  outline: none;
+  background-color: var(--bg-surface-muted);
+}
+
+.actionButton {
+  margin-left: var(--space-1);
+  margin-right: var(--space-1);
+  padding: 1px 8px;
+  background: var(--bg-surface);
+  color: var(--folio-primary);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  outline: none; /* Universal Zero Outline Policy */
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.actionButton:hover {
+  background-color: var(--brand-primary-tint);
+  color: var(--folio-primary);
+  outline: none;
+}
+
+.actionButton:active {
+  outline: none;
+  transform: translateY(1px);
+}
+
+.actionButton:focus-visible {
+  outline: none;
+}

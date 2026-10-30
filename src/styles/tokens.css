@@ -421,4 +421,15 @@
    --admin-pill-hover-text: #78350f;
    --admin-pill-hover-border: var(--brand-accent-dark);
    --admin-pill-shadow-hover: 0 3px 8px rgba(180, 83, 9, 0.25);
+   /* ==========================================================================
+     14. Component Convenience & Dynamic Viewport Aliases
+     ========================================================================== */
+   --text-tertiary: var(--text-muted);
+   --tracking-wider: 0.05em;
+   --font-size-2xs: 11px;
+   --font-size-lg: 18px;
+   --keyboard-offset: 0px;
+   --max-content-width: 440px;
+   --node-accent: var(--folio-primary);
+
 }

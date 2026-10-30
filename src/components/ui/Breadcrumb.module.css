@@ -1,0 +1,164 @@
+/**
+ * Breadcrumb Module Styles — Modern Academic Editorial
+ * Canonical Component
+ *
+ * Universal Zero Outline Policy:
+ * - Natural resting borders, outline: none on active/selected/focused states
+ * - High-contrast editorial typography and micro-interactions
+ * - Pure token-driven styling
+ * - WCAG 2.2 touch target compliance & responsive ellipsis constriction
+ */
+
+.breadcrumbNav {
+  display: block;
+  width: 100%;
+}
+
+.breadcrumbInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-gap-inline);
+  min-width: 0;
+}
+
+.list {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: 1.4;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.list::-webkit-scrollbar {
+  display: none;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.itemCurrent {
+  flex-shrink: 2;
+}
+
+.separator {
+  color: var(--text-muted);
+  opacity: 0.6;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  user-select: none;
+  padding: 0 var(--space-1);
+  flex-shrink: 0;
+}
+
+.link,
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: transparent;
+  border: none;
+  min-height: 28px;
+  padding: var(--space-1) var(--space-1);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.link:hover,
+.button:hover {
+  color: var(--folio-primary);
+}
+
+.link:active,
+.button:active {
+  transform: translateY(1px);
+}
+
+/* Universal Zero Outline Policy */
+.link:focus,
+.link:focus-visible,
+.link:active,
+.button:focus,
+.button:focus-visible,
+.button:active {
+  outline: none;
+  outline: 0;
+  color: var(--folio-primary);
+}
+
+.current {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  color: var(--text-primary);
+  font-weight: 600;
+  padding: var(--space-1) var(--space-1);
+  min-width: 0;
+}
+
+.itemIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Responsive constriction: truncate smoothly when space is tight */
+.itemLabel {
+  letter-spacing: var(--tracking-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  max-width: 380px;
+}
+
+.itemBadge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: var(--space-1);
+}
+
+.endSlot {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Single Unified Mobile Breakpoint (< 1024px) */
+@media (max-width: 1023px) {
+  .itemLabel {
+    max-width: clamp(120px, 35vw, 220px);
+  }
+  
+  .separator {
+    padding: 0 2px;
+  }
+}

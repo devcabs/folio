@@ -1,0 +1,97 @@
+/**
+ * AccordionSection Styles — Modern Academic Editorial
+ * Pure token adherence, WCAG 2.1 AA contrast, and Universal Zero Outline Policy.
+ */
+
+.accordionSection {
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) 0;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  outline: none;
+  transition: color var(--duration-fast) var(--ease-out),
+              padding var(--duration-fast) var(--ease-out);
+}
+
+.accordionSection[open] > .summary {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-1-5);
+}
+
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summaryLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+  transition: transform var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+}
+
+.accordionSection[open] .chevron {
+  transform: rotate(90deg);
+  color: var(--folio-primary);
+}
+
+.title {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.summary:hover .title,
+.summary:hover .chevron {
+  color: var(--text-primary);
+}
+
+.accordionSection[open] > .summary .title {
+  color: var(--text-primary);
+}
+
+.badgeWrapper {
+  display: inline-flex;
+  align-items: center;
+}
+
+.caption {
+  margin: 0 0 var(--space-2) var(--space-6);
+  font-family: var(--font-body);
+  font-size: var(--text-body-sm);
+  color: var(--text-secondary);
+}
+
+/* Indented subordinate elements without visible dividing line */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-flow-tight);
+  padding-left: var(--space-4);
+  margin-top: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+

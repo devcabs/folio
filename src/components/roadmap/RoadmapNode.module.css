@@ -1,0 +1,488 @@
+/**
+ * RoadmapNode.module.css
+ * Direct Canvas Milestone Stations (Tactile Gateway Nodes)
+ * Subtask 4.2.3: Anti-AI-Slop Direct-on-Canvas Editorial Typesetting
+ * 100% Token Pure — Folio Design System
+ */
+
+/* ==========================================================================
+   1. Data-Node Token Bindings (Official Brand Mark Colors)
+   ========================================================================== */
+.stationWrapper[data-node="1"] {
+  --node-color: var(--color-node-1);
+  --node-tint: var(--color-node-1-tint);
+  --node-border: var(--color-node-1-border);
+}
+
+.stationWrapper[data-node="2"] {
+  --node-color: var(--color-node-2);
+  --node-tint: var(--color-node-2-tint);
+  --node-border: var(--color-node-2-border);
+}
+
+.stationWrapper[data-node="3"] {
+  --node-color: var(--color-node-3);
+  --node-tint: var(--color-node-3-tint);
+  --node-border: var(--color-node-3-border);
+}
+
+.stationWrapper[data-node="4"] {
+  --node-color: var(--color-node-4);
+  --node-tint: var(--color-node-4-tint);
+  --node-border: var(--color-node-4-border);
+}
+
+.stationWrapper[data-node="5"] {
+  --node-color: var(--color-node-5);
+  --node-tint: var(--color-node-5-tint);
+  --node-border: var(--color-node-5-border);
+}
+
+/* ==========================================================================
+   2. Station Wrapper: Exact (X, Y) Canvas Anchor
+   ========================================================================== */
+.stationWrapper {
+  position: absolute;
+  pointer-events: auto;
+  z-index: 4;
+  contain: layout style;
+  transition: opacity var(--duration-normal) var(--ease-out),
+              transform var(--duration-normal) var(--ease-out);
+}
+
+/* Focal Zone Dynamics: Dormant vs Connected vs Active */
+.stationDormant {
+  opacity: 0.35;
+  transform: scale(0.98);
+}
+
+.stationDormant:hover {
+  opacity: 0.85;
+}
+
+/* Connected Station State (the line has arrived and connected to this node) */
+.stationWrapper[data-connected="true"] {
+  opacity: 0.88;
+  transform: scale(1);
+}
+
+.stationWrapper[data-connected="true"]:hover {
+  opacity: 1;
+}
+
+.stationActive {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ==========================================================================
+   3. The 72px Tactile Portal Ring (Physical Waypoint Anchor)
+   ========================================================================== */
+.portalRing {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translate(-50%, 0);
+  width: 72px;
+  height: 72px;
+  min-width: 72px;
+  min-height: 72px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-surface);
+  border: 2px solid var(--node-border);
+  padding: var(--space-gap-tight);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  border-style: solid;
+  transition: transform var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out),
+              border-color var(--duration-normal) var(--ease-out),
+              background-color var(--duration-normal) var(--ease-out);
+}
+
+.portalRing:focus,
+.portalRing:focus-visible {
+  outline: none;
+}
+
+/* Connected Milestone Waypoint: Illuminates when line connects */
+.stationWrapper[data-connected="true"] .portalRing {
+  border-color: var(--node-color);
+  box-shadow: 0 0 16px var(--node-tint), var(--elevation-flat);
+}
+
+/* Active / Selected Mode: Vibrant Highlighting with Elevation Glow ONLY when touched by the moving highlight ink */
+.stationActive[data-connected="true"] .portalRing,
+.stationWrapper[data-selected="true"][data-connected="true"] .portalRing {
+  background-color: var(--node-color);
+  border-color: var(--node-color);
+  box-shadow: 0 0 0 4px var(--node-tint), 0 0 28px var(--node-tint), var(--elevation-raised);
+  transform: translate(-50%, 0) scale(1.06);
+}
+
+/* Concentric Inner Core */
+.ringCore {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--node-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--elevation-flat);
+  transition: background-color var(--duration-normal) var(--ease-out),
+              border-color var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out);
+}
+
+/* Connected Inner Core: Gentle authentic seal tint */
+.stationWrapper[data-connected="true"] .ringCore {
+  background-color: var(--node-tint);
+  border-color: var(--node-color);
+}
+
+/* Active / Selected Inner Core ONLY when touched by the moving highlight ink */
+.stationActive[data-connected="true"] .ringCore,
+.stationWrapper[data-selected="true"][data-connected="true"] .ringCore {
+  background-color: var(--bg-surface-glass);
+  border: 1.5px solid var(--border-strong);
+  box-shadow: var(--elevation-raised);
+}
+
+/* Station Numeral: Two-Digit JetBrains Mono */
+.stationNumber {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-muted);
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: color var(--duration-normal) var(--ease-out),
+              text-shadow var(--duration-normal) var(--ease-out);
+}
+
+/* Station numeral illuminates with proud institutional node color when connected */
+.stationWrapper[data-connected="true"] .stationNumber {
+  color: var(--node-color);
+}
+
+/* Active / Selected Station Numeral: Proud Institutional Node Color */
+.stationActive[data-connected="true"] .stationNumber,
+.stationWrapper[data-selected="true"][data-connected="true"] .stationNumber {
+  color: var(--node-color) !important;
+  font-weight: 800;
+  text-shadow: none;
+}
+
+/* Hover & Active Feedback */
+@media (hover: hover) {
+  .portalRing:hover {
+    transform: translate(-50%, 0) scale(1.04);
+    border-color: var(--node-color);
+  }
+
+  .portalRing:hover .ringCore {
+    background-color: var(--node-tint);
+  }
+
+  .stationActive[data-connected="true"] .portalRing:hover,
+  .stationWrapper[data-selected="true"][data-connected="true"] .portalRing:hover {
+    transform: translate(-50%, 0) scale(1.08);
+    box-shadow: 0 0 0 5px var(--node-tint), 0 0 32px var(--node-tint), var(--elevation-overlay);
+  }
+
+  .stationActive[data-connected="true"] .portalRing:hover .ringCore,
+  .stationWrapper[data-selected="true"][data-connected="true"] .portalRing:hover .ringCore {
+    background-color: var(--bg-surface-glass);
+    border-color: var(--border-strong);
+  }
+}
+
+.portalRing:active {
+  transform: translate(-50%, 1px);
+}
+
+.stationActive[data-connected="true"] .portalRing:active,
+.stationWrapper[data-selected="true"][data-connected="true"] .portalRing:active {
+  transform: translate(-50%, 1px) scale(1.04);
+}
+
+/* ==========================================================================
+   4. Station Body: Flex Container for Editorial Content & Docked Photo Bay
+   ========================================================================== */
+.stationBody {
+  position: absolute;
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-gap-editorial, 48px);
+  max-width: calc(100vw - 80px);
+}
+
+.left .stationBody {
+  left: 60px;
+  flex-direction: row;
+}
+
+.right .stationBody {
+  right: 60px;
+  flex-direction: row-reverse;
+}
+
+.contentBlock {
+  position: relative;
+  width: max-content;
+  max-width: var(--max-content-width, min(460px, calc(100vw - 140px)));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-flow-tight);
+  flex-shrink: 1;
+}
+
+/* Desktop Flank Alignment */
+.left .contentBlock {
+  text-align: left;
+}
+
+.right .contentBlock {
+  text-align: right;
+}
+
+/* 4.1 Benchmark Category Badge */
+.depedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--node-color);
+  line-height: 1.2;
+}
+
+.stationDormant .depedBadge {
+  opacity: 0.7;
+}
+
+.stationWrapper[data-connected="true"] .depedBadge,
+.stationActive .depedBadge {
+  opacity: 1;
+}
+
+.right .depedBadge {
+  justify-content: flex-end;
+}
+
+/* Status Dot: Live milestone waypoint connectivity indicator */
+.statusDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--border-default);
+  transition: background-color var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out),
+              transform var(--duration-normal) var(--ease-out);
+}
+
+.stationWrapper[data-connected="true"] .statusDot {
+  background-color: var(--node-color);
+  box-shadow: 0 0 6px var(--node-color);
+  transform: scale(1.15);
+}
+
+.stationActive .statusDot {
+  background-color: var(--node-color);
+  box-shadow: 0 0 8px var(--node-color);
+  transform: scale(1.25);
+}
+
+/* 4.2 Layperson Display Title */
+.displayTitle {
+  font-family: var(--font-sans);
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* 4.3 Community Story Hook (Single-Sentence Source-Bound) */
+.summary {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: normal;
+}
+
+/* 4.4 Refined Editorial Action Link */
+.actionWrapper {
+  display: flex;
+  margin-top: var(--space-gap-tight);
+}
+
+.left .actionWrapper {
+  justify-content: flex-start;
+}
+
+.right .actionWrapper {
+  justify-content: flex-end;
+}
+
+.exploreLink {
+  background: none;
+  border: none;
+  padding: 0 0 2px 0;
+  margin: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-gap-tight);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1.5px solid var(--border-default);
+  outline: none;
+  transition: color var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+.exploreLink:focus,
+.exploreLink:focus-visible {
+  outline: none;
+  color: var(--folio-primary);
+  border-bottom-color: var(--folio-primary);
+}
+
+.exploreArrow {
+  font-size: 0.9375rem;
+  line-height: 1;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .exploreLink:hover {
+    color: var(--folio-primary);
+    border-bottom-color: var(--folio-primary);
+    transform: translateY(1px);
+  }
+
+  .exploreLink:hover .exploreArrow {
+    transform: translateY(2px);
+  }
+}
+
+.exploreLink:active {
+  transform: translateY(2px);
+}
+
+/* ==========================================================================
+   5. Milestone Photo Docking Slot (Reserved Station Canvas)
+   ========================================================================== */
+.photoDockSlot {
+  position: relative;
+  width: clamp(320px, 30vw, 520px);
+  min-height: 260px;
+  box-sizing: border-box;
+  border-radius: var(--radius-lg, 16px);
+  pointer-events: none;
+  visibility: hidden;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   6. Tablet & Mobile Responsive Adjustments (<= 1023px)
+   ========================================================================== */
+@media (max-width: 1023px) {
+  .stationBody {
+    flex-direction: column !important;
+    gap: var(--space-flow-layout, 24px);
+    width: min(440px, calc(100vw - 120px));
+  }
+
+  .left .stationBody {
+    left: 52px;
+    align-items: flex-start;
+  }
+
+  .right .stationBody {
+    right: 52px;
+    align-items: flex-end;
+  }
+
+  .contentBlock {
+    width: 100%;
+    max-width: min(440px, calc(100vw - 120px));
+  }
+
+  .photoDockSlot {
+    width: 100%;
+    max-width: min(440px, calc(100vw - 120px));
+    min-height: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .stationBody {
+    width: min(340px, calc(100vw - 120px));
+  }
+
+  .contentBlock {
+    max-width: var(--max-content-width, min(340px, calc(100vw - 140px)));
+    gap: var(--space-gap-tight);
+  }
+
+  .photoDockSlot {
+    max-width: min(340px, calc(100vw - 120px));
+  }
+
+  .displayTitle {
+    font-size: clamp(1.35rem, 5vw, 1.85rem);
+  }
+
+  .summary {
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  .exploreLink {
+    font-size: 0.8125rem;
+  }
+}
+
+/* ==========================================================================
+   7. Accessibility: Reduced Motion
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .stationWrapper,
+  .portalRing,
+  .ringCore,
+  .stationNumber,
+  .statusDot,
+  .exploreLink,
+  .exploreArrow {
+    transition: none !important;
+  }
+}

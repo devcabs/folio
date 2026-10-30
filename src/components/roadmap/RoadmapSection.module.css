@@ -1,0 +1,32 @@
+/**
+ * RoadmapSection.module.css
+ * Subtask 4.2.1a: Natural Flow Roadmap Section Container
+ * 100% Token Pure — Folio Design System
+ */
+
+.roadmapSection {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: var(--space-pad-surface);
+  padding-right: var(--space-pad-surface);
+  box-sizing: border-box;
+  overflow-x: clip;
+}
+
+/* ==========================================================================
+   Mobile Responsive Adjustments (< 640px)
+   ========================================================================== */
+@media (max-width: 640px) {
+  .roadmapSection {
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: var(--space-gap-layout);
+    padding-right: var(--space-gap-layout);
+  }
+}
+
