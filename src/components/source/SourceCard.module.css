@@ -1,0 +1,175 @@
+/**
+ * SourceCard.module.css
+ * Canonical Modern Academic Editorial Evidence Proof Presentation
+ * 
+ * Invariants:
+ * - Photo card has its own curved edges
+ * - Caption is detached from the photo card (outside the curved container)
+ * - Photo caption size typography
+ * - Strictly consumes tokens from src/styles/tokens.css
+ * - Universal Zero Outline Policy (outline: none on all states)
+ * - Absolute Ban on Horizontal Dividing Lines
+ * - CLS Prevention via explicit aspect-ratio
+ */
+
+.sourceFigure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  outline: none;
+  text-align: left;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 280px;
+}
+
+.collageItem {
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.photoCard {
+  background-color: var(--bg-surface-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: transform var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+  outline: none;
+}
+
+.collageItem .photoCard {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--card-accent, var(--border-medium));
+}
+
+.collageItem .clickable:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.clickable:active {
+  transform: translateY(1px) scale(0.99);
+  box-shadow: var(--shadow-xs);
+}
+
+.collageItem .clickable:active {
+  transform: none;
+  box-shadow: none;
+}
+
+.photoCard:focus-visible,
+.clickable:focus-visible {
+  outline: none;
+  border-color: var(--card-accent, var(--folio-accent));
+}
+
+.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+  cursor: default;
+}
+
+.sourceImageWrapper {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background-color: var(--bg-surface-muted);
+  position: relative;
+}
+
+.aspectLandscape {
+  aspect-ratio: 16 / 10;
+}
+
+.aspectSquare {
+  aspect-ratio: 1 / 1;
+}
+
+.aspectAuto {
+  aspect-ratio: auto;
+}
+
+/* Frosted glass darkened overlay for overflow (+N) photo card */
+.overflowOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  background: var(--overlay-overflow);
+  backdrop-filter: blur(6px) saturate(160%);
+  -webkit-backdrop-filter: blur(6px) saturate(160%);
+  transition: background var(--duration-fast) var(--ease-out),
+              backdrop-filter var(--duration-fast) var(--ease-out);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.clickable:hover .overflowOverlay {
+  background: var(--overlay-overflow-hover);
+  backdrop-filter: blur(4px) saturate(180%);
+  -webkit-backdrop-filter: blur(4px) saturate(180%);
+}
+
+.overflowBadge {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+  font-weight: 700;
+  color: var(--text-inverse);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-shadow: var(--text-shadow-contrast);
+  user-select: none;
+}
+
+.sourceImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.clickable:hover .sourceImage {
+  transform: scale(1.02);
+}
+
+.captionWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--space-6);
+  padding: 0 var(--space-1);
+}
+
+.photoCaption {
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+  margin: 0;
+  flex: 1;
+}
+

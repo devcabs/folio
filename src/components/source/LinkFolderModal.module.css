@@ -1,0 +1,145 @@
+/**
+ * LinkFolderModal.module.css
+ * Modern Academic Editorial Modal Content Styles
+ * Rendered inside canonical Modal component.
+ * Strictly adheres to Universal Zero Outline Policy and design tokens.
+ */
+
+.subtitle {
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+
+.label {
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 14px;
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  background-color: var(--bg-surface-muted);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+
+.input:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--folio-primary);
+  background-color: var(--bg-surface);
+}
+
+.inputInvalid {
+  border-color: var(--folio-primary);
+}
+
+.urlInputRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.feedbackText {
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  color: var(--folio-primary);
+  margin-top: var(--space-1);
+}
+
+.feedbackSuccess {
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  color: var(--color-node-4);
+  margin-top: var(--space-1);
+}
+
+.feedbackChecking {
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+
+/* Inline Error Alert */
+.errorAlert {
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--brand-primary-tint);
+  border-radius: var(--radius-control);
+  color: var(--folio-primary);
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.actionAuxiliary {
+  display: flex;
+  align-items: center;
+}
+
+.actionPrimary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.testLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--folio-primary);
+  text-decoration: none;
+  outline: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-control);
+  transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+
+.testLink:hover {
+  background-color: var(--brand-primary-tint);
+  outline: none;
+}
+
+.testLink:focus {
+  outline: none;
+}
+

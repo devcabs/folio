@@ -1,0 +1,69 @@
+/**
+ * PageTitle Module Styles — Modern Academic Editorial
+ * Canonical Typography Component
+ * 
+ * Strict Anti-AI-Slop Standard:
+ * - Clean modern sans-serif typography (Plus Jakarta Sans)
+ * - Single mobile breakpoint (max-width: 1023px)
+ * - 100% Design Token Purity
+ */
+
+.pageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-flow-block);
+  width: 100%;
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--title-accent, var(--folio-primary));
+}
+
+.title {
+  font-family: var(--font-sans);
+  font-size: clamp(2rem, 4.5vw, 3.25rem);
+  font-weight: 800;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.subtitle {
+  font-family: var(--font-sans);
+  font-style: italic;
+  font-size: var(--text-body-lead);
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+  max-width: 65ch;
+  margin: var(--space-1) 0 0 0;
+}
+
+.extra {
+  margin-top: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Single Unified Mobile Breakpoint (< 1024px) */
+@media (max-width: 1023px) {
+  .pageHeader {
+    margin-bottom: var(--space-flow-layout);
+  }
+
+  .title {
+    font-size: clamp(1.75rem, 6vw, 2.5rem);
+  }
+
+  .subtitle {
+    font-size: var(--text-body);
+  }
+}

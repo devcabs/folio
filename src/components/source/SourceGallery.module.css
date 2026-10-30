@@ -1,0 +1,200 @@
+/**
+ * SourceGallery Styles
+ * Task 4.5.5: Responsive Evidence Gallery Grid & Canonical Empty State
+ * 
+ * Complies with:
+ * - Modern Academic Editorial design tokens
+ * - Universal Zero Outline Policy (outline: none across all states)
+ * - Absolute Ban on Horizontal Dividing Lines
+ * - Strict 4px/8px geometry scale
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+/* Footer bar displaying authentic folder attachment and developer sync controls below gallery */
+.footer,
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+}
+
+.footerLeft,
+.headerLeft {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.footerRight,
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Tactile 4-State Button Matrix for Manual Drive Photo Sync */
+.syncButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  height: 26px;
+  min-height: 26px;
+  padding: 0 11px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  box-sizing: border-box;
+  line-height: 1;
+  white-space: nowrap;
+  transition: all var(--duration-fast) var(--ease-out);
+  cursor: pointer;
+  outline: none;
+}
+
+.syncButton:hover:not(:disabled) {
+  background: var(--brand-primary-tint);
+  color: var(--folio-primary);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.syncButton:active:not(:disabled) {
+  transform: translateY(1px);
+  outline: none;
+}
+
+.syncButton:focus,
+.syncButton:focus-visible {
+  outline: none;
+}
+
+.syncButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.syncIcon {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 1;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.syncing .syncIcon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Card Container with Right-Flushed Edit Button */
+.galleryCardContainer {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  gap: var(--space-3);
+  position: relative;
+}
+
+.galleryCardBody {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--radius-lg);
+  transition: box-shadow var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+}
+
+.sideEditWrapper {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: center;
+  gap: var(--space-1-5);
+}
+
+.sideEditBtn,
+.sideSyncBtn {
+  min-width: 68px;
+  justify-content: center;
+  white-space: nowrap;
+  outline: none;
+}
+
+.highlightedGallery,
+.galleryCardContainer:has(.sideEditWrapper button:hover) .galleryCardBody {
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 6px var(--brand-accent-tint) !important;
+  background-color: var(--brand-accent-tint) !important;
+}
+
+/* Facebook-Style Adaptive Photo Collage Grid (2-top, 3-bottom with +N) */
+.collageContainer,
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  width: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background-color: var(--bg-surface-muted);
+}
+
+.topRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-0-5);
+  width: 100%;
+}
+
+.topRowSingle {
+  grid-template-columns: 1fr;
+}
+
+.bottomRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-0-5);
+  width: 100%;
+}
+
+.bottomRowDuo {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 639px) {
+  .collageContainer,
+  .grid {
+    gap: var(--space-0-5);
+  }
+
+  .topRow {
+    gap: var(--space-0-5);
+  }
+
+  .bottomRow {
+    gap: var(--space-0-5);
+  }
+}

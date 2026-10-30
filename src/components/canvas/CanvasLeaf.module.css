@@ -1,0 +1,200 @@
+/**
+ * CanvasLeaf CSS Module
+ * Folio Engine — Task 8.3: Canvas Leaf Elements
+ *
+ * Implements styling for CanvasText, CanvasPhoto, and CanvasChart.
+ * 100% Token Purity: Strictly consumes CSS custom properties from tokens.css.
+ * Universal Zero Outline Policy: outline: none across all interactive states.
+ */
+
+.textWrapper {
+  margin-bottom: var(--space-4);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-relaxed);
+}
+
+.bodyText {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-relaxed);
+}
+
+.quoteWrapper {
+  margin: var(--space-4) 0;
+  padding: var(--space-1) 0 var(--space-1) var(--space-3);
+  border-left: 3px solid var(--folio-primary);
+}
+
+.quoteText {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.125rem, 2vw, 1.25rem);
+  font-style: italic;
+  line-height: var(--leading-snug);
+  color: var(--folio-primary);
+}
+
+/* Photo Card Side-By-Side Layout (matching SourceGallery and ChartCard) */
+.photoCardContainer {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  gap: var(--space-3);
+  position: relative;
+  margin-bottom: var(--space-5);
+  content-visibility: auto;
+  contain-intrinsic-size: 0 350px;
+}
+
+.photoCardBody {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--radius-lg);
+  transition: box-shadow var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+}
+
+.sideEditWrapper {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  align-self: center;
+}
+
+.highlightedPhoto,
+.photoCardContainer:has(.sideEditWrapper button:hover) .photoCardBody {
+  box-shadow: 0 0 0 6px var(--brand-accent-tint) !important;
+  background-color: var(--brand-accent-tint) !important;
+  border-radius: var(--radius-lg);
+}
+
+.photoCard {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+}
+
+.photoButton {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+}
+
+.photoButton:focus {
+  outline: none;
+}
+
+.photoButton:focus-visible {
+  outline: none;
+}
+
+.photoImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.photoButton:hover .photoImage {
+  transform: scale(1.015);
+}
+
+.photoCaption {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
+
+.driveContainer {
+  padding: 0 var(--space-4) var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.driveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--folio-primary);
+  background: var(--brand-primary-tint);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  outline: none;
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.driveBadge:hover {
+  background: var(--folio-primary);
+  color: var(--text-inverse);
+}
+
+.driveBadge:focus,
+.driveBadge:focus-visible {
+  outline: none;
+}
+
+.placeholderCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
+  background: var(--bg-surface-muted);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  text-align: center;
+}
+
+.placeholderIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.cameraIcon {
+  width: 28px;
+  height: 28px;
+}
+
+.placeholderText {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  color: var(--text-secondary);
+}
+
+.chartContainer {
+  margin-bottom: var(--space-6);
+}

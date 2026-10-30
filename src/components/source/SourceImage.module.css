@@ -1,0 +1,120 @@
+/**
+ * SourceImage.module.css
+ * Fault-Tolerant Image Loading & Shimmer State Presentation
+ * 
+ * Invariants:
+ * - Strictly consumes tokens from src/styles/tokens.css
+ * - Universal Zero Outline Policy (outline: none on all states)
+ * - Absolute Ban on Horizontal Dividing Lines
+ * - Token purity: zero hardcoded hex or rgba values
+ */
+
+.imageContainer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-surface-muted);
+  outline: none;
+}
+
+.skeletonShimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface-muted) 0%,
+    var(--brand-accent-tint) 50%,
+    var(--bg-surface-muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite ease-in-out;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-out),
+              transform var(--duration-normal) var(--ease-out);
+  position: relative;
+  z-index: 2;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+.imageLoaded {
+  opacity: 1;
+}
+
+.errorFallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background-color: var(--bg-surface-muted);
+  color: var(--text-muted);
+  text-align: center;
+  z-index: 2;
+  outline: none;
+}
+
+.errorIcon {
+  font-size: var(--font-size-base);
+  color: var(--brand-accent-dark);
+}
+
+.errorMessage {
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: var(--leading-tight);
+}
+
+.retryButton {
+  appearance: none;
+  background-color: var(--brand-primary-tint);
+  color: var(--folio-primary);
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+.retryButton:hover {
+  background-color: var(--brand-accent-tint);
+  color: var(--brand-primary-dark);
+}
+
+.retryButton:active {
+  transform: scale(0.97);
+}
+
+.retryButton:focus-visible {
+  outline: none;
+  border-color: var(--folio-accent);
+}

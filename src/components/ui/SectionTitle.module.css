@@ -1,0 +1,61 @@
+/**
+ * SectionTitle Module Styles — Modern Academic Editorial
+ * Canonical Typography Component
+ * 
+ * Strict Anti-AI-Slop & Editorial Standard:
+ * - Clean sans-serif font (Plus Jakarta Sans)
+ * - Single mobile breakpoint (max-width: 1023px)
+ * - 100% Design Token Purity
+ */
+
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.sectionNumber {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: var(--text-caption);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--section-accent, var(--folio-primary));
+}
+
+.sectionTitle {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: clamp(1.375rem, 3vw, 2rem);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+
+h3.sectionTitle {
+  font-size: clamp(1.125rem, 2vw, 1.35rem);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+}
+
+.extra {
+  margin-top: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Single Unified Mobile Breakpoint (< 1024px) */
+@media (max-width: 1023px) {
+  .sectionTitle {
+    font-size: clamp(1.25rem, 5vw, 1.625rem);
+  }
+
+  h3.sectionTitle {
+    font-size: clamp(1.05rem, 3.5vw, 1.2rem);
+  }
+}

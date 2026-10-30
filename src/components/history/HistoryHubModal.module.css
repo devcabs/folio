@@ -1,0 +1,191 @@
+/**
+ * Folio Engine - History Hub Drawer & Modal Styling
+ * Location: src/components/history/HistoryHubModal.module.css
+ * Aligned with: docs/00_WORKFLOW.md, docs/05_VISUAL_SPEC.md, docs/07_CODING_STANDARDS.md
+ *
+ * Directives:
+ * 1. 100% Design Token Purity (Zero raw hex codes or ad-hoc units).
+ * 2. Universal Zero Outline Policy (outline: none on all interactive states).
+ * 3. Absolute Ban on Horizontal Dividing Lines (Spatial padding & distinct card surfaces).
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--text-primary);
+  width: 100%;
+}
+
+.subtitle {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+}
+
+/* Timeline Cards List */
+.timelineList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+}
+
+.emptyState {
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  background-color: var(--bg-surface-muted);
+  border-radius: var(--radius-lg);
+}
+
+/* Editorial Ledger List */
+.historyList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.historyItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--elevation-flat);
+  transition: background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+  outline: none;
+}
+
+.historyItem:hover {
+  background-color: var(--bg-surface-muted);
+  border-color: var(--border-strong);
+  box-shadow: var(--elevation-raised);
+}
+
+.itemMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.itemTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.itemTitle {
+  font-family: var(--font-body);
+  font-size: var(--font-size-base, 15px);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+  word-break: break-word;
+}
+
+.itemMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.metaInterval {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: var(--font-size-xs);
+  color: var(--folio-primary);
+  background-color: var(--brand-primary-tint);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  line-height: 1.3;
+}
+
+.metaDot {
+  color: var(--text-muted);
+  opacity: 0.5;
+  user-select: none;
+}
+
+.metaTimestamp {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.itemAction {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Confirmation Alert Modals */
+.confirmModalContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-1) 0;
+}
+
+.confirmHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.confirmTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
+.confirmDesc {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
+
+.confirmNotice {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
+.confirmActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}

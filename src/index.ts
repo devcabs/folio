@@ -40,3 +40,10 @@ export * from "./hooks/use-hash-route";
 export * from "./hooks/use-scroll";
 export * from "./hooks/use-scrollspy";
 export * from "./utils/smooth-scroll";
+
+// Dynamic Document Canvas Engine
+export * from "./components/canvas";
+export * from "./hooks/useDocumentCanvas";
+export * from "./hooks/useNodeCanvas";
+export * from "./hooks/useLightboxHistory";
+export * from "./services/canvasLayoutService";

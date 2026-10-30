@@ -1,0 +1,283 @@
+/**
+ * UniversalEditModal.module.css
+ * Folio Engine — Modern Academic Editorial Universal Edit Modal
+ * Aligned with docs/tasks/task10_6_unified_canvas_edit_source_and_modal_consolidation.md
+ *
+ * Implements strict Universal Zero Outline Policy, 100% Token Purity,
+ * and Absolute Ban on Horizontal Divider Lines.
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-1) 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fieldLabel {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.requiredMark {
+  color: var(--folio-primary);
+  margin-left: 2px;
+}
+
+.input {
+  width: 100%;
+  height: 42px;
+  padding: 0 var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  outline: none; /* Universal Zero Outline Policy */
+  transition: border-color var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+  box-sizing: border-box;
+}
+
+.input:hover {
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--folio-primary);
+  background: var(--bg-surface);
+  outline: none;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--leading-relaxed);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  outline: none; /* Universal Zero Outline Policy */
+  resize: vertical;
+  transition: border-color var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+  box-sizing: border-box;
+}
+
+.textarea:hover {
+  border-color: var(--border-strong);
+  outline: none;
+}
+
+.textarea:focus {
+  border-color: var(--folio-primary);
+  background: var(--bg-surface);
+  outline: none;
+}
+
+.checkboxLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-body);
+  font-size: var(--text-body-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+
+.checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface);
+  cursor: pointer;
+  outline: none; /* Universal Zero Outline Policy */
+  display: grid;
+  place-content: center;
+  margin: 0;
+  transition: background-color var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+}
+
+.checkbox:hover {
+  border-color: var(--folio-primary);
+  outline: none;
+}
+
+.checkbox:checked {
+  background-color: var(--folio-primary);
+  border-color: var(--folio-primary);
+}
+
+.checkbox:checked::before {
+  content: "";
+  width: 10px;
+  height: 8px;
+  background-color: var(--color-white);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+.checkboxHint {
+  font-family: var(--font-body);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  margin-left: 26px;
+}
+
+.segmentedControl {
+  display: flex;
+  background: var(--bg-surface-muted);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 2px;
+}
+
+.segmentButton {
+  flex: 1;
+  height: 34px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-body);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  outline: none; /* Universal Zero Outline Policy */
+  transition: background-color var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+}
+
+.segmentButton:hover {
+  color: var(--text-primary);
+  outline: none;
+}
+
+.segmentButtonActive {
+  background: var(--bg-surface);
+  color: var(--folio-primary);
+  font-weight: 600;
+  box-shadow: var(--elevation-flat);
+}
+
+.imagePreviewWrapper {
+  width: 100%;
+  max-height: 160px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface-muted);
+}
+
+.previewThumb {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.fileStatus {
+  font-family: var(--font-body);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
+.formatPills {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.formatPill {
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  background: var(--bg-surface-muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  outline: none; /* Universal Zero Outline Policy */
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.formatPill:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.formatPill[data-active="true"] {
+  background: var(--bg-surface);
+  color: var(--folio-primary);
+  border-color: var(--folio-primary);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.actionGroupRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 1023px) {
+  .actions {
+    flex-direction: column-reverse;
+    gap: var(--space-2);
+  }
+
+  .actions button,
+  .actionGroupRight {
+    width: 100%;
+  }
+
+  .actionGroupRight {
+    flex-direction: column-reverse;
+  }
+}

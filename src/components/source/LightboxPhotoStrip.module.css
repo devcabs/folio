@@ -1,0 +1,130 @@
+/**
+ * LightboxPhotoStrip CSS Module
+ *
+ * Aesthetic: Modern Academic Editorial Photo Strip
+ * Enforces:
+ * - Universal Zero Outline Policy: outline: none across all states
+ * - Absolute Ban on Horizontal Dividing Lines
+ * - 100% Token Purity: all colors and spacings consume tokens.css
+ */
+
+.stripContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  width: max-content;
+  max-width: min(100%, 860px);
+  margin: 0 auto;
+  padding: var(--space-1-5) var(--space-3);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  background-color: var(--lightbox-strip-bg);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  border-radius: var(--radius-pill);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  user-select: none;
+}
+
+.stripContainer::-webkit-scrollbar {
+  display: none;
+}
+
+.thumbButton {
+  position: relative;
+  flex: 0 0 auto;
+  width: 56px;
+  height: 42px;
+  padding: 0;
+  margin: 0;
+  border: 2px solid var(--lightbox-thumb-border);
+  border-radius: var(--radius-control);
+  background-color: var(--lightbox-thumb-bg);
+  overflow: hidden;
+  cursor: pointer;
+  opacity: 0.55;
+  outline: none;
+  transition: opacity var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.thumbButton:hover {
+  opacity: 0.85;
+  transform: scale(1.04);
+}
+
+.thumbButton:active {
+  transform: scale(0.96);
+  outline: none;
+}
+
+.thumbButton:focus {
+  outline: none;
+}
+
+.thumbButton:focus-visible {
+  outline: none;
+}
+
+.thumbActive {
+  opacity: 1;
+  border-color: var(--lightbox-thumb-active-border);
+  box-shadow: 0 0 12px var(--lightbox-thumb-active-glow);
+  transform: scale(1.08);
+  z-index: 2;
+  outline: none;
+}
+
+.thumbActive:hover {
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+.thumbImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.thumbFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  color: var(--text-inverse);
+  background-color: var(--lightbox-thumb-bg);
+}
+
+@media (max-width: 640px) {
+  .stripContainer {
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-lg);
+    gap: var(--space-1-5);
+  }
+
+  .thumbButton {
+    width: 44px;
+    height: 33px;
+    border-radius: var(--radius-sm);
+  }
+
+  .thumbActive {
+    transform: scale(1.06);
+  }
+
+  .thumbActive:hover {
+    transform: scale(1.06);
+  }
+}

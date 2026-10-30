@@ -220,7 +220,31 @@
      radial-gradient(ellipse 55% 35% at 50%  2%, rgba(254, 243, 199, 0.22) 0%, transparent 52%),
      #ffffff;
    --gradient-accent-primary: var(--gradient-hero-card);
- }
+    /* Canvas & Source Component Aliases */
+   --leading-relaxed: 1.625;
+   --line-height-subhead: var(--leading-snug);
+   --radius-xs: 2px;
+   --color-white: #ffffff;
+   --color-danger: #e11d48;
+   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+   --shadow-md: var(--elevation-raised);
+   --card-accent: var(--folio-accent);
+   --border-medium: var(--border-subtle);
+   --accent: var(--folio-primary);
+   --font-weight-medium: 500;
+   --text-caption-size: var(--text-caption);
+   --text-subhead-size: var(--text-subhead);
+   --tracking-mono: -0.01em;
+   --tracking-normal: 0em;
+   /* Dev, Title & Layout Aliases */
+   --font-data: var(--font-mono);
+   --font-size-2xl: 24px;
+   --space-2-5: 10px;
+   --title-accent: var(--folio-primary);
+   --section-accent: var(--folio-primary);
+   --text-body-lead: clamp(1.125rem, 1.5vw, 1.25rem);
+   --card-crop-focal: 50% 50%;
+}
 
 
 

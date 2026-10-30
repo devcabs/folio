@@ -1,0 +1,100 @@
+/**
+ * DevLockBlockedModal.module.css
+ * Developer Mode Database Session Lock Dialog Styles
+ * Folio Engine: Management, Accountability and Systematic collection of Data
+ * Strictly adheres to 100% token purity, Universal Zero Outline Policy, and no horizontal divider rules.
+ */
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--text-primary);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+
+.subtitle {
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Hierarchical Metadata (No Box/Card Container) */
+.metaList {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.metaLabel {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.metaValue {
+  font-family: var(--font-data);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.metaValueData {
+  font-family: var(--font-data);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--folio-primary);
+}
+
+.noticeText {
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  line-height: var(--leading-normal);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Actions Section */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+/* Universal Zero Outline Policy Enforcement */
+.actions button {
+  outline: none;
+}
+
+.actions button:focus,
+.actions button:focus-visible {
+  outline: none;
+}

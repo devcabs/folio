@@ -1,0 +1,165 @@
+/**
+ * DevModeBadge.module.css
+ * Floating Developer Mode Status Capsule
+ * Strictly adheres to the CanvasAddBar palette popover design language:
+ * 100% token purity, Universal Zero Outline Policy, no dividers.
+ */
+
+.floatingCapsule {
+  position: fixed;
+  bottom: var(--space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-dev-badge);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--admin-pill-border);
+  border-radius: var(--radius-full);
+  box-shadow: var(--elevation-overlay);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  animation: badgeSlideIn var(--duration-fast) var(--ease-out);
+  outline: none;
+  user-select: none;
+  pointer-events: auto;
+}
+
+/* Dev Mode Active Status Pill (Anchored similarly to the active Section item in CanvasAddBar) */
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
+  background-color: var(--admin-pill-bg);
+  border: 1px solid var(--admin-pill-border);
+  border-radius: var(--radius-full);
+  color: var(--admin-pill-text);
+  font-family: var(--font-body);
+  white-space: nowrap;
+}
+
+.statusIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--admin-pill-text);
+}
+
+.statusTitle {
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--admin-pill-text);
+}
+
+.sessionTime {
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--admin-pill-text);
+  opacity: 0.85;
+}
+
+.cloudSyncIndicator {
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--admin-pill-text);
+  opacity: 0.85;
+}
+
+/* Action Button Option (Mirrors .paletteOption from CanvasControls) */
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  border-radius: var(--radius-full);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+.actionButton:hover:not(:disabled) {
+  background: var(--admin-pill-bg);
+  color: var(--admin-pill-text);
+  outline: none;
+}
+
+.actionButton:active:not(:disabled) {
+  transform: scale(0.97);
+  outline: none;
+}
+
+.actionButton:focus-visible {
+  outline: none;
+  background: var(--admin-pill-bg);
+}
+
+.actionButtonActive {
+  background: var(--admin-pill-hover-bg);
+  color: var(--admin-pill-hover-text);
+}
+
+.actionButton:disabled,
+.buttonDisabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.actionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.actionButton:hover:not(:disabled) .actionIcon {
+  color: var(--admin-pill-text);
+}
+
+.actionButtonActive .actionIcon {
+  color: var(--admin-pill-hover-text);
+}
+
+.actionLabel {
+  font-size: var(--text-body-sm);
+  letter-spacing: var(--tracking-tight);
+}
+
+
+
+@keyframes badgeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}

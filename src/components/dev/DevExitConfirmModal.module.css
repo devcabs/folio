@@ -1,0 +1,64 @@
+/**
+ * DevExitConfirmModal.module.css
+ * Developer Mode Exit Confirmation Dialog Styles
+ * Folio Engine: Management, Accountability and Systematic collection of Data
+ * Strictly adheres to 100% token purity, Universal Zero Outline Policy, and no horizontal divider rules.
+ */
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--text-primary);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+
+.subtitle {
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Actions Section */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+/* Universal Zero Outline Policy Enforcement */
+.actions button {
+  outline: none;
+}
+
+.actions button:focus,
+.actions button:focus-visible {
+  outline: none;
+}
+
+.destructiveButton {
+  color: var(--folio-primary) !important;
+  border-color: var(--brand-primary-tint) !important;
+}
+
+.destructiveButton:hover:not(:disabled) {
+  background-color: var(--brand-primary-tint) !important;
+}

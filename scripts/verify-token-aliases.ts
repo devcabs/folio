@@ -83,12 +83,16 @@ for (const file of sourceFiles) {
     localDefs.add(localMatch[1].trim());
   }
 
+  let inBlockComment = false;
   lines.forEach((line, idx) => {
-    // Skip single-line comments
     const trimmed = line.trim();
-    if (trimmed.startsWith('//') || (trimmed.startsWith('/*') && trimmed.endsWith('*/'))) {
+    if (trimmed.startsWith('/*') && trimmed.endsWith('*/')) return;
+    if (trimmed.startsWith('/*')) { inBlockComment = true; return; }
+    if (inBlockComment) {
+      if (trimmed.endsWith('*/') || trimmed.includes('*/')) inBlockComment = false;
       return;
     }
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
 
     let usageMatch: RegExpExecArray | null;
     while ((usageMatch = VAR_USAGE_REGEX.exec(line)) !== null) {

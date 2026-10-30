@@ -1,0 +1,215 @@
+/**
+ * DevPinModal.module.css
+ * Developer PIN Authentication Form Styles
+ * Rendered inside canonical Modal.
+ * Strictly adheres to Universal Zero Outline Policy and design tokens.
+ */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.kicker {
+  font-family: var(--font-data);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--folio-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.kickerDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background-color: var(--folio-accent);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.subtitle {
+  font-family: var(--font-body);
+  font-size: var(--font-size-sm);
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* PIN Inputs Area */
+.pinContainer {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-2);
+  cursor: text;
+}
+
+.nativeHiddenInput {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.0001;
+  cursor: text;
+  border: none;
+  background: transparent;
+  outline: none;
+  z-index: 2;
+  font-size: 16px;
+}
+
+.slotsRow {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+
+.pinSlot {
+  width: 60px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-surface-muted);
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-control);
+  transition: all var(--duration-fast) var(--ease-out);
+  position: relative;
+}
+
+.pinSlotFilled {
+  border-color: var(--border-strong);
+  background-color: var(--bg-surface);
+}
+
+.pinSlotActive {
+  border-color: var(--folio-primary);
+  background-color: var(--bg-surface);
+  outline: none;
+}
+
+.pinSlotDisabled {
+  opacity: 0.45;
+  background-color: var(--bg-surface-muted);
+  border-color: var(--border-subtle);
+}
+
+.pinDot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background-color: var(--folio-primary);
+  display: block;
+  animation: dotPop var(--duration-fast) var(--ease-out);
+}
+
+.pinCaret {
+  width: 2px;
+  height: 22px;
+  background-color: var(--folio-primary);
+  border-radius: 1px;
+  animation: caretBlink 1s infinite;
+}
+
+@keyframes dotPop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes caretBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.shake {
+  animation: tactileShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Feedback & Status Message */
+.statusBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 24px;
+}
+
+.statusText {
+  font-family: var(--font-body);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin: 0;
+  text-align: center;
+}
+
+.errorText {
+  color: var(--folio-primary);
+  font-weight: 600;
+}
+
+.lockoutText {
+  color: var(--folio-primary);
+  font-family: var(--font-data);
+  font-weight: 600;
+}
+
+.verifyingText {
+  color: var(--brand-accent-dark);
+  font-weight: 600;
+}
+
+.successText {
+  color: var(--color-node-4);
+  font-weight: 600;
+}
+
+/* Modal Actions */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+@keyframes tactileShake {
+  10%, 90% {
+    transform: translateX(-2px);
+  }
+  20%, 80% {
+    transform: translateX(4px);
+  }
+  30%, 50%, 70% {
+    transform: translateX(-6px);
+  }
+  40%, 60% {
+    transform: translateX(6px);
+  }
+}

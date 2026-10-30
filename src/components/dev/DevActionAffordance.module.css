@@ -1,0 +1,275 @@
+/**
+ * DevActionAffordance.module.css
+ * Administrative Affordance Container & Hover Controls
+ * Strictly adheres to Universal Zero Outline Policy and design tokens.
+ */
+
+.wrapper {
+  position: relative;
+  display: block;
+  border-radius: var(--radius-surface);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.wrapper:hover {
+  z-index: var(--z-raised);
+}
+
+/* Inline Link Affordance (Unified Single Row) */
+.inlineWrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  vertical-align: middle;
+  border-radius: var(--radius-full);
+}
+
+.inlineWrapper:hover {
+  z-index: var(--z-raised);
+}
+
+.textWrapper:hover,
+.imageWrapper:hover {
+  z-index: var(--z-raised);
+}
+
+.controlsBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  user-select: none;
+  width: 100%;
+  position: relative;
+  z-index: var(--z-admin-btn);
+}
+
+.pointBadge {
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--admin-pill-text);
+  background-color: var(--admin-pill-bg);
+  border: 1px solid var(--admin-pill-border);
+  box-shadow: var(--admin-pill-shadow);
+  height: 26px;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  box-sizing: border-box;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.indicatorSlotBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 10px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background-color: var(--bg-surface);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-full);
+  box-sizing: border-box;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.actionButton {
+  position: relative;
+  z-index: var(--z-admin-btn);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 26px;
+  min-height: 26px;
+  padding: 0 10px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--admin-pill-text);
+  background-color: var(--admin-pill-bg);
+  border: 1px solid var(--admin-pill-border);
+  box-shadow: var(--admin-pill-shadow);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
+  line-height: 1;
+  transition: all var(--duration-fast) var(--ease-out);
+  text-decoration: none;
+}
+
+.actionButton:hover {
+  z-index: var(--z-admin-btn-hover);
+  background-color: var(--admin-pill-hover-bg);
+  color: var(--admin-pill-hover-text);
+  border-color: var(--admin-pill-hover-border);
+  box-shadow: var(--admin-pill-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.actionButton:focus-visible {
+  outline: none;
+  border-color: var(--admin-pill-hover-border);
+}
+
+.driveButton {
+  color: var(--brand-accent-dark) !important;
+  border-color: var(--border-hero-card) !important;
+  background-color: var(--bg-surface) !important;
+}
+
+.driveButton:hover {
+  background-color: var(--brand-accent-tint) !important;
+  color: var(--brand-accent-dark) !important;
+  border-color: var(--folio-accent) !important;
+}
+
+/* Text Hover Badge Variation */
+.textWrapper {
+  position: relative;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.textBadge {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  opacity: 1;
+  transition: opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+  z-index: var(--z-admin-btn);
+  display: inline-flex;
+  align-items: center;
+}
+
+.textWrapper:hover .textBadge {
+  opacity: 1;
+  transform: translateY(calc(-50% - 1px));
+  z-index: var(--z-admin-btn-hover);
+}
+
+/* Content Plate */
+.textContent {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius-surface);
+  transition: background-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.textContentInline {
+  display: inline;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.imageContent {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+
+/* Highlight corresponding editable content when edit button is hovered */
+.highlightedTarget,
+.textWrapper:has(.textBadge:hover) .textContent,
+.textWrapper:has(.textBadge button:hover) .textContent,
+.textWrapper:has(.textBadge:hover) > :not(.textBadge),
+.textWrapper:has(.textBadge button:hover) > :not(.textBadge),
+.inlineWrapper:has(button:hover) .textContentInline,
+.wrapper:has(.controlsBar button:hover) .textContent {
+  background-color: var(--brand-accent-tint) !important;
+  box-shadow: 0 0 0 6px var(--brand-accent-tint) !important;
+  border-radius: var(--radius-surface);
+}
+
+.imageWrapper:has(.imageBadge button:hover) .imageContent,
+.imageContent.highlightedTarget {
+  box-shadow: 0 0 0 4px var(--folio-accent) !important;
+  border-radius: var(--radius-lg) !important;
+  background-color: transparent !important;
+}
+
+.indicatorBox {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-surface);
+  padding: var(--space-3);
+  margin-top: var(--space-2);
+  background-color: var(--ambient-glow-accent);
+}
+
+/* Image Hover Badge Variation */
+.imageWrapper {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.imageBadge {
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  right: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  opacity: 1;
+  pointer-events: auto !important;
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  z-index: var(--z-admin-btn);
+}
+
+.imageWrapper:hover .imageBadge {
+  opacity: 1;
+  transform: translateY(-1px);
+  z-index: var(--z-admin-btn-hover);
+}
+
+/* Stylized EMPTY Indicator for No-Content Values in Developer Mode */
+.emptyPlaceholder {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 2px var(--space-2);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-muted);
+  box-sizing: border-box;
+}
+
+.emptyPlaceholderInline {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 1px var(--space-2);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-muted);
+  box-sizing: border-box;
+}
+
+.emptyTextBadge {
+  font-family: var(--font-body);
+  font-size: var(--text-caption);
+  font-style: italic;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+

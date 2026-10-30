@@ -1,0 +1,372 @@
+/**
+ * SourceLightbox CSS Module
+ * 
+ * Aesthetic: Modern Academic Editorial Lightbox
+ * Enforces:
+ * - Universal Zero Outline Policy: outline: none on all interactive controls
+ * - Absolute Ban on Horizontal Dividing Lines
+ * - 100% Token Purity: all colors and spacings consume tokens.css
+ * - High-Contrast Editorial Typography Trinity
+ */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background-color: var(--lightbox-scrim);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  user-select: none;
+  animation: fadeIn var(--duration-normal) var(--ease-out);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Screen reader announcement utility */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ==========================================================================
+   Header Bar & Chrome
+   ========================================================================== */
+
+.headerBar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-6) var(--space-4);
+  background: var(--lightbox-chrome-bg);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  transition: opacity var(--duration-normal) var(--ease-out),
+              transform var(--duration-normal) var(--ease-out);
+}
+
+.chromeHidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+}
+
+.counterPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+  letter-spacing: var(--tracking-mono);
+  color: var(--text-inverse);
+  background-color: var(--lightbox-control-bg);
+  border-radius: var(--radius-pill);
+}
+
+.closeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  color: var(--text-inverse);
+  background-color: var(--lightbox-control-bg);
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+.closeButton:hover {
+  background-color: var(--lightbox-control-hover);
+  transform: scale(1.05);
+}
+
+.closeButton:active {
+  background-color: var(--lightbox-control-active);
+  transform: scale(0.95);
+}
+
+.closeButton:focus {
+  outline: none;
+}
+
+.closeIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* ==========================================================================
+   Stage & Photographic Canvas
+   ========================================================================== */
+
+.stage {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-4) var(--space-6);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: zoom-in;
+}
+
+.stageZoomed {
+  cursor: zoom-out;
+}
+
+.imageFrame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  max-height: min(75vh, 640px);
+  width: 100%;
+  height: 100%;
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.imageFrameZoomed {
+  transform: scale(1.5);
+}
+
+.lightboxImageWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+}
+
+.lightboxImage {
+  max-width: 100%;
+  max-height: min(75vh, 640px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-modal);
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none;
+}
+
+/* ==========================================================================
+   Navigation Chevrons
+   ========================================================================== */
+
+.navButton {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  margin: 0;
+  color: var(--text-inverse);
+  background-color: var(--lightbox-control-bg);
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out),
+              opacity var(--duration-normal) var(--ease-out);
+}
+
+.navButton.chromeHidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) scale(0.9);
+}
+
+.navPrev {
+  left: var(--space-6);
+}
+
+.navNext {
+  right: var(--space-6);
+}
+
+.navButton:hover {
+  background-color: var(--lightbox-control-hover);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.navButton:active {
+  background-color: var(--lightbox-control-active);
+  transform: translateY(-50%) scale(0.95);
+}
+
+.navButton:focus {
+  outline: none;
+}
+
+.navIcon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+@media (max-width: 640px) {
+  .navButton {
+    width: 42px;
+    height: 42px;
+    z-index: 20;
+  }
+
+  .navPrev {
+    left: var(--space-2);
+  }
+
+  .navNext {
+    right: var(--space-2);
+  }
+
+  .navIcon {
+    font-size: 20px;
+  }
+}
+
+/* ==========================================================================
+   Footer Action Bar
+   ========================================================================== */
+
+.footerBar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  background: var(--lightbox-chrome-bg);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  transition: opacity var(--duration-normal) var(--ease-out),
+              transform var(--duration-normal) var(--ease-out);
+}
+
+.footerHidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+}
+
+.photoStripWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.footerTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.metadataBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.titleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.photoTitle {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-subhead-size);
+  font-weight: 600;
+  line-height: var(--line-height-subhead);
+  letter-spacing: var(--tracking-normal);
+  color: var(--text-inverse);
+}
+
+.sourceGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.driveButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  color: var(--text-inverse);
+  background-color: var(--lightbox-control-bg);
+  border: none;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+.driveButton:hover {
+  background-color: var(--lightbox-control-hover);
+  transform: translateY(-1px);
+}
+
+.driveButton:active {
+  background-color: var(--lightbox-control-active);
+  transform: translateY(0);
+}
+
+.driveButton:focus {
+  outline: none;
+}
+
+.driveIcon {
+  font-size: 13px;
+  line-height: 1;
+}
