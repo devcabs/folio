@@ -1,0 +1,63 @@
+.parametricShape {
+  --logo-size: 36px;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--logo-size);
+  height: var(--logo-size);
+  flex-shrink: 0;
+  transform-origin: center;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+/* Size Variants */
+.sizeSm {
+  --logo-size: 32px;
+}
+
+.sizeMd {
+  --logo-size: 42px;
+}
+
+.sizeLg {
+  --logo-size: 54px;
+}
+
+/* Conic Gradient Shape Masked by Parametric Wavy Polygon */
+.conicShape {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--gradient-conic);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  transition: transform var(--duration-normal) var(--ease-out);
+  transform-origin: center;
+}
+
+/* Interactive Hover Feedback: Subtle rotation and scale */
+.parametricShape:hover {
+  transform: scale(1.08);
+}
+
+.parametricShape:hover .conicShape {
+  transform: rotate(36deg);
+}
+
+/* Optional Center Letter */
+.letter {
+  position: absolute;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: calc(var(--logo-size) * 0.46);
+  color: var(--folio-primary);
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}

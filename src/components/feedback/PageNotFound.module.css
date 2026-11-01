@@ -1,0 +1,115 @@
+/**
+ * PageNotFound Module Styles — Modern Academic Editorial
+ * Subtask 4.4.1: Dignified 404 Fallback
+ * 
+ * Strict Anti-AI-Slop Standard:
+ * - Zero rainbow gradient borders
+ * - Zero synthetic status badges
+ * - Calm, dignified typography on warm canvas
+ * - Universal Zero Outline Policy compliant
+ */
+
+.notFoundWrapper {
+  min-height: calc(100vh - 180px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--space-8) + 80px) 0 var(--space-flow-hero);
+  text-align: center;
+  width: min(calc(100% - 2 * var(--layout-gutter-desktop)), var(--layout-max-width));
+  max-width: var(--layout-max-width);
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.errorCode {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--folio-primary);
+  margin-bottom: var(--space-2);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  margin: 0 0 var(--space-3);
+}
+
+.description {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+  max-width: 480px;
+  margin: 0 0 var(--space-6);
+}
+
+.returnButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--btn-min-height);
+  padding: var(--btn-padding-y) var(--btn-padding-x);
+  background: var(--folio-primary);
+  color: var(--text-inverse);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: var(--elevation-raised);
+  transition: background-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.returnButton:hover {
+  background: var(--brand-primary-dark);
+}
+
+.returnButton:hover .returnIcon {
+  transform: translateX(-3px);
+}
+
+.returnButton:active {
+  transform: scale(0.98) translateY(1px);
+}
+
+/* Universal Zero Outline Policy */
+.returnButton:focus,
+.returnButton:focus-visible,
+.returnButton:active {
+  outline: none;
+  outline: 0;
+  background: var(--brand-primary-dark);
+}
+
+.returnIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+/* Single Unified Mobile Breakpoint (< 1024px) */
+@media (max-width: 1023px) {
+  .notFoundWrapper {
+    width: calc(100% - 2 * var(--layout-gutter-mobile));
+    max-width: calc(100% - 2 * var(--layout-gutter-mobile));
+    margin: 0 auto;
+    padding: calc(var(--space-8) + 68px) 0 var(--space-flow-section);
+  }
+
+  .returnButton {
+    width: 100%;
+  }
+}

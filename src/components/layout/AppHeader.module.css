@@ -1,0 +1,441 @@
+/**
+ * AppHeader Module Styles — Exact Portrait Inspiration Reference
+ * Floating capsule bar with brand avatar, center navigation links,
+ * and rainbow-bordered "Portrait Ref" pill button.
+ */
+
+.siteHeader {
+  position: fixed;
+  top: var(--space-8);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.skipLink {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--folio-primary);
+  color: var(--text-inverse);
+  padding: var(--space-pad-control-y) var(--space-pad-control-x);
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  z-index: 1100;
+  transition: top var(--duration-fast) ease;
+  pointer-events: auto;
+}
+
+.skipLink:focus {
+  top: var(--space-gap-inline);
+}
+
+/* Floating Capsule Navbar — Shared width with content area */
+.navCapsule {
+  position: relative;
+  pointer-events: auto;
+  width: min(calc(100% - 2 * var(--layout-gutter-desktop)), var(--layout-max-width));
+  max-width: var(--layout-max-width);
+  margin: 0 auto;
+  box-sizing: border-box;
+  background: var(--bg-surface-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  box-shadow: var(--elevation-overlay);
+  padding: 6px 8px 6px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-gap-layout);
+}
+
+/* Desktop-only glass blur (GPU can handle per-frame backdrop compositing) */
+@media (min-width: 1024px) and (hover: hover) {
+  .navCapsule {
+    background: var(--bg-surface-glass);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  }
+}
+
+/* Left Brand Group */
+.brandGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-gap-layout);
+  text-decoration: none;
+}
+
+.brandLogo {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logoCircle {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--gradient-brand);
+  box-shadow: var(--elevation-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-inverse);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  transition: transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.brandGroup:hover .logoCircle {
+  transform: scale(1.08);
+  box-shadow: var(--elevation-raised-hover);
+}
+
+.brandMeta {
+  display: flex;
+  flex-direction: column;
+}
+
+.brandTitle {
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+
+.brandSubtitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  line-height: var(--leading-snug);
+}
+
+/* Center Navigation Links */
+.navLinks {
+  display: none;
+  align-items: center;
+  gap: var(--space-gap-wide);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 1024px) {
+  .navLinks {
+    display: flex;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+    z-index: 2;
+  }
+}
+
+@keyframes navFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.navLink {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-full);
+  animation: navFadeIn var(--duration-fast) var(--ease-out);
+  transition: color var(--duration-fast) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navLink {
+    animation: none;
+  }
+}
+
+.navLink:hover {
+  color: var(--text-nav-active);
+}
+
+.navLink:focus,
+.navLink:focus-visible,
+.navLink:active {
+  outline: none;
+  color: var(--text-nav-active);
+}
+
+/* Right CTA Action */
+.navAction {
+  display: flex;
+  align-items: center;
+  gap: var(--space-gap-inline);
+}
+
+.btnPortraitRef {
+  --btn-color: var(--text-primary);
+  --btn-elevation: var(--elevation-raised);
+  --outline-width: 3.5px;
+  padding: 0.35rem 1.15rem;
+  font-size: var(--text-body);
+  font-weight: 600;
+  gap: var(--space-gap-inline);
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition: opacity var(--duration-normal) var(--ease-out),
+              transform var(--duration-normal) var(--ease-out),
+              max-width var(--duration-normal) var(--ease-out),
+              padding var(--duration-normal) var(--ease-out),
+              margin var(--duration-normal) var(--ease-out),
+              visibility var(--duration-normal);
+}
+
+.btnCtaHidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.92) translateY(-2px);
+  visibility: hidden;
+  max-width: 0;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin: 0 !important;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Animated 2-Line Menu Toggle Button (Portrait.so Inspiration)
+   Morphs from 2 parallel lines (translateY ±3px) to an X (rotate ±45deg).
+   ========================================================================== */
+.menuToggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  transition: background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+@media (max-width: 1023px) {
+  .menuToggle {
+    display: flex;
+  }
+}
+
+.menuToggle:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-subtle);
+}
+
+.menuToggle:active {
+  transform: scale(0.94);
+}
+
+.menuToggle:focus,
+.menuToggle:focus-visible,
+.menuToggle:active {
+  outline: none;
+  background: var(--bg-surface-hover);
+  border-color: var(--border-subtle);
+}
+
+/* Inner 24x24 icon viewport */
+.menuIcon {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Base line: 16px wide, 2px high with pill radius */
+.menuLine {
+  position: absolute;
+  width: 16px;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background-color: currentColor;
+  transform-origin: center center;
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+
+/* Closed state: two parallel lines separated by 6px (center-to-center) */
+.menuLineTop {
+  transform: translateY(-3px) rotate(0deg);
+}
+
+.menuLineBottom {
+  transform: translateY(3px) rotate(0deg);
+}
+
+/* Open state: morph into symmetric 45-degree X */
+.menuLineTopOpen {
+  transform: translateY(0) rotate(45deg);
+}
+
+.menuLineBottomOpen {
+  transform: translateY(0) rotate(-45deg);
+}
+
+/* ==========================================================================
+   Mobile Dropdown Navigation Capsule
+   Floating glass card anchoring beneath the navbar capsule.
+   ========================================================================== */
+.mobileDropdown {
+  position: absolute;
+  top: calc(100% + var(--space-gap-inline));
+  right: 0;
+  min-width: 200px;
+  background: var(--bg-surface-glass);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  box-shadow: var(--elevation-overlay);
+  padding: var(--space-gap-inline);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap-tight);
+  z-index: 1050;
+  animation: dropdownFadeIn var(--duration-fast) var(--ease-out);
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobileDropdown {
+    display: none;
+  }
+}
+
+/* Mobile dropdown link items */
+.mobileNavLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: var(--space-pad-control-y) var(--space-pad-control-x);
+  border-radius: var(--radius-control);
+  transition: background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.itemNumber {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.itemLabel {
+  letter-spacing: var(--tracking-tight);
+}
+
+.mobileNavLink:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-nav-active);
+}
+
+.mobileNavLink:focus,
+.mobileNavLink:focus-visible,
+.mobileNavLink:active {
+  outline: none;
+  background: var(--bg-surface-hover);
+  color: var(--text-nav-active);
+}
+
+/* Single Unified Mobile Breakpoint (< 1024px) */
+@media (max-width: 1023px) {
+  .siteHeader {
+    padding: 0;
+  }
+
+  .navCapsule {
+    width: calc(100% - 2 * var(--layout-gutter-mobile));
+    max-width: calc(100% - 2 * var(--layout-gutter-mobile));
+    margin: 0 auto;
+    padding: 6px 12px 6px 16px;
+    gap: var(--space-gap-inline);
+  }
+
+  .brandGroup {
+    gap: var(--space-gap-inline);
+    min-width: 0;
+  }
+
+  .brandTitle {
+    font-size: clamp(0.9375rem, 4vw, 1.25rem);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .brandSubtitle {
+    display: none;
+  }
+
+  .btnPortraitRef {
+    padding: 0.3rem 0.75rem;
+    font-size: var(--text-body);
+  }
+}
+
+/* Dynamic Brand Title Display:
+   When there is no CTA button disrupting the top bar (.noCta),
+   always proudly show the "Portal" brand title across all small screens. */
+.noCta .brandTitle {
+  display: block !important;
+}
+
+.noCta .brandMeta {
+  display: flex !important;
+}

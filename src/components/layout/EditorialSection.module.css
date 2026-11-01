@@ -1,0 +1,11 @@
+.editorialSection {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+  margin-bottom: var(--space-12, 3rem);
+}
+
+.editorialSection:last-child {
+  margin-bottom: 0;
+}

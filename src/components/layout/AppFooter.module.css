@@ -1,0 +1,326 @@
+/**
+ * AppFooter Styles — Modern Academic Editorial
+ * Multi-column navigation and live institutional status.
+ *
+ * Strict Anti-AI-Slop & Editorial Restraint:
+ * - Pure spatial separation (zero divider lines)
+ * - Single mobile breakpoint (1023px)
+ * - 100% token purity & universal zero outline compliance
+ */
+
+.siteFooter {
+  position: relative;
+  background-color: var(--bg-surface);
+  padding: var(--space-flow-section) 0 var(--space-pad-container) 0;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+}
+
+.footerContainer {
+  width: min(calc(100% - 2 * var(--layout-gutter-desktop)), var(--layout-max-width));
+  max-width: var(--layout-max-width);
+  margin: 0 auto;
+  padding: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-flow-block);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Multi-Column Navigation Grid (Desktop Default)
+   ══════════════════════════════════════════════════════════════════════ */
+.footerGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: var(--space-flow-section);
+}
+
+/* Brand Column — Single Anchor, Zero Subtitle Piling */
+.brandColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.brandGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-gap-layout);
+  text-decoration: none;
+  color: inherit;
+}
+
+.brandName {
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+
+/* Nav Link Columns */
+.navColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-flow-block);
+}
+
+.columnHeading {
+  font-family: var(--font-sans);
+  font-size: var(--text-secondary);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--folio-primary);
+  margin: 0;
+}
+
+.columnList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-gap-inline);
+}
+
+.footerLink {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+  transition: color var(--duration-fast) var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-gap-tight);
+  width: fit-content;
+}
+
+.footerLink:hover {
+  color: var(--folio-primary);
+}
+
+.footerLink:active {
+  color: var(--brand-primary-dark);
+}
+
+.footerLink:focus,
+.footerLink:focus-visible,
+.footerLink:active {
+  outline: none;
+  color: var(--folio-primary);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Bottom Bar (Copyright & Live Institutional Status)
+   ══════════════════════════════════════════════════════════════════════ */
+.footerBottom {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-gap-layout);
+  padding-top: var(--space-flow-tight);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.statusBlock {
+  display: flex;
+  align-items: center;
+}
+
+/* Institutional Status Capsule (Modern Academic Editorial) */
+.statusIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-gap-inline);
+  padding: 4px 12px;
+  background-color: var(--bg-surface-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  transition: border-color var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+}
+
+.statusIndicator:focus,
+.statusIndicator:focus-visible,
+.statusIndicator:active {
+  outline: none;
+}
+
+.statusHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-gap-inline);
+  flex-shrink: 0;
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-node-4);
+  box-shadow: 0 0 0 2px var(--color-node-4-border);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.statusTitle {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: var(--leading-tight);
+}
+
+.statusSeparator {
+  color: var(--text-muted);
+  opacity: 0.6;
+  user-select: none;
+}
+
+.statusDesc {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: var(--leading-tight);
+}
+
+.legalBlock {
+  display: flex;
+  align-items: center;
+  gap: var(--space-gap-inline);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.copyright {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
+.legalSeparator {
+  color: var(--color-separator);
+  user-select: none;
+}
+
+.bottomLink {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: var(--text-caption);
+  transition: color var(--duration-fast) var(--ease-out);
+  padding: 2px 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.bottomLink:hover {
+  color: var(--folio-primary);
+}
+
+.bottomLink:focus,
+.bottomLink:focus-visible,
+.bottomLink:active {
+  outline: none;
+  color: var(--folio-primary);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Single Unified Mobile Breakpoint (< 1024px)
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+  .footerContainer {
+    width: calc(100% - 2 * var(--layout-gutter-mobile));
+    max-width: calc(100% - 2 * var(--layout-gutter-mobile));
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  .footerGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-flow-layout);
+  }
+
+  .footerBottom {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-flow-block);
+  }
+
+  .statusBlock {
+    display: block;
+    width: 100%;
+  }
+
+  .statusIndicator {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--bg-surface-muted);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+  }
+
+  .statusHeader {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-gap-inline);
+    line-height: var(--leading-tight);
+  }
+
+  .statusDot {
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .statusTitle {
+    font-size: var(--text-caption);
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    line-height: var(--leading-tight);
+  }
+
+  .statusSeparator {
+    display: none;
+  }
+
+  .statusDesc {
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+    letter-spacing: 0.005em;
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+
+  .legalBlock {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-gap-tight);
+    width: 100%;
+  }
+
+  .legalSeparator {
+    display: none;
+  }
+
+  .bottomLink {
+    padding: 4px 0;
+  }
+}

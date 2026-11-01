@@ -1,0 +1,207 @@
+/* Big Search Field Component (Reference Architecture: portrait_inspiration) */
+.searchForm {
+  width: 100%;
+  max-width: 660px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.searchPill {
+  display: flex;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-full);
+  padding: 8px 8px 8px 24px;
+  min-height: 62px;
+  box-shadow: var(--elevation-overlay);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.searchPill:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--elevation-raised-hover);
+}
+
+.searchPill:focus,
+.searchPill:focus-within,
+.searchPill:focus-visible {
+  outline: none;
+  /* Design System Standard: Zero outline border on selected state — calm natural surface */
+}
+
+.searchIconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  margin-right: var(--space-gap-layout);
+  flex-shrink: 0;
+  transition: color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.searchPill:focus-within .searchIconWrap {
+  color: var(--folio-primary);
+  transform: scale(1.06);
+}
+
+.searchIcon {
+  display: block;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-subhead);
+  color: var(--text-primary);
+  background: transparent;
+  padding: 0 var(--space-gap-tight);
+}
+
+.searchInput:focus,
+.searchInput:focus-visible {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+.searchInput::placeholder {
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.searchInput::-webkit-search-cancel-button {
+  display: none;
+  -webkit-appearance: none;
+}
+
+.clearBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  margin: 0 var(--space-gap-inline);
+  flex-shrink: 0;
+  transition: color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+
+.clearBtn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-surface-muted);
+}
+
+.shortcutKbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-surface-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  padding: 3px 8px;
+  margin: 0 var(--space-gap-layout);
+  user-select: none;
+  pointer-events: none;
+  line-height: normal;
+  flex-shrink: 0;
+}
+
+/* Individualized styles for Search submit button consuming canonical RevolvingButton */
+.searchSubmitBtn {
+  --btn-color: var(--folio-primary);
+  --btn-elevation: var(--elevation-flat);
+  --outline-width: 3.5px;
+  height: 46px;
+  padding: 0 22px;
+  gap: var(--space-gap-inline);
+  font-size: var(--text-body);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  flex-shrink: 0;
+}
+
+.searchSubmitText {
+  display: inline;
+}
+
+/* Sibling bottom button for mobile/phones (hidden on desktop) */
+.searchSubmitBtnBottom {
+  display: none;
+  --btn-color: var(--folio-primary);
+  --btn-elevation: var(--elevation-flat);
+  --outline-width: 3.5px;
+  gap: var(--space-gap-inline);
+  font-size: var(--text-body);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.arrowIcon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.searchSubmitBtn:hover .arrowIcon,
+.searchSubmitBtnBottom:hover .arrowIcon {
+  transform: translateX(3px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .searchForm {
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-gap-inline);
+  }
+
+  .searchPill {
+    padding: 6px 14px 6px 16px;
+    min-height: 52px;
+  }
+
+  .searchIconWrap {
+    margin-right: var(--space-gap-tight);
+  }
+
+  .searchInput {
+    font-size: var(--text-body);
+  }
+
+  .shortcutKbd {
+    display: none;
+  }
+
+  /* Remove search button from the pill field on phones */
+  .searchSubmitBtn {
+    display: none;
+  }
+
+  /* Show bottom sibling button occupying total allowable width with same aesthetic */
+  .searchSubmitBtnBottom {
+    display: flex;
+    width: 100%;
+    height: 48px;
+    justify-content: center;
+  }
+}

@@ -1,0 +1,173 @@
+/**
+ * EditorialSidebar Module Styles — Modern Academic Editorial
+ * Canonical Reusable Sidebar Navigation (Desktop only)
+ * 
+ * Strict Anti-AI-Slop Standard:
+ * - Restrained typography and calm negative space
+ * - Hidden on mobile (< 1024px) where navigation automatically adapts to AppHeader
+ * - Universal Zero Outline Policy compliant
+ * - 100% Design Token Purity
+ */
+
+.sidebarContainer {
+  position: -webkit-sticky;
+  position: sticky;
+  top: calc(var(--space-8) + 54px + var(--space-3));
+  max-height: calc(100vh - (var(--space-8) + 54px + var(--space-6)));
+  overflow-y: auto;
+  padding-right: var(--space-4);
+  scrollbar-width: thin;
+}
+
+/* Sticky Sidebar Nearest Location Breadcrumb (< Roadmap) */
+.sidebarBreadcrumb {
+  display: flex;
+  align-items: center;
+  padding: 0 8px var(--space-2) 8px;
+  margin-bottom: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-tight);
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out),
+    visibility var(--duration-normal) var(--ease-out);
+}
+
+.sidebarBreadcrumbSticky {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.breadcrumbBackBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 8px;
+  margin-left: -8px;
+  border-radius: var(--radius-control);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  cursor: pointer;
+  min-height: auto;
+  min-width: auto;
+  transition: color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+
+.breadcrumbBackBtn:hover {
+  color: var(--folio-primary);
+  background-color: var(--bg-surface-muted);
+}
+
+.breadcrumbBackBtn:focus,
+.breadcrumbBackBtn:focus-visible,
+.breadcrumbBackBtn:active {
+  outline: none;
+  color: var(--folio-primary);
+}
+
+.breadcrumbArrow {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.breadcrumbBackBtn:hover .breadcrumbArrow {
+  transform: translateX(-2px);
+}
+
+/* Bold Section Heading to Establish Definitive Hierarchy */
+.sidebarHeading {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3) 0;
+  padding: 0 8px;
+}
+
+.navList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  margin: 0;
+  padding: 0;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: var(--leading-snug);
+  transition: color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+
+.navLink:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-surface-muted);
+}
+
+.navLinkActive {
+  color: var(--text-primary);
+  font-weight: 600;
+  background-color: var(--bg-surface-muted);
+}
+
+/* Universal Zero Outline Policy */
+.navLink:focus,
+.navLink:focus-visible,
+.navLink:active {
+  outline: none;
+  outline: 0;
+}
+
+.itemNumber {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.itemLabel {
+  letter-spacing: var(--tracking-tight);
+}
+
+/* Hide on tablet and mobile viewports (< 1024px) */
+@media (max-width: 1023px) {
+  .sidebarContainer {
+    display: none;
+  }
+}
