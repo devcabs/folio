@@ -39,12 +39,14 @@ export const HeroWelcome: React.FC<HeroWelcomeProps> = ({
 
     if (
       typeof effectiveKickerText === 'string' &&
-      effectiveKickerText.includes('Folio Engine — ')
+      effectiveKickerText.includes(' — ')
     ) {
-      const meaning = effectiveKickerText.replace('Folio Engine — ', '');
+      const idx = effectiveKickerText.indexOf(' — ');
+      const prefix = effectiveKickerText.slice(0, idx + 3);
+      const meaning = effectiveKickerText.slice(idx + 3);
       return (
         <>
-          <span className={styles.kickerPrefix}>Folio Engine — </span>
+          <span className={styles.kickerPrefix}>{prefix}</span>
           <span className={styles.kickerMeaning}>{meaning}</span>
         </>
       );
@@ -71,7 +73,13 @@ export const HeroWelcome: React.FC<HeroWelcomeProps> = ({
   };
 
   const renderSubtitleContent = () => {
-    if (subtitle) return subtitle;
+    if (subtitle) {
+      return (
+        <span className={styles.subtitleLine}>
+          {subtitle}
+        </span>
+      );
+    }
     if (dynamicSubtitle.text === DEFAULT_SUBTITLE) {
       return (
         <>

@@ -1,3 +1,4 @@
+import { getEngineConfig, setEngineConfig, type EngineConfig } from "./config/engine.config";
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import type { RoadmapSectionHandle, RoadmapScrollZone } from './components/roadmap/RoadmapSection';
 import { AppHeader, type NavItem } from './components/layout/AppHeader';
@@ -45,8 +46,10 @@ const AppContent: React.FC = () => {
   const roadmapRef = useRef<RoadmapSectionHandle>(null);
   const heroCtaRef = useRef<HTMLDivElement>(null);
 
+  const engineConfig = getEngineConfig();
+  const nodes = engineConfig.nodes && engineConfig.nodes.length > 0 ? engineConfig.nodes : sampleNodes;
   const activeNodeCode = nodeId || pageId;
-  const currentNode = activeNodeCode ? sampleNodes.find((n) => n.id === activeNodeCode) : null;
+  const currentNode = activeNodeCode ? nodes.find((n: NodeItem) => n.id === activeNodeCode) : null;
 
   const handleStageChange = useCallback((stage: number, zone: RoadmapScrollZone) => {
     setActiveStage(stage);
@@ -138,7 +141,7 @@ const AppContent: React.FC = () => {
   const handleNextStage = useCallback(() => {
     if (scrollZone === 'above') {
       roadmapRef.current?.scrollToStage(1);
-    } else if (activeStage < sampleNodes.length) {
+    } else if (activeStage < nodes.length) {
       roadmapRef.current?.scrollToStage(activeStage + 1);
     } else {
       handleScrollToFooter();
@@ -147,7 +150,7 @@ const AppContent: React.FC = () => {
 
   const handlePrevStage = useCallback(() => {
     if (scrollZone === 'below') {
-      roadmapRef.current?.scrollToStage(sampleNodes.length);
+      roadmapRef.current?.scrollToStage(nodes.length);
     } else if (activeStage > 1) {
       roadmapRef.current?.scrollToStage(activeStage - 1);
     } else {
@@ -179,17 +182,17 @@ const AppContent: React.FC = () => {
   }, [route, scrollZone]);
 
   const floatingCtaLabel = useMemo(() => {
-    if (scrollZone === 'below' || activeStage === sampleNodes.length) return 'Top';
+    if (scrollZone === 'below' || activeStage === nodes.length) return 'Top';
     return 'Next';
   }, [scrollZone, activeStage]);
 
   const floatingCtaDirection = useMemo<'down' | 'up'>(() => {
-    if (scrollZone === 'below' || activeStage === sampleNodes.length) return 'up';
+    if (scrollZone === 'below' || activeStage === nodes.length) return 'up';
     return 'down';
   }, [scrollZone, activeStage]);
 
   const handleFloatingCtaClick = useCallback(() => {
-    if (scrollZone === 'below' || activeStage === sampleNodes.length) {
+    if (scrollZone === 'below' || activeStage === nodes.length) {
       handleScrollToTop();
     } else {
       handleNextStage();
@@ -224,9 +227,9 @@ const AppContent: React.FC = () => {
     <div className={styles.appShell}>
       {/* 1. App Header: Restrained floating glass capsule */}
       <AppHeader
-        brandTitle="Folio"
-        brandSubtitle="Engine"
-        brandLetter="F"
+        brandTitle={engineConfig.branding.appName || "Folio"}
+        brandSubtitle={engineConfig.branding.tagline || "Engine"}
+        brandLetter={engineConfig.branding.logoText || "F"}
         navItems={navItems}
         mobileOnlyNav={isNodeRoute}
         onRoadmapClick={handleHeaderStartJourney}
@@ -292,7 +295,7 @@ const AppContent: React.FC = () => {
           </div>
 
           <AppFooter
-            orgName="Folio Engine Open Sequence Architecture"
+            orgName={engineConfig.branding.orgName || "Folio Engine Open Sequence Architecture"}
             onRoadmapClick={handleHeaderStartJourney}
             onOverviewClick={handleHeaderOverview}
             onNodeClick={handleExploreNode}
@@ -306,7 +309,7 @@ const AppContent: React.FC = () => {
             />
           </div>
           <AppFooter
-            orgName="Folio Engine Open Sequence Architecture"
+            orgName={engineConfig.branding.orgName || "Folio Engine Open Sequence Architecture"}
             onRoadmapClick={handleHeaderStartJourney}
             onOverviewClick={handleHeaderOverview}
             onNodeClick={handleExploreNode}
@@ -319,20 +322,20 @@ const AppContent: React.FC = () => {
             <HeroWelcome
               heroCtaRef={heroCtaRef}
               onStartJourney={handleHeaderStartJourney}
-              kickerText="Folio Engine — Universal Scrollytelling & Dynamic Document Canvas"
-              title="Autonomous Multi-Stage Sequence Platform"
-              subtitle="A configurable, token-driven editorial engine featuring continuous serpentine tracks, high-precision vector charting, and local-first persistence."
+              kickerText={engineConfig.branding.heroKicker}
+              title={engineConfig.branding.heroTitle}
+              subtitle={engineConfig.branding.heroSubtitle}
             />
             <RoadmapSection
               ref={roadmapRef}
-              nodes={sampleNodes}
+              nodes={nodes}
               onStageChange={handleStageChange}
               onExploreNode={handleExploreNode}
             />
           </main>
 
           <AppFooter
-            orgName="Folio Engine Open Sequence Architecture"
+            orgName={engineConfig.branding.orgName || "Folio Engine Open Sequence Architecture"}
             onRoadmapClick={handleHeaderStartJourney}
             onOverviewClick={handleHeaderOverview}
             onNodeClick={handleExploreNode}
@@ -370,7 +373,14 @@ const AppContent: React.FC = () => {
   );
 };
 
-export const App: React.FC = () => {
+export interface AppProps {
+  config?: Partial<EngineConfig>;
+}
+
+export const App: React.FC<AppProps> = ({ config }) => {
+  if (config) {
+    setEngineConfig(config);
+  }
   return (
     <DeveloperModeProvider>
       <UndoRedoProvider>

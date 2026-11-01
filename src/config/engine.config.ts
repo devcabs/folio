@@ -6,6 +6,10 @@ export interface EngineBrandingConfig {
   logoText?: string;
   markSides?: number;       // For ParametricShape (default: 8)
   markWaviness?: number;    // Bézier ripple amplitude (default: 0.15)
+  heroKicker?: string;
+  heroTitle?: string;
+  heroSubtitle?: string;
+  orgName?: string;
 }
 
 export interface EngineConfig {
