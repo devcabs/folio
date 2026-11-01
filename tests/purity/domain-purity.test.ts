@@ -29,7 +29,8 @@ describe('Domain Purity Enforcement', () => {
   it('guarantees zero banned institutional domain terms exist in src/ and scripts/', () => {
     const srcFiles = collectFiles(path.join(ROOT, 'src'), ['.ts', '.tsx', '.css', '.json', '.html']);
     const scriptFiles = collectFiles(path.join(ROOT, 'scripts'), ['.ts', '.js']);
-    const allFiles = [...srcFiles, ...scriptFiles];
+    const functionFiles = collectFiles(path.join(ROOT, 'functions'), ['.ts', '.js']);
+    const allFiles = [...srcFiles, ...scriptFiles, ...functionFiles];
 
     const violations: { file: string; line: number; term: string; snippet: string }[] = [];
 

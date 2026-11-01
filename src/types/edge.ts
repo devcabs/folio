@@ -85,7 +85,7 @@ export interface PublicNodePayload {
   updatedAt: string;
   canvas: NodeCanvasDocument;
   chartDatasets: Record<string, CachedIndicatorDataset>;
-  evidenceMetadata: Record<string, SyncedSourceMetadata>;
+  sourceMetadata: Record<string, SyncedSourceMetadata>;
 }
 
 /**
@@ -142,7 +142,7 @@ export const PublicNodePayloadSchema = z.object({
   updatedAt: z.string().min(1, 'updatedAt is required'),
   canvas: NodeCanvasDocumentSchema,
   chartDatasets: z.record(z.string(), z.any()),
-  evidenceMetadata: z.record(z.string(), z.any()),
+  sourceMetadata: z.record(z.string(), z.any()),
 });
 
 /**
