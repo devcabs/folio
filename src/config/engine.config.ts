@@ -1,4 +1,4 @@
-import type { NodeItem } from '../types/node';
+import type { NodeItem } from "../types/node";
 
 export interface EngineBrandingConfig {
   appName: string;
@@ -22,12 +22,12 @@ export interface EngineConfig {
 
 export function createDefaultEngineConfig(overrides?: Partial<EngineConfig>): EngineConfig {
   return {
-    appId: 'default-app',
-    appNamespace: 'folio',
+    appId: "default-app",
+    appNamespace: "folio",
     branding: {
-      appName: 'Folio Engine',
-      tagline: 'Parametric Stepped Sequence & Document AST Platform',
-      logoText: 'FOLIO',
+      appName: "Folio Engine",
+      tagline: "Parametric Stepped Sequence & Document AST Platform",
+      logoText: "FOLIO",
       markSides: 8,
       markWaviness: 0.15,
     },
@@ -39,4 +39,28 @@ export function createDefaultEngineConfig(overrides?: Partial<EngineConfig>): En
     },
     ...overrides,
   };
+}
+
+let activeEngineConfig: EngineConfig = createDefaultEngineConfig();
+
+export function getEngineConfig(): EngineConfig {
+  return activeEngineConfig;
+}
+
+export function setEngineConfig(config: Partial<EngineConfig>): EngineConfig {
+  activeEngineConfig = createDefaultEngineConfig({ ...activeEngineConfig, ...config });
+  return activeEngineConfig;
+}
+
+export function resetEngineConfig(): void {
+  activeEngineConfig = createDefaultEngineConfig();
+}
+
+export function getStorageNamespace(): string {
+  return activeEngineConfig.appNamespace || "folio";
+}
+
+export function getStorageKey(key: string, namespace?: string): string {
+  const ns = namespace || getStorageNamespace();
+  return ns + "_" + key;
 }

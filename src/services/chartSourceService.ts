@@ -13,9 +13,12 @@
 
 import type { SheetChartConfig } from '../types/chart';
 import type { NodeCode } from '../types/node';
+import { getStorageNamespace } from '../config/engine.config';
 
-export const LOCAL_STORAGE_PREFIX = 'masid_chart_source_';
-export const LOCAL_STORAGE_ALL_KEY = 'masid_chart_sources_manifest';
+export const getChartSourcePrefix = (ns?: string) => (ns || getStorageNamespace()) + '_chart_source_';
+export const LOCAL_STORAGE_PREFIX = getChartSourcePrefix();
+export const getChartSourcesManifestKey = (ns?: string) => (ns || getStorageNamespace()) + '_chart_sources_manifest';
+export const LOCAL_STORAGE_ALL_KEY = getChartSourcesManifestKey();
 export const EVENT_CHART_SOURCE_CHANGE = 'engine-chart-source-change';
 
 /**
@@ -174,7 +177,7 @@ export function getCachedChartConfig(chartId: string): SheetChartConfig | null {
     return memoryCache.get(chartId)!;
   }
 
-  const raw = getStorageItem(`${LOCAL_STORAGE_PREFIX}${chartId}`);
+  const raw = getStorageItem(`${getChartSourcePrefix()}${chartId}`);
   if (raw) {
     try {
       const parsed = JSON.parse(raw) as SheetChartConfig;
@@ -603,7 +606,7 @@ export async function saveChartConfig(
 export function resetChartSourceCache(chartId?: string): void {
   if (chartId) {
     memoryCache.delete(chartId);
-    removeStorageItem(`${LOCAL_STORAGE_PREFIX}${chartId}`);
+    removeStorageItem(`${getChartSourcePrefix()}${chartId}`);
   } else {
     memoryCache.clear();
     try {

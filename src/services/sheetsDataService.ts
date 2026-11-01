@@ -498,7 +498,7 @@ export async function fetchLiveSheetMatrix(
   }
 
   // Cache buster ensuring instantaneous real-time querying
-  queryUrl += `&_masid_t=${Date.now()}`;
+  queryUrl += `&_folio_t=${Date.now()}`;
 
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;

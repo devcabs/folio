@@ -11,10 +11,14 @@ import {
   setDraftDirty,
 } from '../services/draftService';
 import { getStorage } from './storage';
+import { getStorageNamespace } from '../config/engine.config';
 
-export const STORAGE_KEY_LIVE_CONTENT = 'masid_live_content_overrides';
-export const STORAGE_KEY_DRAFT_CONTENT = 'masid_draft_content_overrides';
-export const STORAGE_KEY_LEGACY_CONTENT = 'masid_content_overrides';
+export const getLiveContentStorageKey = (ns?: string) => (ns || getStorageNamespace()) + '_live_content_overrides';
+export const STORAGE_KEY_LIVE_CONTENT = getLiveContentStorageKey();
+export const getDraftContentStorageKey = (ns?: string) => (ns || getStorageNamespace()) + '_draft_content_overrides';
+export const STORAGE_KEY_DRAFT_CONTENT = getDraftContentStorageKey();
+export const getLegacyContentStorageKey = (ns?: string) => (ns || getStorageNamespace()) + '_content_overrides';
+export const STORAGE_KEY_LEGACY_CONTENT = getLegacyContentStorageKey();
 export const STORAGE_KEY_CONTENT_OVERRIDES = STORAGE_KEY_LIVE_CONTENT;
 
 export const EVENT_LIVE_CONTENT_CHANGE = 'engine-live-content-change';
@@ -22,20 +26,29 @@ export const EVENT_DRAFT_CONTENT_CHANGE = 'engine-draft-content-change';
 
 let liveMemoryCache: Record<string, string> | null = null;
 let draftMemoryCache: Record<string, string> | null = null;
+let cachedLiveNamespace: string | null = null;
+let cachedDraftNamespace: string | null = null;
+const inMemoryLiveStores = new Map<string, Record<string, string>>();
+const inMemoryDraftStores = new Map<string, Record<string, string>>();
 
 function loadLiveCache(): Record<string, string> {
+  const currentNs = getStorageNamespace();
+  if (cachedLiveNamespace !== currentNs) {
+    liveMemoryCache = null;
+    cachedLiveNamespace = currentNs;
+  }
   if (liveMemoryCache !== null) return liveMemoryCache;
   const storage = getStorage();
   if (!storage) {
-    liveMemoryCache = {};
+    liveMemoryCache = inMemoryLiveStores.get(currentNs) || {};
     return liveMemoryCache;
   }
   try {
     // Check canonical live key first
-    let raw = storage.getItem(STORAGE_KEY_LIVE_CONTENT);
+    let raw = storage.getItem(getLiveContentStorageKey());
     // Backward compatibility fallback to legacy key
     if (!raw) {
-      raw = storage.getItem(STORAGE_KEY_LEGACY_CONTENT);
+      raw = storage.getItem(getLegacyContentStorageKey());
     }
     liveMemoryCache = raw ? JSON.parse(raw) : {};
   } catch {
@@ -45,14 +58,19 @@ function loadLiveCache(): Record<string, string> {
 }
 
 function loadDraftCache(): Record<string, string> {
+  const currentNs = getStorageNamespace();
+  if (cachedDraftNamespace !== currentNs) {
+    draftMemoryCache = null;
+    cachedDraftNamespace = currentNs;
+  }
   if (draftMemoryCache !== null) return draftMemoryCache;
   const storage = getStorage();
   if (!storage) {
-    draftMemoryCache = {};
+    draftMemoryCache = inMemoryDraftStores.get(currentNs) || {};
     return draftMemoryCache;
   }
   try {
-    const raw = storage.getItem(STORAGE_KEY_DRAFT_CONTENT);
+    const raw = storage.getItem(getDraftContentStorageKey());
     draftMemoryCache = raw ? JSON.parse(raw) : {};
   } catch {
     draftMemoryCache = {};
@@ -61,20 +79,28 @@ function loadDraftCache(): Record<string, string> {
 }
 
 function saveLiveCache(): void {
+  const currentNs = getStorageNamespace();
+  if (liveMemoryCache) {
+    inMemoryLiveStores.set(currentNs, { ...liveMemoryCache });
+  }
   const storage = getStorage();
   if (!storage || !liveMemoryCache) return;
   try {
-    storage.setItem(STORAGE_KEY_LIVE_CONTENT, JSON.stringify(liveMemoryCache));
+    storage.setItem(getLiveContentStorageKey(), JSON.stringify(liveMemoryCache));
   } catch {
     // Storage quota exceeded or disabled
   }
 }
 
 function saveDraftCache(): void {
+  const currentNs = getStorageNamespace();
+  if (draftMemoryCache) {
+    inMemoryDraftStores.set(currentNs, { ...draftMemoryCache });
+  }
   const storage = getStorage();
   if (!storage || !draftMemoryCache) return;
   try {
-    storage.setItem(STORAGE_KEY_DRAFT_CONTENT, JSON.stringify(draftMemoryCache));
+    storage.setItem(getDraftContentStorageKey(), JSON.stringify(draftMemoryCache));
     setDraftDirty(true);
   } catch {
     // Storage quota exceeded or disabled
@@ -233,21 +259,23 @@ export function getAllContentOverrides(isDevMode = false): Record<string, string
 export function resetAllContentOverrides(isDevMode = false): void {
   const storage = getStorage();
   if (isDevMode) {
+    inMemoryDraftStores.delete(getStorageNamespace());
     draftMemoryCache = {};
     if (storage) {
       try {
-        storage.removeItem(STORAGE_KEY_DRAFT_CONTENT);
+        storage.removeItem(getDraftContentStorageKey());
       } catch {
         // ignore
       }
     }
     notifySubscribers('*', null, true);
   } else {
+    inMemoryLiveStores.delete(getStorageNamespace());
     liveMemoryCache = {};
     if (storage) {
       try {
-        storage.removeItem(STORAGE_KEY_LIVE_CONTENT);
-        storage.removeItem(STORAGE_KEY_LEGACY_CONTENT);
+        storage.removeItem(getLiveContentStorageKey());
+        storage.removeItem(getLegacyContentStorageKey());
       } catch {
         // ignore
       }

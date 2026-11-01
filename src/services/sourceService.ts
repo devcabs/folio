@@ -20,8 +20,10 @@ import type {
 import { normalizePointId } from '../utils/source';
 import { getStorage } from '../utils/storage';
 import { getSupabaseConfig } from '../utils/supabase-config';
+import { getStorageNamespace } from '../config/engine.config';
 
-export const STORAGE_KEY_SOURCE_CACHE = 'masid_evidence_cache_v2';
+export const getSourceCacheStorageKey = (ns?: string) => (ns || getStorageNamespace()) + '_evidence_cache_v2';
+export const STORAGE_KEY_SOURCE_CACHE = getSourceCacheStorageKey();
 export const EVENT_SOURCE_SOURCE_CHANGE = 'engine-evidence-source-change';
 
 const baselineRegistry = baselineSourcesRaw as SourceSourceRegistry;
@@ -102,7 +104,7 @@ function loadFromStorage(): LiveSourceRegistry | null {
   const storage = getStorage();
   if (!storage) return null;
   try {
-    const raw = storage.getItem(STORAGE_KEY_SOURCE_CACHE);
+    const raw = storage.getItem(getSourceCacheStorageKey());
     if (!raw) return null;
     const parsed = JSON.parse(raw) as LiveSourceRegistry;
     const sanitized: LiveSourceRegistry = {};
@@ -122,7 +124,7 @@ function saveToStorage(registry: LiveSourceRegistry): void {
   const storage = getStorage();
   if (!storage) return;
   try {
-    storage.setItem(STORAGE_KEY_SOURCE_CACHE, JSON.stringify(registry));
+    storage.setItem(getSourceCacheStorageKey(), JSON.stringify(registry));
   } catch {
     // Quota safety: If storing syncedPhotos exceeds quota, strip heavy payloads
     // and persist core folder metadata so coordinator attachments never fail
@@ -131,7 +133,7 @@ function saveToStorage(registry: LiveSourceRegistry): void {
       for (const [k, v] of Object.entries(registry)) {
         strippedRegistry[k] = { ...v, syncedPhotos: undefined };
       }
-      storage.setItem(STORAGE_KEY_SOURCE_CACHE, JSON.stringify(strippedRegistry));
+      storage.setItem(getSourceCacheStorageKey(), JSON.stringify(strippedRegistry));
     } catch {
       // Storage fully blocked or quota completely exhausted
     }

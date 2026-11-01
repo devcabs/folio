@@ -50,3 +50,17 @@ export * from "./services/canvasLayoutService";
 
 // Layout Shell & Parametric Geometric Mark
 export * from "./components/layout";
+
+// Cloud Storage, Mutex & Persistence Services (Task 18.7)
+export * from "./services/draftService";
+export * from "./services/historyService";
+export * from "./services/historyStorage";
+export * from "./services/devLockService";
+export * from "./services/mediaService";
+export * from "./services/sourceService";
+export * from "./services/undoRedoService";
+export * from "./services/unsavedChangesService";
+export * from "./utils/contentDb";
+export * from "./utils/storage";
+export * from "./utils/devSecurity";
+export * from "./utils/supabase-config";

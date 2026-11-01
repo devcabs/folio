@@ -1,3 +1,4 @@
+import { getStorageNamespace } from '../config/engine.config';
 /**
  * Folio Engine - Persistent IndexedDB Storage for History Snapshots
  * Location: src/services/historyStorage.ts
@@ -7,7 +8,7 @@
  * snapshot bundles to eliminate the 5MB localStorage QuotaExceededError.
  */
 
-const DB_NAME = 'masid_portal_db';
+export const getHistoryDbName = (ns?: string) => (ns || getStorageNamespace()) + '_portal_db';
 const DB_VERSION = 1;
 const STORE_NAME = 'history_store';
 
@@ -18,7 +19,7 @@ function openDatabase(): Promise<IDBDatabase | null> {
 
   return new Promise((resolve) => {
     try {
-      const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+      const request = window.indexedDB.open(getHistoryDbName(), DB_VERSION);
 
       request.onupgradeneeded = () => {
         const db = request.result;

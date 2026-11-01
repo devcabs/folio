@@ -1,3 +1,4 @@
+import { getStorageNamespace } from '../config/engine.config';
 /**
  * Security and Cryptographic Primitives for Developer Mode
  * Task 4.5.0: docs/tasks/task4_5_0_developer_mode.md
@@ -6,7 +7,8 @@
  * The raw 4-digit PIN is NEVER stored in cleartext.
  */
 
-export const DEV_SALT = 'lsssnhs_masid_dev_salt_v1';
+export const getDevSalt = (ns?: string) => (ns || getStorageNamespace()) + '_dev_salt_v1';
+export const DEV_SALT = getDevSalt();
 export const EXPECTED_PIN_HASH =
   'ebfaebc96b9ecb430622e1557189a900d6efa8c532687af1ea7f8ecabd9886d6';
 
@@ -14,9 +16,12 @@ export const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 export const LOCKOUT_DURATION_MS = 60 * 1000; // 60 seconds (1 minute)
 export const MAX_ATTEMPTS = 5;
 
-export const STORAGE_KEY_UNLOCKED_AT = 'masid_dev_unlocked_at';
-export const STORAGE_KEY_LOCKOUT_UNTIL = 'masid_dev_lockout_until';
-export const STORAGE_KEY_FAILED_ATTEMPTS = 'masid_dev_failed_attempts';
+export const getDevUnlockedAtKey = (ns?: string) => (ns || getStorageNamespace()) + '_dev_unlocked_at';
+export const STORAGE_KEY_UNLOCKED_AT = getDevUnlockedAtKey();
+export const getDevLockoutUntilKey = (ns?: string) => (ns || getStorageNamespace()) + '_dev_lockout_until';
+export const STORAGE_KEY_LOCKOUT_UNTIL = getDevLockoutUntilKey();
+export const getDevFailedAttemptsKey = (ns?: string) => (ns || getStorageNamespace()) + '_dev_failed_attempts';
+export const STORAGE_KEY_FAILED_ATTEMPTS = getDevFailedAttemptsKey();
 
 /**
  * Zero-dependency pure-TypeScript SHA-256 implementation.
@@ -258,7 +263,7 @@ function getPersistentStorage(): Storage | null {
 export function getLockoutUntil(): number | null {
   const storage = getPersistentStorage();
   if (!storage) return null;
-  const raw = storage.getItem(STORAGE_KEY_LOCKOUT_UNTIL);
+  const raw = storage.getItem(getDevLockoutUntilKey());
   if (!raw) return null;
   const parsed = parseInt(raw, 10);
   return Number.isFinite(parsed) ? parsed : null;
@@ -270,7 +275,7 @@ export function getLockoutUntil(): number | null {
 export function setLockoutUntil(timestamp: number): void {
   const storage = getPersistentStorage();
   if (!storage) return;
-  storage.setItem(STORAGE_KEY_LOCKOUT_UNTIL, timestamp.toString());
+  storage.setItem(getDevLockoutUntilKey(), timestamp.toString());
 }
 
 /**
@@ -279,7 +284,7 @@ export function setLockoutUntil(timestamp: number): void {
 export function clearLockoutUntil(): void {
   const storage = getPersistentStorage();
   if (!storage) return;
-  storage.removeItem(STORAGE_KEY_LOCKOUT_UNTIL);
+  storage.removeItem(getDevLockoutUntilKey());
 }
 
 /**
@@ -288,7 +293,7 @@ export function clearLockoutUntil(): void {
 export function getFailedAttempts(): number {
   const storage = getPersistentStorage();
   if (!storage) return 0;
-  const raw = storage.getItem(STORAGE_KEY_FAILED_ATTEMPTS);
+  const raw = storage.getItem(getDevFailedAttemptsKey());
   if (!raw) return 0;
   const parsed = parseInt(raw, 10);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -300,7 +305,7 @@ export function getFailedAttempts(): number {
 export function setFailedAttempts(count: number): void {
   const storage = getPersistentStorage();
   if (!storage) return;
-  storage.setItem(STORAGE_KEY_FAILED_ATTEMPTS, count.toString());
+  storage.setItem(getDevFailedAttemptsKey(), count.toString());
 }
 
 /**
@@ -309,5 +314,5 @@ export function setFailedAttempts(count: number): void {
 export function resetFailedAttempts(): void {
   const storage = getPersistentStorage();
   if (!storage) return;
-  storage.removeItem(STORAGE_KEY_FAILED_ATTEMPTS);
+  storage.removeItem(getDevFailedAttemptsKey());
 }

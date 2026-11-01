@@ -31,7 +31,7 @@ import {
 import bakedChartsData from '../data/baked-charts.json';
 
 const bakedCharts: ChartDataset[] = bakedChartsData as ChartDataset[];
-const MATRIX_CACHE_PREFIX = 'masid_chart_matrix_';
+const MATRIX_CACHE_PREFIX = 'folio_chart_matrix_';
 
 export interface UseSheetChartDataOptions {
   chartId: string;

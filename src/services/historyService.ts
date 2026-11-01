@@ -34,8 +34,16 @@ import {
   type NodeId,
 } from './canvasLayoutService';
 import { getStorage } from '../utils/storage';
+import { getEngineConfig, getStorageNamespace } from '../config/engine.config';
 import { getSupabaseConfig, isTableAvailable, markTableMissing, markTableAvailable } from '../utils/supabase-config';
 export { NODE_IDS, type NodeId };
+export function getActiveNodeIds(): string[] {
+  const config = getEngineConfig();
+  if (config.nodes && config.nodes.length > 0) {
+    return config.nodes.map((n) => n.id);
+  }
+  return [...NODE_IDS];
+}
 export { getSupabaseConfig, isTableAvailable, markTableMissing, markTableAvailable };
 import {
   getAllContentOverrides,
@@ -72,10 +80,13 @@ export interface HydrationState {
   activePublishedId: string | null;
 }
 
-export const BROADCAST_CHANNEL_NAME = 'masid_portal_sync';
-export const STORAGE_KEY_HISTORY_MANIFEST = 'masid_history_manifest';
-export const STORAGE_KEY_LIVE_ACTIVE_PUBLISHED_ID = 'masid_live_active_published_id';
-export const LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID = 'masid_active_published_id';
+export const getBroadcastChannelName = (ns?: string) => (ns || getStorageNamespace()) + '_portal_sync';
+export const BROADCAST_CHANNEL_NAME = getBroadcastChannelName();
+export const getHistoryManifestKey = (ns?: string) => (ns || getStorageNamespace()) + '_history_manifest';
+export const STORAGE_KEY_HISTORY_MANIFEST = getHistoryManifestKey();
+export const getLiveActivePublishedIdKey = (ns?: string) => (ns || getStorageNamespace()) + '_live_active_published_id';
+export const STORAGE_KEY_LIVE_ACTIVE_PUBLISHED_ID = getLiveActivePublishedIdKey();
+export const LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID = getStorageNamespace() + '_active_published_id';
 export const STORAGE_KEY_ACTIVE_PUBLISHED_ID = LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID;
 export const EVENT_HISTORY_CHANGE = 'engine-history-change';
 export const HISTORY_SCHEMA_VERSION = 1;
@@ -135,14 +146,14 @@ export function getActivePublishedId(): string {
   if (!storage) return 'snap-system-baseline';
 
   // 1. Direct read from canonical pointer
-  const canonicalId = storage.getItem(STORAGE_KEY_LIVE_ACTIVE_PUBLISHED_ID);
+  const canonicalId = storage.getItem(getLiveActivePublishedIdKey());
   if (canonicalId) return canonicalId;
 
   // 2. One-time migration fallback from legacy keys
   const legacyId = storage.getItem(LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID);
   let manifestLegacyId: string | undefined;
   try {
-    const rawManifest = storage.getItem(STORAGE_KEY_HISTORY_MANIFEST);
+    const rawManifest = storage.getItem(getHistoryManifestKey());
     if (rawManifest) {
       const parsed = JSON.parse(rawManifest);
       manifestLegacyId = parsed?.activePublishedId || parsed?.activeMilestoneId;
@@ -155,7 +166,7 @@ export function getActivePublishedId(): string {
 
   // Persist to canonical key and cleanup legacy key
   try {
-    storage.setItem(STORAGE_KEY_LIVE_ACTIVE_PUBLISHED_ID, migratedId);
+    storage.setItem(getLiveActivePublishedIdKey(), migratedId);
     storage.removeItem(LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID);
   } catch {
     // Storage quota or access restriction safety
@@ -171,7 +182,7 @@ export function setActivePublishedId(id: string): void {
   const storage = getStorage();
   if (storage) {
     try {
-      storage.setItem(STORAGE_KEY_LIVE_ACTIVE_PUBLISHED_ID, id);
+      storage.setItem(getLiveActivePublishedIdKey(), id);
       storage.removeItem(LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID);
     } catch {
       // Storage quota safety
@@ -185,7 +196,7 @@ export function setActivePublishedId(id: string): void {
  */
 export function getDefaultSystemBaselineSnapshot(isActive = true): PublishedSnapshot {
   const canvases: Record<string, NodeCanvasDocument> = {};
-  for (const nodeId of NODE_IDS) {
+  for (const nodeId of getActiveNodeIds()) {
     canvases[nodeId] = createDefaultCanvasDocument(nodeId);
   }
   const contentOverrides: Record<string, string> = {};
@@ -260,7 +271,7 @@ export function getHistoryManifest(): HistoryManifest {
   if (!storage) return inMemoryManifest || defaultManifest;
 
   try {
-    const raw = storage.getItem(STORAGE_KEY_HISTORY_MANIFEST);
+    const raw = storage.getItem(getHistoryManifestKey());
     if (!raw) return inMemoryManifest || defaultManifest;
 
     const parsed = JSON.parse(raw);
@@ -319,7 +330,7 @@ export function saveHistoryManifest(manifest: HistoryManifest): void {
     };
 
     try {
-      storage.setItem(STORAGE_KEY_HISTORY_MANIFEST, JSON.stringify(lightweight));
+      storage.setItem(getHistoryManifestKey(), JSON.stringify(lightweight));
     } catch {
       // If storage quota or restriction hit, prune autosaves from lightweight metadata
       try {
@@ -327,7 +338,7 @@ export function saveHistoryManifest(manifest: HistoryManifest): void {
           ...lightweight,
           snapshots: lightweight.snapshots.filter((s) => s.type !== 'autosave'),
         };
-        storage.setItem(STORAGE_KEY_HISTORY_MANIFEST, JSON.stringify(pruned));
+        storage.setItem(getHistoryManifestKey(), JSON.stringify(pruned));
       } catch {
         // Maintained in-memory
       }
@@ -378,7 +389,7 @@ export function captureCurrentSnapshot(
   sessionId?: string
 ): UnifiedPortalSnapshot {
   const canvases: Record<string, NodeCanvasDocument> = {};
-  for (const nodeId of NODE_IDS) {
+  for (const nodeId of getActiveNodeIds()) {
     canvases[nodeId] = getNodeCanvas(nodeId);
   }
 
@@ -479,7 +490,7 @@ export async function restoreUnifiedSnapshot(
   );
 
   // 2. Restore all 5 node canvases
-  for (const nodeId of NODE_IDS) {
+  for (const nodeId of getActiveNodeIds()) {
     const canvasDoc = target.canvases[nodeId];
     if (canvasDoc) {
       saveNodeCanvas(canvasDoc);
@@ -546,7 +557,7 @@ export interface HistoryBackupExport {
 export function exportHistoryBackupJson(): string {
   const manifest = getHistoryManifest();
   const currentCanvases: Record<string, NodeCanvasDocument> = {};
-  for (const nodeId of NODE_IDS) {
+  for (const nodeId of getActiveNodeIds()) {
     currentCanvases[nodeId] = getNodeCanvas(nodeId);
   }
 
@@ -658,7 +669,7 @@ export function restoreSnapshotToDraft(
 
     const nowIso = new Date().toISOString();
 
-    for (const nodeId of NODE_IDS) {
+    for (const nodeId of getActiveNodeIds()) {
       const baseDoc = snapshot.canvases?.[nodeId] || createDefaultCanvasDocument(nodeId);
       const doc: NodeCanvasDocument = {
         ...JSON.parse(JSON.stringify(baseDoc)),
@@ -687,7 +698,7 @@ export function restoreSnapshotToDraft(
     migrateCanvasOverridesIntoAst('draft');
 
     if (typeof window !== 'undefined') {
-      for (const nodeId of NODE_IDS) {
+      for (const nodeId of getActiveNodeIds()) {
         const doc = getNodeCanvas(nodeId, true);
         const detail: CanvasChangeEventDetail = {
           nodeId,
@@ -988,7 +999,7 @@ export async function publishNewSnapshot(
 
   // Step 2: Snapshot Bundling
   const canvases: Record<string, NodeCanvasDocument> = {};
-  for (const nodeId of NODE_IDS) {
+  for (const nodeId of getActiveNodeIds()) {
     canvases[nodeId] = getNodeCanvas(nodeId, true);
   }
   const contentOverrides = getAllContentOverrides(true);
@@ -1011,13 +1022,13 @@ export async function publishNewSnapshot(
     summary,
   };
 
-  // Atomically save all 5 canvases to masid_live_canvas_[nodeId] silently
-  for (const nodeId of NODE_IDS) {
+  // Atomically save all 5 canvases to folio_live_canvas_[nodeId] silently
+  for (const nodeId of getActiveNodeIds()) {
     saveLiveNodeCanvas(canvases[nodeId], { silent: true });
   }
   // Fire single aggregate canvas change notification
   dispatchAggregateCanvasChange(false);
-  // Atomically save content overrides to masid_live_content_overrides
+  // Atomically save content overrides to folio_live_content_overrides
   setLiveContentOverrides(contentOverrides);
 
   // Append snapshot to local history manifest & IndexedDB ledger
@@ -1123,7 +1134,7 @@ export async function publishNewSnapshot(
 
   // Step 6: Trigger Edge Pre-Bake & KV Synchronization (Task 15.3, non-blocking)
   try {
-    compileAndDeployToEdgeKV(snapshot).catch((edgeErr: any) => {
+    compileAndDeployToEdgeKV(snapshot).catch((edgeErr) => {
       console.warn('[historyService] Non-blocking Edge KV pre-bake warning:', edgeErr);
     });
   } catch (edgeDispatchErr) {
@@ -1147,7 +1158,7 @@ export function getSyncBroadcastChannel(): BroadcastChannel | null {
   if (typeof BroadcastChannel === 'undefined') return null;
   if (!syncBroadcastChannel) {
     try {
-      syncBroadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      syncBroadcastChannel = new BroadcastChannel(getBroadcastChannelName());
       syncBroadcastChannel.onmessage = (event: MessageEvent<EngineSyncBroadcastMessage>) => {
         handleIncomingSyncBroadcast(event.data);
       };
@@ -1185,9 +1196,9 @@ export function handleIncomingSyncBroadcast(message: EngineSyncBroadcastMessage)
   if (!message || message.type !== 'MASID_PUBLISH_BROADCAST') return;
 
   // Unconditionally update live channel regardless of whether local draft is dirty:
-  // Live channel keys (masid_live_*) are strictly isolated from draft channel keys (masid_draft_*)!
+  // Live channel keys (folio_live_*) are strictly isolated from draft channel keys (folio_draft_*)!
   if (message.canvases) {
-    for (const nodeId of NODE_IDS) {
+    for (const nodeId of getActiveNodeIds()) {
       if (message.canvases[nodeId]) {
         saveLiveNodeCanvas(message.canvases[nodeId], { silent: true });
       }
@@ -1195,7 +1206,7 @@ export function handleIncomingSyncBroadcast(message: EngineSyncBroadcastMessage)
     dispatchAggregateCanvasChange(false);
   }
 
-  // Atomically update masid_live_content_overrides
+  // Atomically update folio_live_content_overrides
   if (message.contentOverrides) {
     setLiveContentOverrides(message.contentOverrides);
   }
@@ -1255,7 +1266,7 @@ function notifyHydrationChange(hydrating: boolean): void {
 export function getHydrationState(): HydrationState {
   const storage = getStorage();
   const storedId = storage
-    ? storage.getItem(STORAGE_KEY_LIVE_ACTIVE_PUBLISHED_ID) ||
+    ? storage.getItem(getLiveActivePublishedIdKey()) ||
       storage.getItem(LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID)
     : null;
 
@@ -1302,8 +1313,8 @@ export function hydrateActiveVersionFromCloud(): Promise<boolean> {
       setActivePublishedId(activeVersion.id);
 
       // Unconditionally update live channel storage:
-      // Live channel keys (masid_live_*) are strictly isolated from draft keys (masid_draft_*)!
-      for (const nodeId of NODE_IDS) {
+      // Live channel keys (folio_live_*) are strictly isolated from draft keys (folio_draft_*)!
+      for (const nodeId of getActiveNodeIds()) {
         if (activeVersion.canvases[nodeId]) {
           saveLiveNodeCanvas(activeVersion.canvases[nodeId], { silent: true });
         }

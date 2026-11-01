@@ -11,9 +11,12 @@
  */
 
 import type { DevSessionLock, DevLockStatusResponse } from '../types/developer';
+import { getStorageNamespace } from '../config/engine.config';
 
-export const DEV_LOCK_STORAGE_KEY = 'masid_dev_lock';
-export const DEV_SESSION_ID_KEY = 'masid_dev_session_id';
+export const getDevLockStorageKey = (ns?: string) => (ns || getStorageNamespace()) + '_dev_lock';
+export const DEV_LOCK_STORAGE_KEY = getDevLockStorageKey();
+export const getDevSessionIdKey = (ns?: string) => (ns || getStorageNamespace()) + '_dev_session_id';
+export const DEV_SESSION_ID_KEY = getDevSessionIdKey();
 export const HEARTBEAT_INTERVAL_MS = 30_000; // 30 seconds
 export const LOCK_EXPIRATION_MS = 60_000; // 60 seconds (crash timeout)
 
@@ -44,7 +47,7 @@ export function getSessionBroadcastChannel(): BroadcastChannel | null {
   }
   if (!sessionBroadcastChannel) {
     try {
-      sessionBroadcastChannel = new BroadcastChannel('masid_tab_session_dedup');
+      sessionBroadcastChannel = new BroadcastChannel(getStorageNamespace() + '_tab_session_dedup');
     } catch {
       // Ignore in restricted environments
     }
@@ -63,7 +66,7 @@ export function regenerateSessionId(): string {
   inMemorySessionId = newId;
   if (typeof window !== 'undefined' && window.sessionStorage) {
     try {
-      window.sessionStorage.setItem(DEV_SESSION_ID_KEY, newId);
+      window.sessionStorage.setItem(getDevSessionIdKey(), newId);
     } catch {
       // Storage restricted fallback
     }
@@ -77,7 +80,7 @@ export function regenerateSessionId(): string {
 export function getSessionId(): string {
   if (typeof window !== 'undefined' && window.sessionStorage) {
     try {
-      const stored = window.sessionStorage.getItem(DEV_SESSION_ID_KEY);
+      const stored = window.sessionStorage.getItem(getDevSessionIdKey());
       if (stored && stored.trim().length > 0) {
         return stored;
       }
@@ -85,7 +88,7 @@ export function getSessionId(): string {
         typeof crypto !== 'undefined' && crypto.randomUUID
           ? crypto.randomUUID()
           : `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      window.sessionStorage.setItem(DEV_SESSION_ID_KEY, newId);
+      window.sessionStorage.setItem(getDevSessionIdKey(), newId);
       return newId;
     } catch {
       // Storage restricted fallback
@@ -109,7 +112,7 @@ export function resetSessionIdForTesting(newId?: string): void {
   if (typeof window !== 'undefined' && window.sessionStorage) {
     try {
       if (newId) {
-        window.sessionStorage.setItem(DEV_SESSION_ID_KEY, newId);
+        window.sessionStorage.setItem(getDevSessionIdKey(), newId);
       } else {
         window.sessionStorage.removeItem(DEV_SESSION_ID_KEY);
       }

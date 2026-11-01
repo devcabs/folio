@@ -30,13 +30,18 @@ import {
 } from '../utils/contentDb';
 import { getSessionUnlockTime, isSessionValid } from '../utils/devSecurity';
 import { getStorage } from '../utils/storage';
+import { getStorageNamespace } from '../config/engine.config';
 import { getActivePublishedId } from './historyService';
 import { getSupabaseConfig, isTableAvailable, markTableMissing } from '../utils/supabase-config';
 
-export const DRAFT_CANVAS_PREFIX = 'masid_draft_canvas_';
-export const DRAFT_CONTENT_KEY = 'masid_draft_content_overrides';
-export const DRAFT_ACTIVE_KEY = 'masid_draft_active';
-export const DRAFT_DIRTY_KEY = 'masid_draft_dirty';
+export const getDraftCanvasPrefix = (ns?: string) => (ns || getStorageNamespace()) + '_draft_canvas_';
+export const DRAFT_CANVAS_PREFIX = getDraftCanvasPrefix();
+export const getDraftContentKey = (ns?: string) => (ns || getStorageNamespace()) + '_draft_content_overrides';
+export const DRAFT_CONTENT_KEY = getDraftContentKey();
+export const getDraftActiveKey = (ns?: string) => (ns || getStorageNamespace()) + '_draft_active';
+export const DRAFT_ACTIVE_KEY = getDraftActiveKey();
+export const getDraftDirtyKey = (ns?: string) => (ns || getStorageNamespace()) + '_draft_dirty';
+export const DRAFT_DIRTY_KEY = getDraftDirtyKey();
 export const EVENT_DRAFT_STATUS_CHANGE = 'engine-draft-status-change';
 export const EVENT_CLOUD_DRAFT_SYNC_STATUS = 'engine-cloud-draft-sync-status';
 export const AUTOSYNC_DEBOUNCE_MS = 1500;
@@ -65,7 +70,7 @@ let currentSyncStatus: CloudDraftSyncStatus = 'saved';
  * Returns the legacy draft canvas storage key for a specific node.
  */
 export function getDraftCanvasKey(nodeId: string): string {
-  return `${DRAFT_CANVAS_PREFIX}${nodeId}`;
+  return `${getDraftCanvasPrefix()}${nodeId}`;
 }
 
 /**
@@ -91,7 +96,7 @@ export function isDraftModeActive(): boolean {
   const storage = getStorage();
   if (!storage) return false;
   try {
-    const raw = storage.getItem(DRAFT_ACTIVE_KEY);
+    const raw = storage.getItem(getDraftActiveKey());
     if (!raw) return false;
     if (raw === 'true') return true;
     try {
@@ -113,7 +118,7 @@ export function getDraftBaseId(): string | null {
   const storage = getStorage();
   if (!storage) return null;
   try {
-    const raw = storage.getItem(DRAFT_ACTIVE_KEY);
+    const raw = storage.getItem(getDraftActiveKey());
     if (!raw) return null;
     if (raw === 'true') return null;
     const parsed = JSON.parse(raw);
@@ -163,9 +168,9 @@ export function setDraftModeActive(active: boolean, baseId?: string | null): voi
           baseId: resolvedBaseId,
           startedAt: new Date().toISOString(),
         };
-        storage.setItem(DRAFT_ACTIVE_KEY, JSON.stringify(payload));
+        storage.setItem(getDraftActiveKey(), JSON.stringify(payload));
       } else {
-        storage.removeItem(DRAFT_ACTIVE_KEY);
+        storage.removeItem(getDraftActiveKey());
       }
     } catch {
       // Storage restricted
@@ -182,7 +187,7 @@ export function isDraftDirty(): boolean {
   const storage = getStorage();
   if (!storage) return false;
   try {
-    return storage.getItem(DRAFT_DIRTY_KEY) === 'true';
+    return storage.getItem(getDraftDirtyKey()) === 'true';
   } catch {
     return false;
   }
@@ -197,9 +202,9 @@ export function setDraftDirty(dirty: boolean): void {
   if (storage) {
     try {
       if (dirty) {
-        storage.setItem(DRAFT_DIRTY_KEY, 'true');
+        storage.setItem(getDraftDirtyKey(), 'true');
       } else {
-        storage.removeItem(DRAFT_DIRTY_KEY);
+        storage.removeItem(getDraftDirtyKey());
       }
     } catch {
       // Storage restricted
@@ -306,9 +311,9 @@ export function clearDraftStorage(): void {
       for (const node of NODE_IDS) {
         storage.removeItem(getDraftCanvasKey(node));
       }
-      storage.removeItem(DRAFT_CONTENT_KEY);
-      storage.removeItem(DRAFT_ACTIVE_KEY);
-      storage.removeItem(DRAFT_DIRTY_KEY);
+      storage.removeItem(getDraftContentKey());
+      storage.removeItem(getDraftActiveKey());
+      storage.removeItem(getDraftDirtyKey());
     } catch {
       // Ignore
     }
@@ -324,7 +329,7 @@ export function hasDraftKeys(): boolean {
   const storage = getStorage();
   if (!storage) return false;
   try {
-    return storage.getItem(DRAFT_ACTIVE_KEY) !== null;
+    return storage.getItem(getDraftActiveKey()) !== null;
   } catch {
     return false;
   }
@@ -580,7 +585,7 @@ export function syncDraftWithPublished(
         DRAFT_ACTIVE_KEY,
         JSON.stringify({ baseId, startedAt: new Date().toISOString() })
       );
-      storage.removeItem(DRAFT_DIRTY_KEY);
+      storage.removeItem(getDraftDirtyKey());
     } catch {
       // Storage limits
     }

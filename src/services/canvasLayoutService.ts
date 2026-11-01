@@ -5,7 +5,7 @@
  * Aligned with: docs/00_WORKFLOW.md, docs/03_ARCHITECTURE.md, docs/07_CODING_STANDARDS.md
  *
  * Implements:
- * 1. Synchronous Local-First Storage (`localStorage` under `masid_canvas_${nodeId}`).
+ * 1. Synchronous Local-First Storage (`localStorage` under `folio_canvas_${nodeId}`).
  * 2. Cross-Component Event Bus (`engine-canvas-change`).
  * 3. Immutable tree operations with strict section auto-numbering.
  * 4. Resilient schema recovery and optional cloud persistence bridge.
@@ -31,11 +31,15 @@ import {
   triggerDebouncedCloudDraftSync,
 } from './draftService';
 import { getStorage } from '../utils/storage';
+import { getStorageNamespace } from '../config/engine.config';
 import { getSupabaseConfig, isTableAvailable, markTableMissing } from '../utils/supabase-config';
 
-export const CANVAS_LIVE_STORAGE_PREFIX = 'masid_live_canvas_';
-export const CANVAS_DRAFT_STORAGE_PREFIX = 'masid_draft_canvas_';
-export const CANVAS_LEGACY_STORAGE_PREFIX = 'masid_canvas_';
+export const getCanvasLiveStoragePrefix = (ns?: string) => (ns || getStorageNamespace()) + '_live_canvas_';
+export const CANVAS_LIVE_STORAGE_PREFIX = getCanvasLiveStoragePrefix();
+export const getCanvasDraftStoragePrefix = (ns?: string) => (ns || getStorageNamespace()) + '_draft_canvas_';
+export const CANVAS_DRAFT_STORAGE_PREFIX = getCanvasDraftStoragePrefix();
+export const getCanvasLegacyStoragePrefix = (ns?: string) => (ns || getStorageNamespace()) + '_canvas_';
+export const CANVAS_LEGACY_STORAGE_PREFIX = getCanvasLegacyStoragePrefix();
 // Canonical live prefix
 export const CANVAS_STORAGE_PREFIX = CANVAS_LIVE_STORAGE_PREFIX;
 
@@ -73,18 +77,18 @@ export interface CanvasLayoutService {
  * Derives the canonical live localStorage key for a specific node.
  */
 export function getCanvasStorageKey(nodeId: string): string {
-  return `${CANVAS_LIVE_STORAGE_PREFIX}${nodeId}`;
+  return `${getCanvasLiveStoragePrefix()}${nodeId}`;
 }
 
 /**
  * Derives the draft localStorage key for a specific node.
  */
 export function getDraftCanvasStorageKey(nodeId: string): string {
-  return `${CANVAS_DRAFT_STORAGE_PREFIX}${nodeId}`;
+  return `${getCanvasDraftStoragePrefix()}${nodeId}`;
 }
 
 /**
- * Seamlessly migrates legacy masid_canvas_* and masid_content_overrides keys to masid_live_*.
+ * Seamlessly migrates legacy folio_canvas_* and folio_content_overrides keys to folio_live_*.
  * Guarantees zero data loss for existing tenant configurations upon system update.
  */
 export function migrateLegacyStorageKeys(): void {
@@ -92,15 +96,15 @@ export function migrateLegacyStorageKeys(): void {
   if (!storage) return;
 
   for (const nodeId of NODE_IDS) {
-    const legacyKey = `${CANVAS_LEGACY_STORAGE_PREFIX}${nodeId}`;
-    const liveKey = `${CANVAS_LIVE_STORAGE_PREFIX}${nodeId}`;
+    const legacyKey = `${getCanvasLegacyStoragePrefix()}${nodeId}`;
+    const liveKey = `${getCanvasLiveStoragePrefix()}${nodeId}`;
     if (!storage.getItem(liveKey) && storage.getItem(legacyKey)) {
       storage.setItem(liveKey, storage.getItem(legacyKey)!);
     }
   }
 
-  const legacyContent = 'masid_content_overrides';
-  const liveContent = 'masid_live_content_overrides';
+  const legacyContent = getStorageNamespace() + '_content_overrides';
+  const liveContent = getStorageNamespace() + '_live_content_overrides';
   if (!storage.getItem(liveContent) && storage.getItem(legacyContent)) {
     storage.setItem(liveContent, storage.getItem(legacyContent)!);
   }
@@ -258,7 +262,7 @@ export function migrateCanvasOverridesIntoAst(channel: 'live' | 'draft'): void {
   if (!storage) return;
 
   const isDevMode = channel === 'draft';
-  const contentKey = isDevMode ? 'masid_draft_content_overrides' : 'masid_live_content_overrides';
+  const contentKey = isDevMode ? (getStorageNamespace() + '_draft_content_overrides') : (getStorageNamespace() + '_live_content_overrides');
   const rawOverrides = storage.getItem(contentKey);
   if (!rawOverrides) return;
 

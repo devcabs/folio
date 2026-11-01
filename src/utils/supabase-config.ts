@@ -1,3 +1,4 @@
+import { getStorageNamespace } from '../config/engine.config';
 import { evaluateSupabaseTarget, isProductionBuild } from './runtime-env';
 
 export interface SupabaseConfig {
@@ -41,7 +42,8 @@ export function getSupabaseConfig(): SupabaseConfig | null {
 // Suppresses repeated 404 network cascades for unprovisioned optional tables.
 // ---------------------------------------------------------------------------
 const missingTables = new Set<string>();
-export const STORAGE_KEY_MISSING_TABLES = 'masid_missing_supabase_tables';
+export const getMissingTablesStorageKey = (ns?: string) => (ns || getStorageNamespace()) + '_missing_supabase_tables';
+export const STORAGE_KEY_MISSING_TABLES = getMissingTablesStorageKey();
 
 function getSessionStorage(): Storage | null {
   try {

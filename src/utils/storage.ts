@@ -20,8 +20,8 @@ export function getStorage(): Storage | null {
 /**
  * Task 11.2.G3: Zero-LocalStorage Document Policy Enforcement.
  * Purges legacy draft and bloated document payloads from window.localStorage,
- * preserving solely small scalar session tokens (masid_session_id, masid_dev_unlocked_at,
- * masid_live_active_published_id, masid_draft_active, masid_draft_dirty).
+ * preserving solely small scalar session tokens (folio_session_id, folio_dev_unlocked_at,
+ * folio_live_active_published_id, folio_draft_active, folio_draft_dirty).
  * Enforces a strict < 5 KB total localStorage footprint.
  */
 export function purgeLegacyDocumentStorage(): void {
@@ -35,11 +35,7 @@ export function purgeLegacyDocumentStorage(): void {
     const allKeys = typeof Object.keys === 'function' ? Object.keys(storage) : [];
     for (const key of allKeys) {
       if (
-        key.startsWith('masid_draft_canvas_') ||
-        key.startsWith('masid_canvas_') ||
-        key.startsWith('masid_live_canvas_') ||
-        key === 'masid_content_overrides' ||
-        key === 'masid_draft_content_overrides'
+        key.includes('_draft_canvas_') || key.includes('_canvas_') || key.includes('_live_canvas_') || key.includes('_content_overrides')
       ) {
         keysToRemove.push(key);
       }
@@ -50,11 +46,7 @@ export function purgeLegacyDocumentStorage(): void {
       const key = storage.key(i);
       if (
         key &&
-        (key.startsWith('masid_draft_canvas_') ||
-          key.startsWith('masid_canvas_') ||
-          key.startsWith('masid_live_canvas_') ||
-          key === 'masid_content_overrides' ||
-          key === 'masid_draft_content_overrides') &&
+        (key.includes('_draft_canvas_') || key.includes('_canvas_') || key.includes('_live_canvas_') || key.includes('_content_overrides')) &&
         !keysToRemove.includes(key)
       ) {
         keysToRemove.push(key);
