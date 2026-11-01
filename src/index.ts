@@ -15,8 +15,9 @@ export * from './types/history';
 export * from './types/media';
 export * from './types/navigation';
 
-// Engine Configuration
+// Engine Configuration & Diagnostics
 export * from './config/engine.config';
+export * from './diagnostics/verifyEngineSetup';
 
 // Feedback Primitives
 export * from './components/feedback';

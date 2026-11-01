@@ -1,4 +1,5 @@
 import { getEngineConfig, setEngineConfig, type EngineConfig } from "./config/engine.config";
+import { verifyEngineWiring } from "./diagnostics/verifyEngineSetup";
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import type { RoadmapSectionHandle, RoadmapScrollZone } from './components/roadmap/RoadmapSection';
 import { AppHeader, type NavItem } from './components/layout/AppHeader';
@@ -37,8 +38,12 @@ const DEFAULT_NODE_SECTIONS: NavItem[] = [
 ];
 
 const AppContent: React.FC = () => {
+  const engineConfig = getEngineConfig();
+  const nodes = engineConfig.nodes && engineConfig.nodes.length > 0 ? engineConfig.nodes : sampleNodes;
+  const validNodeIds = useMemo(() => nodes.map((n: NodeItem) => n.id as NodeCode), [nodes]);
+
   const { route, nodeId, pageId, targetStage, navigateToNode, navigateToHome } =
-    useHashRoute();
+    useHashRoute(validNodeIds, engineConfig.basePath);
 
   const [activeStage, setActiveStage] = useState<number>(1);
   const [scrollZone, setScrollZone] = useState<RoadmapScrollZone>('above');
@@ -46,8 +51,6 @@ const AppContent: React.FC = () => {
   const roadmapRef = useRef<RoadmapSectionHandle>(null);
   const heroCtaRef = useRef<HTMLDivElement>(null);
 
-  const engineConfig = getEngineConfig();
-  const nodes = engineConfig.nodes && engineConfig.nodes.length > 0 ? engineConfig.nodes : sampleNodes;
   const activeNodeCode = nodeId || pageId;
   const currentNode = activeNodeCode ? nodes.find((n: NodeItem) => n.id === activeNodeCode) : null;
 
@@ -381,6 +384,24 @@ export const App: React.FC<AppProps> = ({ config }) => {
   if (config) {
     setEngineConfig(config);
   }
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isDev =
+        (import.meta as any).env?.DEV ??
+        (typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production');
+      if (isDev) {
+        const result = verifyEngineWiring(config);
+        if (!result.ok) {
+          console.error('[Folio Engine] Integration error detected:\n' + result.errors.join('\n'));
+        }
+        if (result.warnings.length > 0) {
+          result.warnings.forEach((warn) => console.warn(warn));
+        }
+      }
+    }
+  }, [config]);
+
   return (
     <DeveloperModeProvider>
       <UndoRedoProvider>

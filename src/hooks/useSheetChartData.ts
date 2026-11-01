@@ -28,10 +28,11 @@ import {
   fetchLiveSheetMatrix,
   parseTabularDataset,
 } from '../services/sheetsDataService';
+import { getStorageKey } from '../config/engine.config';
 import bakedChartsData from '../data/baked-charts.json';
 
 const bakedCharts: ChartDataset[] = bakedChartsData as ChartDataset[];
-const MATRIX_CACHE_PREFIX = 'folio_chart_matrix_';
+export const getMatrixCacheKey = (chartId: string) => getStorageKey('chart_matrix_' + chartId);
 
 export interface UseSheetChartDataOptions {
   chartId: string;
@@ -102,7 +103,10 @@ export function useSheetChartData({
     // 1. Check if cached liveMatrix exists in localStorage for instant real-world paint
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        const raw = window.localStorage.getItem(`${MATRIX_CACHE_PREFIX}${chartId}`);
+        let raw = window.localStorage.getItem(getMatrixCacheKey(chartId));
+        if (!raw) {
+          raw = window.localStorage.getItem('folio_chart_matrix_' + chartId);
+        }
         if (raw) {
           const parsedMatrix = JSON.parse(raw);
           if (Array.isArray(parsedMatrix) && parsedMatrix.length > 0) {
@@ -253,7 +257,7 @@ export function useSheetChartData({
         try {
           if (typeof window !== 'undefined' && window.localStorage) {
             window.localStorage.setItem(
-              `${MATRIX_CACHE_PREFIX}${chartId}`,
+              getMatrixCacheKey(chartId),
               JSON.stringify(liveMatrix)
             );
           }

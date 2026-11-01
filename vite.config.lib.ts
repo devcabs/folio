@@ -9,19 +9,17 @@ export default defineConfig({
   plugins: [react()],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
-      name: 'FolioEngine',
-      fileName: (format) => (format === 'es' ? 'folio.js' : 'folio.umd.cjs'),
-      formats: ['es', 'umd'],
+      entry: {
+        folio: resolve(__dirname, 'src/index.ts'),
+        edge: resolve(__dirname, 'src/edge.ts'),
+        diagnostics: resolve(__dirname, 'src/diagnostics.ts'),
+      },
+      formats: ['es', 'cjs'],
+      fileName: (format, entryName) => `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,
     },
     rollupOptions: {
       external: ['react', 'react-dom', 'react/jsx-runtime'],
       output: {
-        globals: {
-          react: 'React',
-          'react-dom': 'ReactDOM',
-          'react/jsx-runtime': 'jsxRuntime',
-        },
         assetFileNames: (assetInfo) => {
           if (assetInfo.name?.endsWith('.css')) return 'style.css';
           return assetInfo.name || '';

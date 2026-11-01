@@ -345,7 +345,7 @@ export function subscribeToContentChange(
   };
 
   const storageHandler = (e: StorageEvent) => {
-    const targetKey = isDevMode ? STORAGE_KEY_DRAFT_CONTENT : STORAGE_KEY_LIVE_CONTENT;
+    const targetKey = isDevMode ? getDraftContentStorageKey() : getLiveContentStorageKey();
     if (e.key === targetKey || e.key === null) {
       if (isDevMode) {
         draftMemoryCache = null;
@@ -397,10 +397,13 @@ function ensureContentWindowListeners(): void {
   };
 
   const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY_LIVE_CONTENT || e.key === STORAGE_KEY_LEGACY_CONTENT || e.key === null) {
+    const liveKey = getLiveContentStorageKey();
+    const legacyKey = getLegacyContentStorageKey();
+    const draftKey = getDraftContentStorageKey();
+    if (e.key === liveKey || e.key === legacyKey || e.key === null) {
       liveMemoryCache = null;
       keySubscribers.forEach((sub) => sub.callback());
-    } else if (e.key === STORAGE_KEY_DRAFT_CONTENT) {
+    } else if (e.key === draftKey) {
       draftMemoryCache = null;
       keySubscribers.forEach((sub) => {
         if (sub.isDevMode) sub.callback();

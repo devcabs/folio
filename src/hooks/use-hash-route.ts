@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { NodeCode } from "../types/node";
 import { cancelCinematicScroll } from "../utils/smooth-scroll";
+import { getEngineConfig } from "../config/engine.config";
 
 export type RouteType = "home" | "node" | "page" | "not-found";
 
@@ -41,11 +42,25 @@ export const STAGE_TO_NODE: Record<number, NodeCode> = {
 /**
  * Universal route parser supporting both modern HTML5 path routes (/node/:id/)
  * and legacy hash routes (#node/:id).
- * Parameterized to support arbitrary custom node identifiers and stages.
+ * Parameterized to support arbitrary custom node identifiers, stages, and subpaths.
  */
-export function parseRoute(pathname = "/", hash = "", validNodes?: NodeCode[]): RouteState {
-  const cleanPath = pathname.trim().replace(/\/+$/, "") + "/";
+export function parseRoute(
+  pathname = "/",
+  hash = "",
+  validNodes?: NodeCode[],
+  basePath?: string
+): RouteState {
+  let cleanPath = pathname.trim().replace(/\/+$/, "") + "/";
   const cleanHash = hash.replace(/^#\/?/, "").trim();
+
+  // Strip optional hosting basePath prefix (e.g. '/portal' or '/app')
+  const effectiveBasePath = basePath ?? getEngineConfig().basePath;
+  if (effectiveBasePath) {
+    const normBase = effectiveBasePath.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+    if (normBase && cleanPath.startsWith("/" + normBase + "/")) {
+      cleanPath = cleanPath.slice(normBase.length + 1);
+    }
+  }
 
   // 1. Path route: /node/:id/ or /page/:id/
   const pathMatch = cleanPath.match(/^\/(node|page)\/([a-zA-Z0-9_-]+)\/?$/);
@@ -54,11 +69,20 @@ export function parseRoute(pathname = "/", hash = "", validNodes?: NodeCode[]): 
     const isAllowed = validNodes ? validNodes.includes(candidateId) : true;
     if (isAllowed) {
       const code = candidateId;
+      let stage: number | null = NODE_TO_STAGE[code] ?? null;
+      if (stage === null) {
+        const configNodes = getEngineConfig().nodes;
+        if (configNodes && configNodes.length > 0) {
+          const idx = configNodes.findIndex((n) => n.id.toLowerCase() === candidateId);
+          if (idx !== -1) stage = idx + 1;
+        }
+      }
+
       return {
         type: "node",
         nodeId: code,
         pageId: code,
-        targetStage: NODE_TO_STAGE[code] ?? null,
+        targetStage: stage,
         rawHash: hash,
         pathname: "/node/" + code + "/",
       };
@@ -156,12 +180,14 @@ export function parseHash(hash: string, validNodes?: NodeCode[]): RouteState {
   );
 }
 
-export function useHashRoute(validNodes?: NodeCode[]) {
+export function useHashRoute(validNodes?: NodeCode[], basePath?: string) {
+  const effectiveBasePath = basePath ?? getEngineConfig().basePath;
   const [routeState, setRouteState] = useState<RouteState>(() =>
     parseRoute(
       typeof window !== "undefined" ? window.location.pathname : "/",
       typeof window !== "undefined" ? window.location.hash : "",
-      validNodes
+      validNodes,
+      effectiveBasePath
     )
   );
 
@@ -174,13 +200,14 @@ export function useHashRoute(validNodes?: NodeCode[]) {
         const candidateId = cleanHash.slice(prefix.length).replace(/\/$/, "").toLowerCase();
         const isAllowed = validNodes ? validNodes.includes(candidateId) : true;
         if (isAllowed) {
-          window.history.replaceState(null, "", "/node/" + candidateId + "/");
+          const normBase = effectiveBasePath ? "/" + effectiveBasePath.replace(/^\/+|\/+$/g, "") : "";
+          window.history.replaceState(null, "", normBase + "/node/" + candidateId + "/");
         }
       }
     }
 
     const handleLocationChange = () => {
-      setRouteState(parseRoute(window.location.pathname, window.location.hash, validNodes));
+      setRouteState(parseRoute(window.location.pathname, window.location.hash, validNodes, effectiveBasePath));
     };
 
     window.addEventListener("popstate", handleLocationChange);
@@ -190,31 +217,33 @@ export function useHashRoute(validNodes?: NodeCode[]) {
       window.removeEventListener("popstate", handleLocationChange);
       window.removeEventListener("hashchange", handleLocationChange);
     };
-  }, [validNodes]);
+  }, [validNodes, effectiveBasePath]);
 
   const navigateToNode = useCallback((nodeId: NodeCode) => {
     cancelCinematicScroll();
-    const targetUrl = "/node/" + nodeId + "/";
+    const normBase = effectiveBasePath ? "/" + effectiveBasePath.replace(/^\/+|\/+$/g, "") : "";
+    const targetUrl = normBase + "/node/" + nodeId + "/";
     if (typeof window !== "undefined") {
       if (window.location.pathname !== targetUrl) {
         window.history.pushState(null, "", targetUrl);
       }
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-      setRouteState(parseRoute(window.location.pathname, window.location.hash, validNodes));
+      setRouteState(parseRoute(window.location.pathname, window.location.hash, validNodes, effectiveBasePath));
     }
-  }, [validNodes]);
+  }, [validNodes, effectiveBasePath]);
 
   const navigateToHome = useCallback((stage?: number) => {
     cancelCinematicScroll();
-    const targetUrl = stage && stage >= 1 ? "/#stage-" + stage : "/";
+    const normBase = effectiveBasePath ? "/" + effectiveBasePath.replace(/^\/+|\/+$/g, "") : "";
+    const targetUrl = stage && stage >= 1 ? normBase + "/#stage-" + stage : (normBase || "/");
     if (typeof window !== "undefined") {
       window.history.pushState(null, "", targetUrl);
       if (!stage) {
         window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       }
-      setRouteState(parseRoute(window.location.pathname, window.location.hash, validNodes));
+      setRouteState(parseRoute(window.location.pathname, window.location.hash, validNodes, effectiveBasePath));
     }
-  }, [validNodes]);
+  }, [validNodes, effectiveBasePath]);
 
   return {
     route: routeState.type,

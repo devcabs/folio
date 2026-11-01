@@ -198,15 +198,16 @@ export function getCachedChartConfig(chartId: string): SheetChartConfig | null {
 export function setCachedChartConfig(config: SheetChartConfig): boolean {
   if (!config || !config.chartId) return false;
   memoryCache.set(config.chartId, config);
-  const stored = setStorageItem(`${LOCAL_STORAGE_PREFIX}${config.chartId}`, JSON.stringify(config));
+  const stored = setStorageItem(`${getChartSourcePrefix()}${config.chartId}`, JSON.stringify(config));
 
   // Update known IDs manifest
   try {
-    const rawList = getStorageItem(LOCAL_STORAGE_ALL_KEY);
+    const manifestKey = getChartSourcesManifestKey();
+    const rawList = getStorageItem(manifestKey);
     const idList: string[] = rawList ? JSON.parse(rawList) : [];
     if (!idList.includes(config.chartId)) {
       idList.push(config.chartId);
-      setStorageItem(LOCAL_STORAGE_ALL_KEY, JSON.stringify(idList));
+      setStorageItem(manifestKey, JSON.stringify(idList));
     }
   } catch {
     // Ignore error
@@ -318,7 +319,7 @@ export async function fetchChartConfigsByNode(
   // Scan cached items matching node
   const results: SheetChartConfig[] = [];
   try {
-    const rawList = getStorageItem(LOCAL_STORAGE_ALL_KEY);
+    const rawList = getStorageItem(getChartSourcesManifestKey());
     const idList: string[] = rawList ? JSON.parse(rawList) : [];
     for (const id of idList) {
       const item = getCachedChartConfig(id);
@@ -610,12 +611,13 @@ export function resetChartSourceCache(chartId?: string): void {
   } else {
     memoryCache.clear();
     try {
-      const rawList = getStorageItem(LOCAL_STORAGE_ALL_KEY);
+      const manifestKey = getChartSourcesManifestKey();
+      const rawList = getStorageItem(manifestKey);
       const idList: string[] = rawList ? JSON.parse(rawList) : [];
       for (const id of idList) {
-        removeStorageItem(`${LOCAL_STORAGE_PREFIX}${id}`);
+        removeStorageItem(`${getChartSourcePrefix()}${id}`);
       }
-      removeStorageItem(LOCAL_STORAGE_ALL_KEY);
+      removeStorageItem(manifestKey);
     } catch {
       // Ignore error
     }

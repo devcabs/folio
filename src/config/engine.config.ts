@@ -1,4 +1,32 @@
+import { z } from "zod";
 import type { NodeItem } from "../types/node";
+
+export const EngineBrandingConfigSchema = z.object({
+  appName: z.string().min(1, "appName is required"),
+  tagline: z.string().optional(),
+  logoText: z.string().optional(),
+  markSides: z.number().int().min(3).max(32).optional(),
+  markWaviness: z.number().min(0).max(1).optional(),
+  heroKicker: z.string().optional(),
+  heroTitle: z.string().optional(),
+  heroSubtitle: z.string().optional(),
+  orgName: z.string().optional(),
+});
+
+export const EngineConfigSchema = z.object({
+  appId: z.string().min(1, "appId is required"),
+  appNamespace: z.string().min(1, "appNamespace is required"),
+  basePath: z.string().optional(),
+  nodes: z.array(z.any()).default([]),
+  branding: EngineBrandingConfigSchema,
+  securitySalt: z.string().optional(),
+  expectedPinHash: z.string().optional(),
+  features: z.object({
+    enableChartDrawer: z.boolean().optional(),
+    enableEditorMode: z.boolean().optional(),
+    enableHistoryLedger: z.boolean().optional(),
+  }).optional(),
+});
 
 export interface EngineBrandingConfig {
   appName: string;
@@ -15,6 +43,7 @@ export interface EngineBrandingConfig {
 export interface EngineConfig {
   appId: string;
   appNamespace: string;      // Storage & event prefix (e.g. 'folio_app')
+  basePath?: string;         // Optional hosting subpath (e.g. '/portal' or '')
   nodes: NodeItem[];
   branding: EngineBrandingConfig;
   securitySalt?: string;

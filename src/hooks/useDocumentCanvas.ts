@@ -42,6 +42,10 @@ import {
 } from '../utils/canvasDefaults';
 import { useUndoRedo } from './useUndoRedo';
 import { useDeveloperMode } from './useDeveloperMode';
+import { parseCsvToMatrix } from '../services/sheetsDataService';
+import { setCachedChartConfig } from '../services/chartSourceService';
+import { getMatrixCacheKey } from './useSheetChartData';
+import type { NodeCode } from '../types/node';
 
 export interface UseNodeCanvasReturn {
   /** Active in-memory canvas document tree */
@@ -133,7 +137,41 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
       fetch(`/api/public/node/${nodeId}`)
         .then((res) => (res.ok ? res.json() : null))
         .then((edgeData: PublicNodePayload | null) => {
-          if (!isCancelled && edgeData?.canvas && Array.isArray(edgeData.canvas.sections)) {
+          if (isCancelled || !edgeData || edgeData.nodeId !== nodeId) return;
+
+          // 1. Hydrate prebaked chart datasets into client chart cache
+          if (edgeData.chartDatasets && typeof edgeData.chartDatasets === 'object') {
+            try {
+              for (const [chartId, chartDataset] of Object.entries(edgeData.chartDatasets)) {
+                if (chartDataset && typeof chartDataset === 'object') {
+                  const dataset = chartDataset as any;
+                  if (dataset.sanitizedCsvContent) {
+                    const matrix = parseCsvToMatrix(dataset.sanitizedCsvContent);
+                    if (matrix && matrix.length > 0 && typeof window !== 'undefined' && window.localStorage) {
+                      window.localStorage.setItem(getMatrixCacheKey(chartId), JSON.stringify(matrix));
+                    }
+                  }
+                  setCachedChartConfig({
+                    chartId,
+                    nodeId: (nodeId || 'access') as NodeCode,
+                    sheetUrl: '',
+                    defaultType: dataset.chartType || 'bar',
+                    titleOverride: dataset.title,
+                    subtitleOverride: dataset.subtitle,
+                    unitOverride: dataset.unit,
+                    visualConfig: dataset.visualConfig,
+                    updatedAt: dataset.asOfDate || new Date().toISOString(),
+                    updatedBy: 'edge-prebake',
+                  });
+                }
+              }
+            } catch {
+              // Non-blocking chart cache warming
+            }
+          }
+
+          // 2. Hydrate canvas AST document
+          if (edgeData.canvas && Array.isArray(edgeData.canvas.sections)) {
             if (
               edgeData.canvas.updatedAt !== documentRef.current.updatedAt ||
               edgeData.canvas.sections.length !== documentRef.current.sections.length

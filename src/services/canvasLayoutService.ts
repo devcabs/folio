@@ -854,7 +854,7 @@ export function findCanvasItemLocation(
  */
 export function getLiveNodeCanvas(nodeId: string): NodeCanvasDocument {
   const storage = getStorage();
-  const key = `${CANVAS_LIVE_STORAGE_PREFIX}${nodeId}`;
+  const key = `${getCanvasLiveStoragePrefix()}${nodeId}`;
 
   if (storage) {
     try {
@@ -895,7 +895,7 @@ export function saveLiveNodeCanvas(
 
   if (storage) {
     try {
-      storage.setItem(`${CANVAS_LIVE_STORAGE_PREFIX}${doc.nodeId}`, JSON.stringify(docToSave));
+      storage.setItem(`${getCanvasLiveStoragePrefix()}${doc.nodeId}`, JSON.stringify(docToSave));
     } catch (err: unknown) {
       console.error('Storage quota exceeded while saving live canvas document:', err);
       ok = false;
@@ -983,7 +983,7 @@ export function saveNodeCanvas(
     triggerDebouncedCloudDraftSync();
   } else if (storage) {
     try {
-      storage.setItem(`${CANVAS_LIVE_STORAGE_PREFIX}${doc.nodeId}`, JSON.stringify(docToSave));
+      storage.setItem(`${getCanvasLiveStoragePrefix()}${doc.nodeId}`, JSON.stringify(docToSave));
     } catch (err: unknown) {
       console.error('Storage quota exceeded while saving canvas document:', err);
       ok = false;
@@ -1041,7 +1041,7 @@ export function resetNodeCanvas(nodeId: string, isDevMode = false): NodeCanvasDo
     }
   } else if (storage) {
     try {
-      storage.removeItem(`${CANVAS_LIVE_STORAGE_PREFIX}${nodeId}`);
+      storage.removeItem(`${getCanvasLiveStoragePrefix()}${nodeId}`);
     } catch {
       // Ignore
     }

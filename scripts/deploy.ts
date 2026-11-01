@@ -1,6 +1,9 @@
 import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
 
-// ANSI color formatting for elegant terminal output
+// ANSI color formatting
 const colors = {
   reset: '\x1b[0m',
   bright: '\x1b[1m',
@@ -8,21 +11,18 @@ const colors = {
   green: '\x1b[32m',
   yellow: '\x1b[33m',
   blue: '\x1b[34m',
-  magenta: '\x1b[35m',
   cyan: '\x1b[36m',
   red: '\x1b[31m',
 };
 
 function logStep(stepNum: number, totalSteps: number, title: string) {
-  console.log(
-    `\n${colors.cyan}[${stepNum}/${totalSteps}]${colors.reset} ${colors.bright}${title}${colors.reset}`
-  );
+  console.log(`\n${colors.cyan}[${stepNum}/${totalSteps}]${colors.reset} ${colors.bright}${title}${colors.reset}`);
 }
 
-function runCommand(command: string, description: string): string {
+function run(command: string, description: string, stdio: 'inherit' | 'pipe' = 'inherit'): string {
   try {
-    const output = execSync(command, { encoding: 'utf-8', stdio: ['inherit', 'pipe', 'pipe'] });
-    return output.trim();
+    const output = execSync(command, { encoding: 'utf-8', stdio: ['inherit', stdio, stdio] });
+    return (output || '').trim();
   } catch (err: unknown) {
     const error = err as { stderr?: string; stdout?: string; message: string };
     console.error(`\n${colors.red}❌ FAILED: ${description}${colors.reset}`);
@@ -32,97 +32,152 @@ function runCommand(command: string, description: string): string {
   }
 }
 
+function getOutput(command: string): string {
+  try {
+    return execSync(command, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trimEnd();
+  } catch {
+    return '';
+  }
+}
+
 async function main() {
-  console.log(`\n${colors.bright}${colors.magenta}══════════════════════════════════════════════════════════${colors.reset}`);
-  console.log(`${colors.bright}   Engine Portal — Automated Deploy Pipeline${colors.reset}`);
-  console.log(`${colors.dim}  Destination: https://engine.example.com${colors.reset}`);
-  console.log(`${colors.bright}${colors.magenta}══════════════════════════════════════════════════════════${colors.reset}`);
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const rootDir = path.resolve(__dirname, '..');
+  process.chdir(rootDir);
 
-  const totalSteps = 5;
+  const pkgPath = path.join(rootDir, 'package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+  const pkgName = pkg.name || '@devcabs/folio-engine';
+  const currentVersion = pkg.version || '0.0.0';
 
-  // ── Step 1: Quality & Token Audits ──
-  logStep(1, totalSteps, 'Verifying Design Tokens & Data Contracts...');
-  runCommand('npm run test:tokens', 'Design Token Purity check');
-  console.log(`  ${colors.green}✓${colors.reset} 100% Token adherence verified in all CSS modules.`);
+  console.log(`\n${colors.bright}${colors.blue}══════════════════════════════════════════════════════════${colors.reset}`);
+  console.log(`${colors.bright}   ${pkgName} — Automated Release & Deploy${colors.reset}`);
+  console.log(`${colors.dim}   Current Version: v${currentVersion}${colors.reset}`);
+  console.log(`${colors.bright}${colors.blue}══════════════════════════════════════════════════════════${colors.reset}`);
 
-  runCommand('npm run test:schema', 'Node Schema & Contract check');
-  console.log(`  ${colors.green}✓${colors.reset} Zod contracts, images, and stages verified.`);
+  const totalSteps = 6;
 
-  runCommand('npm run test:env', 'Environment separation check');
-  console.log(`  ${colors.green}✓${colors.reset} Dev/prod environment separation verified.`);
+  // Parse bump argument: patch | minor | major | explicit semver (default: patch)
+  const rawArg = process.argv.slice(2).find((arg) => !arg.startsWith('-')) || 'patch';
+  const validBumps = ['patch', 'minor', 'major', 'prepatch', 'preminor', 'premajor', 'prerelease'];
+  const isSemver = /^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/.test(rawArg);
 
-  runCommand('npm run test:task-15', 'Edge Shield & Media Gateway verification');
-  console.log(`  ${colors.green}✓${colors.reset} Edge routing, media proxy, pre-baking, and byte budgets verified.`);
-
-  // ── Step 2: Static Typecheck & Production Bundle ──
-  logStep(2, totalSteps, 'Compiling TypeScript & Building Production Assets...');
-  runCommand('npm run build', 'TypeScript compile & Vite production build');
-  console.log(`  ${colors.green}✓${colors.reset} Production bundle generated cleanly in dist/.`);
-
-  runCommand('npm run test:dist', 'Dist secret / dev-reference scan');
-  console.log(`  ${colors.green}✓${colors.reset} dist/ contains no secrets or dev-project references.`);
-
-  // ── Step 3: Git Status & Stage ──
-  logStep(3, totalSteps, 'Checking Git Working Tree & Staging Changes...');
-  const statusOutput = execSync('git status --porcelain', { encoding: 'utf-8' }).trim();
-
-  // Extract optional custom commit message from CLI args (e.g. npm run deploy -- "my message")
-  const args = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
-  const userCommitMessage = args.length > 0 ? args.join(' ') : null;
-
-  const envLeak = statusOutput
-    .split('\n')
-    .filter((l) => /\.env(?!\.example|\.scripts\.example)/.test(l.slice(3)));
-  if (envLeak.length) {
-    console.error(`\n${colors.red}❌ Refusing to commit env files:${colors.reset}\n${envLeak.join('\n')}`);
+  if (!validBumps.includes(rawArg) && !isSemver) {
+    console.error(`\n${colors.red}❌ Invalid version bump target: "${rawArg}"${colors.reset}`);
+    console.error(`Valid options: ${validBumps.join(', ')} or explicit semver (e.g. 0.2.0)\n`);
     process.exit(1);
   }
+  const bumpType = rawArg;
 
-  if (statusOutput) {
-    console.log(`  ${colors.yellow}•${colors.reset} Detected changes to be committed:`);
-    statusOutput.split('\n').forEach((line) => {
-      console.log(`    ${colors.dim}${line}${colors.reset}`);
+  // ── Step 1: Verify No Pending Tracked File Changes ──
+  logStep(1, totalSteps, 'Checking working directory for pending tracked changes...');
+
+  const trackedStatus = getOutput('git status --porcelain -uno');
+
+  if (trackedStatus) {
+    console.error(`\n${colors.red}❌ Pending tracked file changes detected!${colors.reset}`);
+    console.error(`You have uncommitted changes in tracked files:\n`);
+    trackedStatus.split('\n').filter(Boolean).forEach((line) => {
+      const match = line.match(/^\s*([A-Z?]{1,2})\s+(.+)$/);
+      const code = match ? match[1] : 'M';
+      const file = match ? match[2] : line.trim();
+      console.error(`   ${colors.yellow}[${code}]${colors.reset} ${file}`);
     });
-
-    const commitMsg =
-      userCommitMessage ||
-      `feat(deploy): update portal content and assets (${new Date().toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })})`;
-
-    runCommand('git add .', 'Staging modified and untracked files');
-    runCommand(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, 'Creating git commit');
-    console.log(`  ${colors.green}✓${colors.reset} Committed with message: "${commitMsg}"`);
-  } else {
-    console.log(`  ${colors.green}✓${colors.reset} Working tree clean (no new changes to commit).`);
+    console.error(`\nPlease commit and push your changes before deploying:`);
+    console.error(`  ${colors.cyan}git add -A${colors.reset}`);
+    console.error(`  ${colors.cyan}git commit -m "your commit message"${colors.reset}`);
+    console.error(`  ${colors.cyan}git push${colors.reset}\n`);
+    process.exit(1);
   }
+  console.log(`  ${colors.green}✓${colors.reset} No pending tracked changes. Working tree clean.`);
 
-  // ── Step 4: Push to GitHub ──
-  logStep(4, totalSteps, 'Pushing to GitHub (origin main)...');
-  const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
-  runCommand(`git push origin ${branch}`, `Pushing to origin ${branch}`);
-  console.log(`  ${colors.green}✓${colors.reset} Pushed to branch: ${colors.bright}${branch}${colors.reset}`);
+  // ── Step 2: Verify Git Sync with Remote (Check if Git Pushed Already) ──
+  logStep(2, totalSteps, 'Verifying local branch is pushed to remote (GitHub)...');
 
-  // ── Step 5: Direct Cloudflare Edge Deployment ──
-  logStep(5, totalSteps, 'Deploying directly to Cloudflare Edge via Wrangler...');
+  const branch = getOutput('git rev-parse --abbrev-ref HEAD') || 'main';
+
+  // Fetch remote silently
   try {
-    execSync('npx -y wrangler deploy', { encoding: 'utf-8', stdio: ['inherit', 'pipe', 'pipe'] });
-    console.log(`  ${colors.green}✓${colors.reset} Direct edge deployment completed.`);
-  } catch (err: unknown) {
-    console.log(`  ${colors.yellow}⚠ Warning: Direct Wrangler edge push skipped or timed out. Cloudflare remote CI build triggered via GitHub push.${colors.reset}`);
+    execSync(`git fetch origin ${branch}`, { stdio: 'ignore' });
+  } catch {
+    console.log(`  ${colors.yellow}⚠ Warning: Could not fetch from origin. Checking local upstream status...${colors.reset}`);
   }
 
-  const commitHash = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
+  // Check upstream tracking or origin/<branch>
+  let upstream = getOutput('git rev-parse --verify @{u}');
+  if (!upstream) {
+    upstream = getOutput(`git rev-parse --verify origin/${branch}`);
+  }
 
+  if (upstream) {
+    const localHash = getOutput('git rev-parse HEAD');
+    const upstreamHash = getOutput('git rev-parse @{u}') || getOutput(`git rev-parse origin/${branch}`);
+
+    if (localHash !== upstreamHash) {
+      const ahead = parseInt(getOutput(`git rev-list origin/${branch}..HEAD --count`) || '0', 10);
+      const behind = parseInt(getOutput(`git rev-list HEAD..origin/${branch} --count`) || '0', 10);
+
+      if (ahead > 0 && behind > 0) {
+        console.error(`\n${colors.red}❌ Git branch and remote have diverged!${colors.reset}`);
+        console.error(`Your local branch is ahead by ${colors.bright}${ahead}${colors.reset} commit(s) and behind remote by ${colors.bright}${behind}${colors.reset} commit(s).\n`);
+        console.error(`Please push or sync with remote before deploying:`);
+        console.error(`  ${colors.cyan}git push origin ${branch}${colors.reset}\n`);
+        process.exit(1);
+      } else if (ahead > 0) {
+        console.error(`\n${colors.red}❌ Git changes not pushed!${colors.reset}`);
+        console.error(`Your local branch '${branch}' has ${colors.bright}${ahead}${colors.reset} unpushed commit(s).\n`);
+        console.error(`Please push your commits first:`);
+        console.error(`  ${colors.cyan}git push origin ${branch}${colors.reset}\n`);
+        process.exit(1);
+      } else if (behind > 0) {
+        console.error(`\n${colors.red}❌ Local branch is behind remote!${colors.reset}`);
+        console.error(`Your branch '${branch}' is behind 'origin/${branch}' by ${colors.bright}${behind}${colors.reset} commit(s).\n`);
+        console.error(`Please pull latest changes first:`);
+        console.error(`  ${colors.cyan}git pull origin ${branch}${colors.reset}\n`);
+        process.exit(1);
+      }
+    }
+    console.log(`  ${colors.green}✓${colors.reset} Branch is in sync with origin/${branch} (all commits pushed).`);
+  } else {
+    console.log(`  ${colors.yellow}⚠ Upstream not set; proceeding with caution.${colors.reset}`);
+  }
+
+  // ── Step 3: Run Quality & Token Audits ──
+  logStep(3, totalSteps, 'Running verification checks & test builds...');
+  run('npm run test:tokens', 'Design token alias & purity validation');
+  console.log(`  ${colors.green}✓${colors.reset} Token verification passed.`);
+
+  run('npm run build:lib', 'Library compilation & type generation');
+  console.log(`  ${colors.green}✓${colors.reset} Library bundle and declaration files generated.`);
+
+  // ── Step 4: Bump Version & Create Release Tag ──
+  logStep(4, totalSteps, `Bumping version (${bumpType})...`);
+  run(`npm version ${bumpType} -m "chore(release): %s"`, `Bumping version via npm version ${bumpType}`);
+
+  // Re-read updated package.json
+  const updatedPkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+  const newVersion = updatedPkg.version;
+  console.log(`  ${colors.green}✓${colors.reset} Version bumped: ${colors.dim}v${currentVersion}${colors.reset} ➔ ${colors.bright}${colors.green}v${newVersion}${colors.reset}`);
+
+  // ── Step 5: Publish to npm ──
+  logStep(5, totalSteps, `Publishing ${pkgName}@${newVersion} to npm...`);
+  run('npm publish', `Publishing to npm registry`);
+  console.log(`  ${colors.green}✓${colors.reset} Successfully published ${pkgName}@${newVersion} to npm!`);
+
+  // ── Step 6: Push Release Commit & Tag to GitHub ──
+  logStep(6, totalSteps, `Pushing release commit and tag (v${newVersion}) to GitHub...`);
+  run(`git push origin ${branch} --follow-tags`, `Pushing release commit and tags to origin/${branch}`);
+  console.log(`  ${colors.green}✓${colors.reset} Pushed to GitHub with tags.`);
+
+  // ── Done Summary ──
   console.log(`\n${colors.bright}${colors.green}══════════════════════════════════════════════════════════${colors.reset}`);
-  console.log(`  ${colors.green}✨ ALL CHECKS PASSED, COMMITTED, PUSHED & DEPLOYED!${colors.reset}`);
-  console.log(`  ${colors.dim}Commit:${colors.reset}    ${commitHash}`);
-  console.log(`  ${colors.dim}GitHub:${colors.reset}    ${colors.cyan}origin/${branch}${colors.reset}`);
-  console.log(`  ${colors.dim}Live Edge:${colors.reset} ${colors.cyan}https://engine.example.com${colors.reset}`);
+  console.log(`  ${colors.green}🚀 RELEASE & DEPLOY COMPLETE!${colors.reset}`);
+  console.log(`  ${colors.dim}Package:${colors.reset}      ${colors.bright}${pkgName}${colors.reset}`);
+  console.log(`  ${colors.dim}Live Version:${colors.reset} ${colors.cyan}v${newVersion}${colors.reset}`);
+  console.log(`  ${colors.dim}GitHub Tag:${colors.reset}   ${colors.cyan}v${newVersion}${colors.reset}`);
+  console.log(`\n  ${colors.bright}To update consumer project (e.g. consumer-portal):${colors.reset}`);
+  console.log(`    ${colors.yellow}npm install ${pkgName}@latest${colors.reset}`);
   console.log(`${colors.bright}${colors.green}══════════════════════════════════════════════════════════${colors.reset}\n`);
 }
 
