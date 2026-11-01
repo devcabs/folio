@@ -1,1 +1,222 @@
-[]
+[
+  {
+    "chartId": "chart-access-enrolment",
+    "title": "Cluster Throughput & Ingestion Rate",
+    "subtitle": "Real-time telemetry distribution across processing nodes (ops/sec)",
+    "unit": "ops/s",
+    "asOfDate": "2026-Q1",
+    "chartType": "bar",
+    "nodeId": "access",
+    "visualConfig": {
+      "unit": "ops/s",
+      "excludeSummaryRows": true,
+      "yMin": 0,
+      "orientation": "vertical",
+      "barOrientation": "vertical"
+    },
+    "categories": [
+      "Cluster Alpha",
+      "Cluster Beta",
+      "Cluster Gamma",
+      "Cluster Delta",
+      "Cluster Epsilon",
+      "Cluster Zeta"
+    ],
+    "series": [
+      {
+        "name": "Ingress Stream",
+        "data": [
+          420,
+          510,
+          630,
+          590,
+          710,
+          680
+        ],
+        "color": "#0284c7"
+      },
+      {
+        "name": "Egress Sync",
+        "data": [
+          390,
+          480,
+          580,
+          560,
+          670,
+          640
+        ],
+        "color": "#38bdf8"
+      }
+    ],
+    "sanitizedCsvContent": "# Title: Cluster Throughput & Ingestion Rate (ops/s)\nCategory,Ingress Stream,Egress Sync\nCluster Alpha,420,390\nCluster Beta,510,480\nCluster Gamma,630,580\nCluster Delta,590,560\nCluster Epsilon,710,670\nCluster Zeta,680,640"
+  },
+  {
+    "chartId": "chart-equity-assistance",
+    "title": "Compute & Memory Allocation Ratios",
+    "subtitle": "Resource distribution percentage across core engine subsystems",
+    "unit": "%",
+    "asOfDate": "2026-Q1",
+    "chartType": "donut",
+    "nodeId": "equity",
+    "visualConfig": {
+      "unit": "%",
+      "excludeSummaryRows": true,
+      "donutVariant": "donut"
+    },
+    "categories": [
+      "AST Parser",
+      "Bézier Coordinate Engine",
+      "Vector Chart Studio",
+      "Storage & Cache Tier",
+      "Coordinator Chrome"
+    ],
+    "series": [
+      {
+        "name": "Allocation",
+        "data": [
+          32,
+          26,
+          20,
+          14,
+          8
+        ],
+        "color": "#881337"
+      }
+    ],
+    "sanitizedCsvContent": "# Title: Compute & Memory Allocation Ratios (%)\nCategory,Allocation\nAST Parser,32\nBézier Coordinate Engine,26\nVector Chart Studio,20\nStorage & Cache Tier,14\nCoordinator Chrome,8"
+  },
+  {
+    "chartId": "chart-quality-mps",
+    "title": "Response Latency Benchmarks (P95 vs P99)",
+    "subtitle": "Query execution time across quarterly release versions",
+    "unit": "ms",
+    "asOfDate": "2026-Q1",
+    "chartType": "line",
+    "nodeId": "quality",
+    "visualConfig": {
+      "unit": "ms",
+      "excludeSummaryRows": true,
+      "yMin": 0,
+      "curveInterpolation": "smooth",
+      "showAreaFill": true
+    },
+    "categories": [
+      "v2.0",
+      "v2.1",
+      "v2.2",
+      "v2.3",
+      "v2.4"
+    ],
+    "series": [
+      {
+        "name": "P95 Latency",
+        "data": [
+          48,
+          41,
+          33,
+          26,
+          19
+        ],
+        "color": "#f59e0b"
+      },
+      {
+        "name": "P99 Latency",
+        "data": [
+          82,
+          69,
+          54,
+          42,
+          31
+        ],
+        "color": "#b45309"
+      }
+    ],
+    "sanitizedCsvContent": "# Title: Response Latency Benchmarks (ms)\nVersion,P95 Latency,P99 Latency\nv2.0,48,82\nv2.1,41,69\nv2.2,33,54\nv2.3,26,42\nv2.4,19,31"
+  },
+  {
+    "chartId": "chart-resiliency-drrm",
+    "title": "Failover Recovery Switchover Durations",
+    "subtitle": "Distribution of automated cluster recovery durations under partition",
+    "unit": "ms",
+    "asOfDate": "2026-Q1",
+    "chartType": "bar",
+    "nodeId": "resiliency",
+    "visualConfig": {
+      "unit": "ms",
+      "excludeSummaryRows": true,
+      "yMin": 0
+    },
+    "categories": [
+      "0-10ms",
+      "10-20ms",
+      "20-30ms",
+      "30-40ms",
+      "40-50ms",
+      ">50ms"
+    ],
+    "series": [
+      {
+        "name": "Failover Incidents",
+        "data": [
+          142,
+          89,
+          45,
+          12,
+          4,
+          1
+        ],
+        "color": "#15803d"
+      }
+    ],
+    "sanitizedCsvContent": "# Title: Failover Recovery Switchover Durations (ms)\nBucket,Failover Incidents\n0-10ms,142\n10-20ms,89\n20-30ms,45\n30-40ms,12\n40-50ms,4\n>50ms,1"
+  },
+  {
+    "chartId": "chart-governance-mooe",
+    "title": "Audit Trail Events & Edge Publication Volume",
+    "subtitle": "Verified configuration commits and cryptographic publications per week",
+    "unit": "events",
+    "asOfDate": "2026-Q1",
+    "chartType": "bar",
+    "nodeId": "governance",
+    "visualConfig": {
+      "unit": "events",
+      "excludeSummaryRows": true,
+      "yMin": 0
+    },
+    "categories": [
+      "Week 1",
+      "Week 2",
+      "Week 3",
+      "Week 4",
+      "Week 5",
+      "Week 6"
+    ],
+    "series": [
+      {
+        "name": "Audit Events",
+        "data": [
+          120,
+          145,
+          160,
+          185,
+          210,
+          230
+        ],
+        "color": "#d97706"
+      },
+      {
+        "name": "Edge Publications",
+        "data": [
+          18,
+          22,
+          28,
+          31,
+          35,
+          42
+        ],
+        "color": "#b45309"
+      }
+    ],
+    "sanitizedCsvContent": "# Title: Audit Trail Events & Edge Publication Volume (events)\nWeek,Audit Events,Edge Publications\nWeek 1,120,18\nWeek 2,145,22\nWeek 3,160,28\nWeek 4,185,31\nWeek 5,210,35\nWeek 6,230,42"
+  }
+]
