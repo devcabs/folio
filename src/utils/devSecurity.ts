@@ -17,7 +17,7 @@ export const getDevSalt = (ns?: string) => {
 };
 export const DEV_SALT = getDevSalt();
 export const EXPECTED_PIN_HASH =
-  'ebfaebc96b9ecb430622e1557189a900d6efa8c532687af1ea7f8ecabd9886d6';
+  '73b1e1cccbe22119e026c333e9de035db2a553f8acecdb5406af95f59bf46178';
 
 export const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 export const LOCKOUT_DURATION_MS = 60 * 1000; // 60 seconds (1 minute)
