@@ -14,3 +14,7 @@ export * from './DraggableRows';
 export * from './SeriesSelectToolbar';
 export * from './TieredSlider';
 export * from './ValueLabelToggle';
+export * from './DevHelpTooltip';
+export * from './EditableText';
+export * from './PageTitle';
+export * from './SectionTitle';

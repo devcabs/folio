@@ -57,9 +57,15 @@ const DeveloperModeContext = createContext<DeveloperModeContextType | null>(null
 
 export interface DeveloperModeProviderProps {
   children: React.ReactNode;
+  securitySalt?: string;
+  expectedPinHash?: string;
 }
 
-export const DeveloperModeProvider: React.FC<DeveloperModeProviderProps> = ({ children }) => {
+export const DeveloperModeProvider: React.FC<DeveloperModeProviderProps> = ({
+  children,
+  securitySalt,
+  expectedPinHash,
+}) => {
   const [isDesktop, setIsDesktop] = useState<boolean>(() => isDesktopDevice());
   const [isDevMode, setIsDevMode] = useState<boolean>(() => {
     if (!isDesktopDevice()) return false;
@@ -608,7 +614,7 @@ export const DeveloperModeProvider: React.FC<DeveloperModeProviderProps> = ({ ch
 
       try {
         // 3-second circuit breaker / safety timeout guard
-        const verificationPromise = verifyPin(pin);
+        const verificationPromise = verifyPin(pin, securitySalt, expectedPinHash);
         const timeoutPromise = new Promise<boolean>((_, reject) =>
           setTimeout(() => reject(new Error('PIN verification timed out.')), 3000)
         );

@@ -64,3 +64,11 @@ export * from "./utils/contentDb";
 export * from "./utils/storage";
 export * from "./utils/devSecurity";
 export * from "./utils/supabase-config";
+
+// Coordinator Chrome, Modals & Workflows (Task 18.8)
+export * from "./components/dev";
+export * from "./components/history";
+export * from "./context/DeveloperModeContext";
+export * from "./context/UndoRedoContext";
+export * from "./hooks/useDeveloperMode";
+export * from "./hooks/useUndoRedo";

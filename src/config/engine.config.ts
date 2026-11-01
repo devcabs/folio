@@ -13,6 +13,8 @@ export interface EngineConfig {
   appNamespace: string;      // Storage & event prefix (e.g. 'folio_app')
   nodes: NodeItem[];
   branding: EngineBrandingConfig;
+  securitySalt?: string;
+  expectedPinHash?: string;
   features?: {
     enableChartDrawer?: boolean;
     enableEditorMode?: boolean;
@@ -32,6 +34,8 @@ export function createDefaultEngineConfig(overrides?: Partial<EngineConfig>): En
       markWaviness: 0.15,
     },
     nodes: [],
+    securitySalt: undefined,
+    expectedPinHash: undefined,
     features: {
       enableChartDrawer: true,
       enableEditorMode: true,

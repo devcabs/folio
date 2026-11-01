@@ -1,4 +1,4 @@
-import { getStorageNamespace } from '../config/engine.config';
+import { getStorageNamespace, getEngineConfig } from '../config/engine.config';
 /**
  * Security and Cryptographic Primitives for Developer Mode
  * Task 4.5.0: docs/tasks/task4_5_0_developer_mode.md
@@ -7,7 +7,14 @@ import { getStorageNamespace } from '../config/engine.config';
  * The raw 4-digit PIN is NEVER stored in cleartext.
  */
 
-export const getDevSalt = (ns?: string) => (ns || getStorageNamespace()) + '_dev_salt_v1';
+export const getDevSalt = (ns?: string) => {
+  const config = getEngineConfig();
+  if (config.securitySalt) return config.securitySalt;
+  if (typeof import.meta !== "undefined" && import.meta.env?.VITE_DEV_SALT) {
+    return import.meta.env.VITE_DEV_SALT;
+  }
+  return (ns || getStorageNamespace()) + "_dev_salt_v1";
+};
 export const DEV_SALT = getDevSalt();
 export const EXPECTED_PIN_HASH =
   'ebfaebc96b9ecb430622e1557189a900d6efa8c532687af1ea7f8ecabd9886d6';
@@ -126,8 +133,9 @@ export function sha256Fallback(ascii: string): string {
  * Native Web Crypto API execution: SHA-256(`${salt}:${pin}`) with
  * automatic graceful fallback to pure-TypeScript SHA-256.
  */
-export async function hashPin(pin: string, salt: string = DEV_SALT): Promise<string> {
-  const message = `${salt}:${pin}`;
+export async function hashPin(pin: string, salt?: string): Promise<string> {
+  const effectiveSalt = salt ?? getDevSalt();
+  const message = `${effectiveSalt}:${pin}`;
   const cryptoObj =
     typeof window !== 'undefined' && window.crypto
       ? window.crypto
@@ -155,12 +163,24 @@ export async function hashPin(pin: string, salt: string = DEV_SALT): Promise<str
 /**
  * Verifies a 4-digit numeric PIN against the salted SHA-256 hash digest.
  */
-export async function verifyPin(inputPin: string): Promise<boolean> {
+export async function verifyPin(
+  inputPin: string,
+  salt?: string,
+  expectedHash?: string
+): Promise<boolean> {
   if (!inputPin || inputPin.length !== 4) {
     return false;
   }
-  const computedHash = await hashPin(inputPin);
-  return computedHash === EXPECTED_PIN_HASH;
+  const config = getEngineConfig();
+  const effectiveSalt = salt ?? config.securitySalt ?? getDevSalt();
+  const targetHash =
+    expectedHash ??
+    config.expectedPinHash ??
+    (typeof import.meta !== "undefined" && import.meta.env?.VITE_DEV_PIN_HASH
+      ? import.meta.env.VITE_DEV_PIN_HASH
+      : EXPECTED_PIN_HASH);
+  const computedHash = await hashPin(inputPin, effectiveSalt);
+  return computedHash === targetHash;
 }
 
 /**

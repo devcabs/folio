@@ -1,0 +1,1 @@
+export { HistoryHubModal } from './HistoryHubModal';
