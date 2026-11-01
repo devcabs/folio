@@ -123,7 +123,6 @@ export const RoadmapNode = React.memo<RoadmapNodeProps>(
           <div className={styles.contentBlock}>
             {/* 2.1 Benchmark Category Badge */}
             <span className={styles.depedBadge}>
-              <span className={styles.statusDot} aria-hidden="true" />
               <span>{categoryBadgeText}</span>
             </span>
 

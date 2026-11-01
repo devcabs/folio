@@ -18,3 +18,4 @@ export * from './DevHelpTooltip';
 export * from './EditableText';
 export * from './PageTitle';
 export * from './SectionTitle';
+export * from './Toast';

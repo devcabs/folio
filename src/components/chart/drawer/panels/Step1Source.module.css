@@ -129,7 +129,6 @@
 
 .statusChecking .statusDot {
   background: var(--folio-accent);
-  animation: pulseDot 1s infinite alternate;
 }
 
 .statusPublic {
@@ -161,10 +160,6 @@
   line-height: 1;
 }
 
-@keyframes pulseDot {
-  from { opacity: 0.4; }
-  to { opacity: 1; }
-}
 
 .inlineReverifyBtn {
   font-family: var(--font-sans);

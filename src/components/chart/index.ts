@@ -24,3 +24,5 @@ export { ChartGhostWireframe, type ChartGhostWireframeProps } from './ChartGhost
 // Phase 7 Subtask 7.8.5 Canonical Deliverables
 export { ChartSortingControls, type ChartSortingControlsProps, type ChartSortingSeriesOption } from './ChartSortingControls';
 export { ChartLegend, type ChartLegendProps, type ChartLegendItem } from './ChartLegend';
+
+export { ChartTableModal, type ChartTableModalProps } from './ChartTableModal';

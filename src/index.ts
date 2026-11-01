@@ -72,3 +72,7 @@ export * from "./context/DeveloperModeContext";
 export * from "./context/UndoRedoContext";
 export * from "./hooks/useDeveloperMode";
 export * from "./hooks/useUndoRedo";
+
+// Vector Chart Studio
+export * from './components/chart';
+export * from './services/chartSourceService';

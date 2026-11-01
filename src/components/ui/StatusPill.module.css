@@ -67,40 +67,7 @@
   gap: var(--space-gap-inline);
 }
 
-/* --- Pulse Indicator Dot --- */
-.pulseDot {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-full);
-  background-color: currentColor;
-  position: relative;
-  flex-shrink: 0;
-}
 
-.pulseDot::after {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: var(--radius-full);
-  border: 1.5px solid currentColor;
-  animation: pulseRipple 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
-  opacity: 0.6;
-}
-
-@keyframes pulseRipple {
-  0% {
-    transform: scale(0.8);
-    opacity: 0.8;
-  }
-  70% {
-    transform: scale(2);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
-}
 
 /* --- Core Color Variants --- */
 

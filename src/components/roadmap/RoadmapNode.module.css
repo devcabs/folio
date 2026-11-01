@@ -285,32 +285,6 @@
   justify-content: flex-end;
 }
 
-/* Status Dot: Live milestone waypoint connectivity indicator */
-.statusDot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  min-width: 6px;
-  min-height: 6px;
-  border-radius: var(--radius-full);
-  background-color: var(--border-default);
-  transition: background-color var(--duration-normal) var(--ease-out),
-              box-shadow var(--duration-normal) var(--ease-out),
-              transform var(--duration-normal) var(--ease-out);
-}
-
-.stationWrapper[data-connected="true"] .statusDot {
-  background-color: var(--node-color);
-  box-shadow: 0 0 6px var(--node-color);
-  transform: scale(1.15);
-}
-
-.stationActive .statusDot {
-  background-color: var(--node-color);
-  box-shadow: 0 0 8px var(--node-color);
-  transform: scale(1.25);
-}
-
 /* 4.2 Layperson Display Title */
 .displayTitle {
   font-family: var(--font-sans);
@@ -480,7 +454,6 @@
   .portalRing,
   .ringCore,
   .stationNumber,
-  .statusDot,
   .exploreLink,
   .exploreArrow {
     transition: none !important;

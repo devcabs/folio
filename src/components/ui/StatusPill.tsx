@@ -37,7 +37,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({
   variant = 'neutral',
   size,
   icon,
-  pulse = false,
+  pulse: _pulse = false,
   href,
   target,
   rel,
@@ -50,7 +50,6 @@ export const StatusPill: React.FC<StatusPillProps> = ({
 }) => {
   const content = (
     <>
-      {pulse && <span className={styles.pulseDot} aria-hidden="true" />}
       {icon && <span className={styles.icon} aria-hidden="true">{icon}</span>}
       <span className={styles.label}>{label}</span>
       {showExternalIcon && <span className={styles.externalIcon} aria-hidden="true">↗</span>}
