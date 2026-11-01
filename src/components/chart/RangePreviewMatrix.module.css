@@ -1,0 +1,228 @@
+/**
+ * Range Preview Matrix Styles
+ * Folio Engine — Task 13.1: Full-Viewport Edge-to-Edge Spreadsheet Grid
+ * Strictly token-driven, unembellished, with interactive cell highlighting.
+ */
+
+.container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: var(--bg-surface);
+  position: relative;
+  outline: none;
+  box-sizing: border-box;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  box-shadow: var(--elevation-modal);
+}
+
+.table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  text-align: left;
+  outline: none;
+}
+
+.headerCell {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface-muted);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-align: center;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  z-index: var(--z-sticky);
+  user-select: none;
+  outline: none;
+}
+
+.cornerCell {
+  position: sticky;
+  top: 0;
+  left: 0;
+  background: var(--bg-surface-muted);
+  border: 1px solid var(--border-subtle);
+  width: 44px;
+  min-width: 44px;
+  z-index: calc(var(--z-sticky) + 1);
+  outline: none;
+}
+
+.rowNumberCell {
+  position: sticky;
+  left: 0;
+  background: var(--bg-surface-muted);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  text-align: center;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-subtle);
+  width: 44px;
+  min-width: 44px;
+  user-select: none;
+  z-index: var(--z-raised);
+  outline: none;
+}
+
+.dataCell {
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-1-5) var(--space-3);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  min-width: 80px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+  outline: none;
+}
+
+.dataCellSelecting {
+  cursor: crosshair;
+}
+
+.dataCell:hover {
+  background: var(--bg-surface-hover);
+}
+
+.nullCell {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* Selected range bounding box */
+.cellSelected {
+  background: var(--brand-primary-tint) !important;
+}
+
+.cellBorderTop {
+  border-top: 2px solid var(--folio-primary) !important;
+}
+
+.cellBorderBottom {
+  border-bottom: 2px solid var(--folio-primary) !important;
+}
+
+.cellBorderLeft {
+  border-left: 2px solid var(--folio-primary) !important;
+}
+
+.cellBorderRight {
+  border-right: 2px solid var(--folio-primary) !important;
+}
+
+/* Active drag bounding box */
+.cellActiveDrag {
+  background: var(--badge-surface-default) !important;
+}
+
+.cellActiveDragBorderTop {
+  border-top: 2px dashed var(--brand-accent-dark) !important;
+}
+
+.cellActiveDragBorderBottom {
+  border-bottom: 2px dashed var(--brand-accent-dark) !important;
+}
+
+.cellActiveDragBorderLeft {
+  border-left: 2px dashed var(--brand-accent-dark) !important;
+}
+
+.cellActiveDragBorderRight {
+  border-right: 2px dashed var(--brand-accent-dark) !important;
+}
+
+/* Floating interactive pill */
+.selectionHintBar {
+  position: sticky;
+  top: var(--space-3);
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  pointer-events: none;
+  z-index: calc(var(--z-sticky) + 2);
+}
+
+.selectionHintChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--folio-primary);
+  color: var(--text-inverse);
+  padding: var(--space-1-5) var(--space-4);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  box-shadow: var(--elevation-modal);
+  pointer-events: auto;
+}
+
+.emptySheet {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100%;
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  font-size: var(--text-body);
+}
+
+/* Blank grey buffer column & row signifying the end of the sheet (Google Sheets UX) */
+.bufferColumnHeader {
+  position: sticky;
+  top: 0;
+  width: 64px;
+  min-width: 64px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-left: none;
+  z-index: var(--z-sticky);
+  user-select: none;
+}
+
+.bufferColumnCell {
+  width: 64px;
+  min-width: 64px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-left: none;
+  pointer-events: none;
+}
+
+.bufferRow {
+  height: 48px;
+}
+
+.bufferRowHeader {
+  position: sticky;
+  left: 0;
+  height: 48px;
+  min-height: 48px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-top: none;
+  z-index: var(--z-raised);
+  user-select: none;
+}
+
+.bufferRowCell {
+  height: 48px;
+  min-height: 48px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-top: none;
+  pointer-events: none;
+}

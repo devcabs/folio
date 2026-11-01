@@ -1,0 +1,159 @@
+/**
+ * Data Pending Card Styles
+ * Folio Engine — Task 8.10
+ * Dignified fallback when an indicator is awaiting encoding or has issues.
+ * Features background ghost wireframe with role-bifurcated overlay:
+ * - Public: Centered dignified badge with brand mark.
+ * - Coordinator: Actionable 3-point diagnostic panel with '✎ Edit' button.
+ * Strictly adheres to tokens.css and the Universal Zero Outline Policy.
+ */
+
+.container {
+  position: relative;
+  width: 100%;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-pad-surface);
+  background: transparent;
+  border-radius: var(--radius-surface);
+  overflow: hidden;
+  outline: none;
+}
+
+/* --------------------------------------------------------------------------
+   Public Notice Overlay
+   -------------------------------------------------------------------------- */
+.publicNoticeWrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 440px;
+  width: 100%;
+  padding: var(--space-pad-surface);
+  background: color-mix(in srgb, var(--bg-surface) 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  box-shadow: var(--elevation-flat);
+  outline: none;
+}
+
+.logoWrapper {
+  margin-bottom: var(--space-flow-tight);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-sm);
+  color: var(--brand-accent-dark);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-tight);
+  margin-bottom: var(--space-flow-tight);
+}
+
+.title {
+  font-family: var(--font-sans);
+  font-size: var(--text-subhead);
+  color: var(--folio-primary);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  margin: 0 0 var(--space-flow-tight) 0;
+}
+
+.description {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Developer Mode Coordinator Diagnostic Panel
+   -------------------------------------------------------------------------- */
+.diagnosticPanel {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 460px;
+  width: 100%;
+  padding: var(--space-pad-surface);
+  background: color-mix(in srgb, var(--bg-surface) 95%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-surface);
+  box-shadow: var(--elevation-raised);
+  outline: none;
+}
+
+.diagBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-gap-tight);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-tight);
+  padding: var(--space-pad-control-y) var(--space-pad-control-x);
+  border-radius: var(--radius-pill);
+  margin-bottom: var(--space-flow-tight);
+  outline: none;
+}
+
+.diagBadgeUnlinked {
+  background: var(--bg-surface-muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+}
+
+.diagBadgeConnection {
+  background: var(--brand-primary-tint);
+  color: var(--folio-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+.diagBadgeDataFormat {
+  background: var(--brand-accent-tint);
+  color: var(--brand-accent-dark);
+  border: 1px solid var(--border-focus);
+}
+
+.diagTitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-subhead);
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  margin: 0 0 var(--space-flow-tight) 0;
+}
+
+.diagHint {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+  margin: 0 0 var(--space-flow-block) 0;
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-gap-inline);
+  outline: none;
+}

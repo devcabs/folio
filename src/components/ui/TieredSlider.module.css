@@ -1,0 +1,164 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.label {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.valueText {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.trackWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-1) 0;
+}
+
+.rangeInput {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  background: var(--bg-surface-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.rangeInput:focus {
+  outline: none;
+}
+
+.rangeInput:focus-visible {
+  outline: none;
+  border-color: var(--border-default);
+}
+
+/* Grab handle (Thumb) - Webkit */
+.rangeInput::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--folio-primary);
+  border: 2px solid var(--bg-surface);
+  cursor: grab;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.rangeInput::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+
+.rangeInput::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.22);
+}
+
+/* Grab handle (Thumb) - Firefox */
+.rangeInput::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--folio-primary);
+  border: 2px solid var(--bg-surface);
+  cursor: grab;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.rangeInput::-moz-range-thumb:hover {
+  transform: scale(1.12);
+}
+
+.rangeInput::-moz-range-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.22);
+}
+
+.rangeInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rangeInput:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+}
+
+/* Tier notches below track */
+.tiersRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 2px;
+}
+
+.tierBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.tierBtn:focus {
+  outline: none;
+}
+
+.tierBtn:focus-visible {
+  outline: none;
+  color: var(--text-primary);
+}
+
+.tierBtn:hover {
+  color: var(--text-primary);
+}
+
+.tierBtnActive {
+  color: var(--folio-primary);
+  font-weight: 600;
+}
+
+.tierNotch {
+  width: 2px;
+  height: 4px;
+  background: var(--border-subtle);
+  border-radius: 1px;
+}
+
+.tierNotchActive {
+  background: var(--folio-primary);
+  height: 6px;
+}

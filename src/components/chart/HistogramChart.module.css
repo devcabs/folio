@@ -1,0 +1,158 @@
+.container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  outline: none;
+}
+
+.organicStats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  outline: none;
+}
+
+.statItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.statLabel {
+  font-family: var(--font-sans);
+  font-size: var(--text-2xs, 10px);
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide, 0.05em);
+}
+
+.statValue {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.statDivider {
+  color: var(--border-strong, var(--text-muted));
+  opacity: 0.45;
+  user-select: none;
+}
+
+.svgWrapper {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  outline: none;
+}
+
+.chartSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+  outline: none;
+}
+
+.gridLine {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.baseline {
+  stroke: var(--border-strong, var(--border-subtle));
+  stroke-width: 1.5;
+}
+
+.axisText {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs, 10px);
+  fill: var(--text-muted);
+  text-anchor: middle;
+}
+
+.axisTextY {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs, 10px);
+  fill: var(--text-muted);
+  text-anchor: end;
+  dominant-baseline: middle;
+}
+
+.barRect {
+  transition: opacity var(--duration-fast) var(--ease-out), fill var(--duration-fast) var(--ease-out);
+  cursor: pointer;
+  outline: none !important;
+}
+
+.barRect:hover {
+  opacity: 0.85;
+}
+
+.barRect:focus,
+.barRect:focus-visible,
+.barRect:active {
+  outline: none !important;
+}
+
+.meanLine {
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+.meanLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs, 10px);
+  fill: var(--text-secondary);
+  font-weight: 500;
+}
+
+.trendCurve {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.emptyState {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  background: var(--bg-surface-muted);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-subtle);
+}
+
+.axisTitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  fill: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Mobile Caption Purge */
+@media (max-width: 640px) {
+  .container {
+    gap: var(--space-2);
+  }
+
+  .axisText {
+    font-size: 8px;
+  }
+  .axisTitle {
+    font-size: 10px;
+  }
+  .organicStats {
+    gap: var(--space-1);
+    font-size: var(--text-2xs);
+  }
+}

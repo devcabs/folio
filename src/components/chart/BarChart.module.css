@@ -1,0 +1,163 @@
+.container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  outline: none;
+}
+
+.svgWrapper {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  outline: none;
+}
+
+.chartSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+  outline: none;
+}
+
+.gridLine {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.baseline {
+  stroke: var(--border-strong, var(--border-subtle));
+  stroke-width: 1.5;
+}
+
+.axisText {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs, 10px);
+  fill: var(--text-muted);
+  text-anchor: middle;
+}
+
+.axisTextY {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs, 10px);
+  fill: var(--text-muted);
+  text-anchor: end;
+  dominant-baseline: middle;
+}
+
+.barRect {
+  transition: opacity var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+  cursor: pointer;
+  outline: none !important;
+}
+
+.barRect:hover {
+  opacity: 0.85;
+}
+
+.barRect:focus,
+.barRect:focus-visible,
+.barRect:active {
+  outline: none !important;
+}
+
+.valueLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--text-secondary);
+  font-weight: 600;
+  pointer-events: none;
+  paint-order: stroke fill;
+  stroke: var(--bg-surface);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.valueLabelInside {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  fill: var(--text-primary);
+  font-weight: 600;
+  pointer-events: none;
+  paint-order: stroke fill;
+  stroke: var(--bg-surface);
+  stroke-width: 2px;
+}
+
+.axisTextLeft {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs, 10px);
+  fill: var(--text-muted);
+  text-anchor: end;
+  dominant-baseline: middle;
+  outline: none;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding-top: var(--space-2);
+  outline: none;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease-out);
+  outline: none !important;
+  user-select: none;
+}
+
+.legendItem:hover {
+  color: var(--text-primary);
+}
+
+.legendItemDimmed {
+  opacity: 0.35;
+}
+
+.legendColor {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.axisTitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  fill: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Mobile Caption Purge */
+@media (max-width: 640px) {
+  .container {
+    gap: var(--space-2);
+  }
+
+  .legend {
+    gap: var(--space-2);
+  }
+
+  .axisText {
+    font-size: 8px;
+  }
+
+  .axisTitle {
+    font-size: 10px;
+  }
+}

@@ -456,4 +456,23 @@
    --max-content-width: 440px;
    --node-accent: var(--folio-primary);
 
+   /* ==========================================================================
+     15. Chart Studio & Component Ergonomics Aliases
+     ========================================================================== */
+   --text-2xs: 10px;
+   --text-base: 16px;
+   --tracking-wide: 0.025em;
+   --line-height-tight: 1.25;
+   --line-height-relaxed: 1.625;
+   --radius-card: var(--radius-xl);
+   --radius-checkbox: var(--radius-sm);
+   --space-pad-card: var(--space-6);
+   --bg-canvas-subtle: #f8f6f3;
+   --bg-surface-subtle: #fcfbfa;
+   --bg-surface-hover: #f3f4f6;
+   --badge-surface-default: #f3f4f6;
+   --brand-primary-hover: #9f1239;
+   --brand-primary-subtle: #fff1f2;
+   --brand-primary-muted: rgba(136, 19, 55, 0.2);
+
 }

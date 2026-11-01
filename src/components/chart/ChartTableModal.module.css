@@ -1,0 +1,244 @@
+/**
+ * ChartTableModal.module.css
+ * Canonical Modern Academic Editorial Modal Table View
+ * Displays pure tabular datasets for charts with responsive scroll and sticky headers.
+ * Strictly adheres to tokens.css and the Universal Zero Outline Policy.
+ */
+
+.modalCard {
+  position: relative;
+  width: 100%;
+  max-width: min(1000px, 95vw);
+  max-height: 85vh;
+  margin: auto;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-surface);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-modal);
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  animation: modalEnter var(--duration-normal) var(--ease-out);
+  overflow: hidden;
+  gap: var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-shrink: 0;
+  outline: none;
+}
+
+.headerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  outline: none;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-subhead);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+
+.subtitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.asOfCaption {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-tight);
+  user-select: none;
+}
+
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.closeButton {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  outline: none;
+  transition: all var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+
+.closeButton:hover {
+  background-color: var(--bg-surface-muted);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.closeButton:focus-visible {
+  outline: none;
+  border-color: var(--border-subtle);
+  background-color: var(--bg-surface-muted);
+}
+
+.tableWrapper {
+  width: 100%;
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--bg-canvas);
+  outline: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  text-align: left;
+}
+
+.headerCell {
+  position: sticky;
+  top: 0;
+  background-color: var(--bg-surface-muted);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: var(--text-caption-sm);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-default);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 2;
+  user-select: none;
+}
+
+.indexColHeader {
+  width: 48px;
+  text-align: center;
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 3;
+}
+
+.indexCell {
+  width: 48px;
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-sm);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.categoryCell {
+  font-weight: 500;
+  color: var(--text-primary);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: var(--bg-surface);
+}
+
+.dataCell {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: var(--bg-surface);
+}
+
+.numCell {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.headerNumCell {
+  text-align: right;
+}
+
+.tableRow:hover .categoryCell,
+.tableRow:hover .dataCell,
+.tableRow:hover .indexCell {
+  background-color: var(--bg-surface-hover);
+}
+
+.nullCell {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.emptyState {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .modalCard {
+    padding: var(--space-4);
+    max-height: 90vh;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+
+  .headerActions {
+    justify-content: space-between;
+    width: 100%;
+  }
+}

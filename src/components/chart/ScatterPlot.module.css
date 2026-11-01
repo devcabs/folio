@@ -1,0 +1,137 @@
+.container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  outline: none;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  min-height: 28px;
+}
+
+.correlationChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  background-color: var(--bg-surface-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  letter-spacing: var(--tracking-tight);
+}
+
+.chipDivider {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.svgWrapper {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  outline: none;
+}
+
+.chartSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+  outline: none;
+}
+
+.gridLine {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.axisLine {
+  stroke: var(--border-strong, var(--border-subtle));
+  stroke-width: 1.5;
+}
+
+.meanLine {
+  stroke: var(--text-tertiary, var(--border-strong));
+  stroke-width: 1.25;
+  stroke-dasharray: 3 3;
+  opacity: 0.8;
+}
+
+.axisText {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs, 10px);
+  fill: var(--text-muted);
+  text-anchor: middle;
+}
+
+.axisTextY {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs, 10px);
+  fill: var(--text-muted);
+  text-anchor: end;
+  dominant-baseline: middle;
+}
+
+.axisTitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  fill: var(--text-secondary);
+  font-weight: 600;
+}
+
+.trendLine {
+  fill: none;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.confidenceBand {
+  stroke: none;
+  opacity: 0.15;
+}
+
+.pointNode {
+  stroke: var(--bg-surface);
+  stroke-width: 1.25;
+  cursor: pointer;
+  transition: r var(--duration-fast) var(--ease-out),
+              opacity var(--duration-fast) var(--ease-out);
+  outline: none !important;
+}
+
+.pointNode:hover {
+  outline: none !important;
+}
+
+.pointNode:focus,
+.pointNode:focus-visible,
+.pointNode:active {
+  outline: none !important;
+}
+
+/* Mobile Caption Purge */
+@media (max-width: 640px) {
+  .container {
+    gap: var(--space-2);
+  }
+
+  .axisTitle {
+    display: none;
+  }
+
+  .axisText {
+    font-size: 8px;
+  }
+}

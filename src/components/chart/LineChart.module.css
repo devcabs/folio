@@ -1,0 +1,144 @@
+.container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  outline: none;
+}
+
+.svgWrapper {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  outline: none;
+}
+
+.chartSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+  outline: none;
+}
+
+.gridLine {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.baseline {
+  stroke: var(--border-strong, var(--border-subtle));
+  stroke-width: 1.5;
+}
+
+.axisText {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs, 10px);
+  fill: var(--text-muted);
+  text-anchor: middle;
+}
+
+.axisTextY {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs, 10px);
+  fill: var(--text-muted);
+  text-anchor: end;
+  dominant-baseline: middle;
+}
+
+.splinePath {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.areaPath {
+  stroke: none;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.dashedBridge {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 4 4;
+  opacity: 0.75;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.crosshairLine {
+  stroke: var(--border-default);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}
+
+.pointValueLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--text-primary);
+  stroke: var(--bg-surface);
+  stroke-width: 3px;
+  paint-order: stroke fill;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  text-anchor: middle;
+  pointer-events: none;
+  user-select: none;
+}
+
+.dataNode {
+  stroke: var(--bg-surface);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: r var(--duration-fast) var(--ease-out),
+              stroke-width var(--duration-fast) var(--ease-out),
+              opacity var(--duration-fast) var(--ease-out);
+  outline: none !important;
+}
+
+.dataNode:hover {
+  stroke-width: 3;
+}
+
+.dataNode:focus,
+.dataNode:focus-visible,
+.dataNode:active {
+  outline: none !important;
+}
+
+.dimmed {
+  opacity: 0.15;
+}
+
+.axisTitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  fill: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Mobile Caption Purge */
+@media (max-width: 640px) {
+  .container {
+    gap: var(--space-2);
+  }
+
+  .axisText {
+    font-size: 8px;
+  }
+
+  .axisTitle {
+    font-size: 10px;
+  }
+}
+
+

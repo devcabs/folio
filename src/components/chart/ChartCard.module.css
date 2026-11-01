@@ -1,0 +1,152 @@
+/**
+ * Chart Card Bento Shell Styles
+ * Folio Engine — Subtask 7.4.4
+ * Modern Academic Editorial presentation card with public CSV receipts.
+ * Strictly adheres to tokens.css and the Universal Zero Outline Policy.
+ */
+
+.cardOuterWrapper {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  gap: var(--space-3);
+  position: relative;
+}
+
+.card {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  padding: var(--space-pad-surface);
+  box-shadow: var(--shadow-hero-card);
+  gap: var(--space-flow-block);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+}
+
+.card:hover {
+  border-color: var(--border-default);
+}
+
+.sideEditWrapper {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: center;
+  gap: var(--space-1-5);
+}
+
+.sideEditBtn,
+.sideSyncBtn {
+  min-width: 68px;
+  justify-content: center;
+  white-space: nowrap;
+  outline: none;
+}
+
+.syncIcon {
+  display: inline-block;
+  line-height: 1;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.highlightedCard,
+.cardOuterWrapper:has(.sideEditWrapper button:hover) .card {
+  background-color: var(--brand-accent-tint) !important;
+  box-shadow: 0 0 0 6px var(--brand-accent-tint), var(--shadow-hero-card) !important;
+}
+
+.title {
+  font-family: var(--font-sans);
+  font-size: var(--text-subhead);
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+  text-align: center;
+}
+
+/* Mobile Caption Purge: secondary subtitle hidden on screens <= 640px */
+.subtitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+  margin: 0;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .card {
+    gap: var(--space-3);
+  }
+
+  .subtitle {
+    display: none;
+  }
+
+  .contentWrapper {
+    min-height: auto;
+  }
+}
+
+.contentWrapper {
+  width: 100%;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-gap-inline);
+  padding-top: var(--space-flow-tight);
+  outline: none;
+}
+
+.asOfCaption {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-tight);
+  user-select: none;
+}
+
+.footerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.viewTableAction,
+.downloadAction {
+  flex-shrink: 0;
+}

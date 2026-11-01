@@ -1,0 +1,62 @@
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2) var(--space-4);
+  margin-top: 0;
+  padding: 0 var(--space-2);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-2);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--text-secondary);
+  outline: none;
+  transition: opacity var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+}
+
+.legendItem:hover {
+  background-color: var(--bg-surface-subtle);
+  color: var(--text-primary);
+}
+
+.legendItem:focus-visible {
+  outline: none;
+  background-color: var(--bg-surface-subtle);
+}
+
+.dimmed {
+  opacity: 0.15;
+}
+
+.active {
+  color: var(--text-primary);
+  font-weight: 600;
+  background-color: var(--bg-surface-subtle);
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .legend {
+    margin-top: 0;
+    gap: var(--space-1-5) var(--space-2);
+    padding: 0 var(--space-1);
+  }
+}
