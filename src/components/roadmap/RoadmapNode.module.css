@@ -296,6 +296,43 @@
   margin: 0;
 }
 
+.titleButton {
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  display: inline-block;
+  max-width: 100%;
+  outline: none;
+  border-radius: var(--radius-sm, 4px);
+  transition: color var(--duration-fast) var(--ease-out),
+              opacity var(--duration-fast) var(--ease-out);
+}
+
+.titleButton:hover {
+  color: var(--node-color, var(--folio-primary));
+}
+
+.titleButton:focus,
+.titleButton:focus-visible {
+  outline: none;
+  color: var(--node-color, var(--folio-primary));
+}
+
+.titleButton:active {
+  opacity: 0.8;
+}
+
 /* 4.3 Community Story Hook (Single-Sentence Source-Bound) */
 .summary {
   font-family: var(--font-sans);
@@ -307,69 +344,6 @@
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: normal;
-}
-
-/* 4.4 Refined Editorial Action Link */
-.actionWrapper {
-  display: flex;
-  margin-top: var(--space-gap-tight);
-}
-
-.left .actionWrapper {
-  justify-content: flex-start;
-}
-
-.right .actionWrapper {
-  justify-content: flex-end;
-}
-
-.exploreLink {
-  background: none;
-  border: none;
-  padding: 0 0 2px 0;
-  margin: 0;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-gap-tight);
-  font-family: var(--font-sans);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  border-bottom: 1.5px solid var(--border-default);
-  outline: none;
-  transition: color var(--duration-fast) var(--ease-out),
-              border-color var(--duration-fast) var(--ease-out),
-              transform var(--duration-fast) var(--ease-out);
-}
-
-.exploreLink:focus,
-.exploreLink:focus-visible {
-  outline: none;
-  color: var(--folio-primary);
-  border-bottom-color: var(--folio-primary);
-}
-
-.exploreArrow {
-  font-size: 0.9375rem;
-  line-height: 1;
-  transition: transform var(--duration-fast) var(--ease-out);
-}
-
-@media (hover: hover) {
-  .exploreLink:hover {
-    color: var(--folio-primary);
-    border-bottom-color: var(--folio-primary);
-    transform: translateY(1px);
-  }
-
-  .exploreLink:hover .exploreArrow {
-    transform: translateY(2px);
-  }
-}
-
-.exploreLink:active {
-  transform: translateY(2px);
 }
 
 /* ==========================================================================
@@ -440,10 +414,6 @@
     font-size: 0.875rem;
     line-height: 1.45;
   }
-
-  .exploreLink {
-    font-size: 0.8125rem;
-  }
 }
 
 /* ==========================================================================
@@ -454,8 +424,7 @@
   .portalRing,
   .ringCore,
   .stationNumber,
-  .exploreLink,
-  .exploreArrow {
+  .titleButton {
     transition: none !important;
   }
 }

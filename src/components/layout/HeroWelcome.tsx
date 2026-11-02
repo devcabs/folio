@@ -3,6 +3,7 @@ import { StatusPill } from './StatusPill';
 import { Button } from '../ui/Button';
 import { DevActionAffordance } from '../dev/DevActionAffordance';
 import { useContent } from '../../hooks/useContent';
+import { parseAccentedText } from '../../utils/accentTextParser';
 import styles from './HeroWelcome.module.css';
 
 export interface HeroWelcomeProps {
@@ -15,7 +16,7 @@ export interface HeroWelcomeProps {
 }
 
 const DEFAULT_KICKER = 'Folio Engine — Universal Scrollytelling & Dynamic Document Canvas';
-const DEFAULT_TITLE = 'Autonomous Multi-Stage Sequence Platform';
+const DEFAULT_TITLE = 'Autonomous *Multi-Stage* Sequence Platform';
 const DEFAULT_SUBTITLE =
   'A configurable multi-stage sequence and dynamic document platform.';
 
@@ -61,7 +62,11 @@ export const HeroWelcome: React.FC<HeroWelcomeProps> = ({
 
   const renderTitleContent = () => {
     const text = dynamicTitle.text || fallbackTitle;
-    return <span className={styles.titleLine}>{text}</span>;
+    return (
+      <span className={styles.titleLine}>
+        {parseAccentedText(text, { accentClassName: styles.bukasGradient })}
+      </span>
+    );
   };
 
   const renderSubtitleContent = () => {

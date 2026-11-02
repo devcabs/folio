@@ -28,6 +28,7 @@ export * from './components/ui';
 // Modal & Scroll Lock Utilities
 export * from './utils/scrollLock';
 export * from './utils/modalActions';
+export * from './utils/accentTextParser';
 
 // Stepped Sequence Engine (Roadmap)
 export * from "./components/roadmap/serpentine-generator";

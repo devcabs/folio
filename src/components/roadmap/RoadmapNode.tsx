@@ -54,12 +54,22 @@ export const RoadmapNode = React.memo<RoadmapNodeProps>(
       [onSelectStage, stageNumber]
     );
 
-    const handleExploreClick = useCallback(
+    const handleTitleClick = useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
+        onSelectStage?.(stageNumber);
         onExplore(page.id);
       },
-      [onExplore, page.id]
+      [onExplore, onSelectStage, page.id, stageNumber]
+    );
+
+    const handleTitleKeyDown = useCallback(
+      (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.stopPropagation();
+        }
+      },
+      []
     );
 
     const isHighlighted = isActive || isSelected;
@@ -132,13 +142,25 @@ export const RoadmapNode = React.memo<RoadmapNodeProps>(
               />
             </span>
 
-            {/* 2.2 Layperson Display Title */}
+            {/* 2.2 Layperson Display Title (Clickable Waypoint) */}
             <EditableText
               pointId={`node.${page.id}.title`}
               defaultText={titleText}
-              as="h3"
-              className={styles.displayTitle}
-            />
+            >
+              {(resolvedTitle) => (
+                <h3 className={styles.displayTitle}>
+                  <button
+                    type="button"
+                    className={styles.titleButton}
+                    onClick={handleTitleClick}
+                    onKeyDown={handleTitleKeyDown}
+                    aria-label={"Explore Node Details for Node " + formattedNumeral + ": " + resolvedTitle}
+                  >
+                    {resolvedTitle}
+                  </button>
+                </h3>
+              )}
+            </EditableText>
 
             {/* 2.3 Community Story Hook (Single-Sentence Source-Bound) */}
             <EditableText
@@ -147,26 +169,6 @@ export const RoadmapNode = React.memo<RoadmapNodeProps>(
               as="p"
               className={styles.summary}
             />
-
-            {/* 2.4 Refined Editorial Action Link */}
-            <div className={styles.actionWrapper}>
-              <div
-                role="button"
-                tabIndex={0}
-                className={styles.exploreLink}
-                onClick={handleExploreClick}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleExploreClick(e as unknown as React.MouseEvent);
-                  }
-                }}
-                aria-label={"Explore Node Details for Node " + formattedNumeral + ": " + titleText}
-              >
-                <span>Explore Node Details</span>
-                <span className={styles.exploreArrow} aria-hidden="true">↓</span>
-              </div>
-            </div>
           </div>
 
           {/* 3. Milestone Photo Docking Target Slot (Reserved Station Canvas) */}

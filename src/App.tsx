@@ -251,14 +251,6 @@ const AppContent: React.FC = () => {
                 { label: currentNode.title, isCurrent: true },
               ]}
             />
-            <button
-              type="button"
-              className={styles.backButton}
-              onClick={handleBackFromNode}
-              aria-label="Return to roadmap sequence"
-            >
-              <span>← Return to Roadmap</span>
-            </button>
           </div>
 
           {/* 2-Column Desktop Grid: Sticky Sidebar + Reading Canvas */}

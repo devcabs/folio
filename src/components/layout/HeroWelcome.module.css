@@ -128,12 +128,6 @@
   display: block;
 }
 
-@media (min-width: 1024px) {
-  .titleLine {
-    white-space: nowrap;
-  }
-}
-
 /* Italic Serif Gradient Flourish ("estudyante") */
 .bukasGradient {
   font-family: var(--font-serif);

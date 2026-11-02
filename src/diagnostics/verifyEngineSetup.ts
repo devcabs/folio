@@ -9,6 +9,7 @@
 import { EngineConfigSchema, getEngineConfig, type EngineConfig } from '../config/engine.config';
 import { PublicNodePayloadSchema, type PublicNodePayload } from '../types/edge';
 import type { SectionElement, CanvasLeafElement, SubsectionElement } from '../types/canvas';
+import { validateAccentedText } from '../utils/accentTextParser';
 
 export interface DiagnosticResult {
   ok: boolean;
@@ -116,6 +117,16 @@ export function verifyEngineWiring(customConfig?: Partial<EngineConfig>): Diagno
     configParsed.error.issues.forEach((issue) => {
       errors.push(`[Config] ${issue.path.join('.')}: ${issue.message}`);
     });
+  }
+
+  // Accent syntax validation on heroTitle
+  if (configToTest.branding?.heroTitle) {
+    const accentResult = validateAccentedText(configToTest.branding.heroTitle);
+    if (!accentResult.valid && accentResult.warnings.length > 0) {
+      accentResult.warnings.forEach((warn) => {
+        warnings.push(`[Branding] heroTitle accent syntax warning: ${warn}`);
+      });
+    }
   }
 
   // DOM / CSS Token verification in browser environments
