@@ -119,13 +119,6 @@
   line-height: var(--leading-tight);
 }
 
-.brandSubtitle {
-  font-family: var(--font-sans);
-  font-size: var(--text-caption);
-  color: var(--text-muted);
-  line-height: var(--leading-snug);
-}
-
 /* Center Navigation Links */
 .navLinks {
   display: none;
@@ -417,10 +410,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .brandSubtitle {
-    display: none;
   }
 
   .btnPortraitRef {

@@ -14,10 +14,10 @@ export interface HeroWelcomeProps {
   heroSlotRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-const DEFAULT_KICKER = 'Folio Engine — Management, Accountability & Systematic Collection of Data';
-const DEFAULT_TITLE = 'Responsableng estudyante na may Galing, Husay, at Talino';
+const DEFAULT_KICKER = 'Folio Engine — Universal Scrollytelling & Dynamic Document Canvas';
+const DEFAULT_TITLE = 'Autonomous Multi-Stage Sequence Platform';
 const DEFAULT_SUBTITLE =
-  'A configurable multi-stage sequence.';
+  'A configurable multi-stage sequence and dynamic document platform.';
 
 export const HeroWelcome: React.FC<HeroWelcomeProps> = ({
   kickerText,
@@ -27,12 +27,16 @@ export const HeroWelcome: React.FC<HeroWelcomeProps> = ({
   heroCtaRef,
   heroSlotRef,
 }) => {
-  const dynamicKicker = useContent('hero.kicker', DEFAULT_KICKER);
-  const dynamicTitle = useContent('hero.title', DEFAULT_TITLE);
-  const dynamicSubtitle = useContent('hero.subtitle', DEFAULT_SUBTITLE);
+  const fallbackKicker = typeof kickerText === 'string' ? kickerText : DEFAULT_KICKER;
+  const fallbackTitle = typeof title === 'string' ? title : DEFAULT_TITLE;
+  const fallbackSubtitle = typeof subtitle === 'string' ? subtitle : DEFAULT_SUBTITLE;
+
+  const dynamicKicker = useContent('hero.kicker', fallbackKicker);
+  const dynamicTitle = useContent('hero.title', fallbackTitle);
+  const dynamicSubtitle = useContent('hero.subtitle', fallbackSubtitle);
   const dynamicCta = useContent('hero.cta', 'Start Journey');
 
-  const effectiveKickerText = kickerText ?? dynamicKicker.text;
+  const effectiveKickerText = dynamicKicker.text || fallbackKicker;
 
   const renderKickerContent = () => {
     if (!effectiveKickerText) return null;
@@ -56,43 +60,13 @@ export const HeroWelcome: React.FC<HeroWelcomeProps> = ({
   };
 
   const renderTitleContent = () => {
-    if (title) return title;
-    if (dynamicTitle.text === DEFAULT_TITLE) {
-      return (
-        <>
-          <span className={styles.titleLine}>
-            Responsableng <span className={styles.bukasGradient}>estudyante</span>
-          </span>
-          <span className={styles.titleLine}>
-            na may Galing, Husay, at Talino
-          </span>
-        </>
-      );
-    }
-    return <span className={styles.titleLine}>{dynamicTitle.text}</span>;
+    const text = dynamicTitle.text || fallbackTitle;
+    return <span className={styles.titleLine}>{text}</span>;
   };
 
   const renderSubtitleContent = () => {
-    if (subtitle) {
-      return (
-        <span className={styles.subtitleLine}>
-          {subtitle}
-        </span>
-      );
-    }
-    if (dynamicSubtitle.text === DEFAULT_SUBTITLE) {
-      return (
-        <>
-          <span className={styles.subtitleLine}>
-            A configurable multi-stage sequence.
-          </span>
-          <span className={styles.subtitleLine}>
-            
-          </span>
-        </>
-      );
-    }
-    return <span className={styles.subtitleLine}>{dynamicSubtitle.text}</span>;
+    const text = dynamicSubtitle.text || fallbackSubtitle;
+    return <span className={styles.subtitleLine}>{text}</span>;
   };
 
   return (
@@ -113,7 +87,7 @@ export const HeroWelcome: React.FC<HeroWelcomeProps> = ({
           <div className={styles.kickerWrap}>
             <DevActionAffordance
               pointId="hero.kicker"
-              defaultValue={DEFAULT_KICKER}
+              defaultValue={fallbackKicker}
               currentValue={dynamicKicker.text}
             >
               <div className={styles.kickerCenter}>
@@ -131,7 +105,7 @@ export const HeroWelcome: React.FC<HeroWelcomeProps> = ({
         {/* Hero Title */}
         <DevActionAffordance
           pointId="hero.title"
-          defaultValue={DEFAULT_TITLE}
+          defaultValue={fallbackTitle}
           currentValue={dynamicTitle.text}
         >
           <h1 id="hero-title" className={styles.heroTitle}>
@@ -142,7 +116,7 @@ export const HeroWelcome: React.FC<HeroWelcomeProps> = ({
         {/* Narrative Subtitle */}
         <DevActionAffordance
           pointId="hero.subtitle"
-          defaultValue={DEFAULT_SUBTITLE}
+          defaultValue={fallbackSubtitle}
           currentValue={dynamicSubtitle.text}
         >
           <p className={styles.heroSubtitle}>

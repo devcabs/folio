@@ -8,6 +8,7 @@ export type { NavItem };
 
 export interface AppHeaderProps {
   brandTitle?: string;
+  /** @deprecated Header retains only the primary title; subtitle is no longer displayed. */
   brandSubtitle?: string;
   brandLetter?: string;
   navItems?: NavItem[];
@@ -30,7 +31,6 @@ const DEFAULT_NAV_ITEMS: NavItem[] = [
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   brandTitle = 'Portal',
-  brandSubtitle,
   brandLetter,
   navItems,
   mobileOnlyNav = false,
@@ -165,7 +165,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </span>
           <div className={styles.brandMeta}>
             <span className={styles.brandTitle}>{brandTitle}</span>
-            {brandSubtitle && <span className={styles.brandSubtitle}>{brandSubtitle}</span>}
           </div>
         </a>
 

@@ -3,338 +3,338 @@
     "id": "access",
     "index": 0,
     "nodeNumber": 1,
-    "title": "Foundation & Core Access",
-    "subtitle": "Architectural Baselines & Universal Access",
-    "summary": "Establishing resilient foundational scaffolding, token infrastructure, and zero-compromise accessibility contracts across distributed endpoints.",
-    "tagline": "Stage 01 · Baseline Protocol",
+    "title": "Project Initiation",
+    "subtitle": "Discovery, Scoping & Baseline Requirements",
+    "summary": "Establishing foundational project parameters, stakeholder alignment, and baseline operational requirements.",
+    "tagline": "Stage 01 · Initial Phase",
     "accentColor": "#0284c7",
     "accentTint": "#e0f2fe",
     "heroImage": {
       "src": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&q=80&auto=format&fit=crop",
-      "alt": "Global network grid symbolizing universal access and infrastructural foundation",
-      "caption": "Foundational architectural baseline providing universal access and type-safe contracts.",
+      "alt": "Abstract network graph illustrating project baseline parameters",
+      "caption": "Baseline project scoping and preliminary operational requirements.",
       "showCaption": true
     },
-    "annotation": "Stage 01 establishes core design tokens and foundational data pipelines.",
+    "annotation": "Stage 01 outlines initial project parameters and documentation.",
     "stages": [
       {
         "step": 1,
-        "stageName": "Where We Are",
-        "narrative": "Heterogeneous legacy systems often suffer from fragmented styling tokens and unverified endpoints, creating brittle client integration boundaries."
+        "stageName": "Current Assessment",
+        "narrative": "Evaluating existing operational workflows and establishing initial baseline metrics."
       },
       {
         "step": 2,
-        "stageName": "What We Need",
-        "narrative": "A decoupled, token-first design infrastructure with deterministic schema verification and strict mathematical coordinate scaling."
+        "stageName": "Requirements Definition",
+        "narrative": "Defining core project requirements, functional criteria, and resource allocation targets."
       },
       {
         "step": 3,
-        "stageName": "What We Are Doing",
-        "narrative": "Isolating layout engines, compiling SVG Bézier tracks, and standardizing AST document models with zero institutional hardwiring."
+        "stageName": "Process Alignment",
+        "narrative": "Standardizing task execution plans, administrative schedules, and procedural guidelines."
       },
       {
         "step": 4,
-        "stageName": "What We Are Achieving",
-        "narrative": "Sub-millisecond edge resolution, 100% token purity across 247 components, and strict WCAG 2.1 AA keyboard accessibility."
+        "stageName": "Milestone Deliverables",
+        "narrative": "Fulfilling initial milestone criteria and verifying procedural compliance documentation."
       },
       {
         "step": 5,
-        "stageName": "How We Serve Users",
-        "narrative": "Empowering operators and technical teams to explore dynamic data sequences with complete confidence and evaluative ease."
+        "stageName": "Stakeholder Review",
+        "narrative": "Providing routine progress updates and operational status briefings to project leads."
       }
     ],
     "sourceItems": [
       {
         "id": "src-acc-01",
-        "title": "Core Architecture Topology Blueprint",
+        "title": "Project Scoping & Charter Brief",
         "dateStamp": "2026-01-15",
         "photo": {
           "src": "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=800&q=80",
-          "alt": "System architecture topology diagram on terminal",
-          "caption": "Baseline system architecture topology specification.",
+          "alt": "Standard project documentation and technical briefing",
+          "caption": "Baseline project scoping and preliminary operational documentation.",
           "showCaption": false
         },
         "imageSrc": "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=800&q=80",
-        "reference": "RFC-1014 Architecture Specification"
+        "reference": "Operational Briefing Doc 101"
       },
       {
         "id": "src-acc-02",
-        "title": "Design Token Distribution Matrix",
+        "title": "Resource Allocation Matrix",
         "dateStamp": "2026-02-10",
         "photo": {
           "src": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80",
-          "alt": "Design system token verification dashboard",
-          "caption": "Mathematical color space tokens and semantic alias hierarchy.",
+          "alt": "Resource allocation matrix and schedule table",
+          "caption": "Resource allocation matrix and procedural benchmarks.",
           "showCaption": false
         },
         "imageSrc": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80",
-        "reference": "Design System RFC-880"
+        "reference": "Planning Document Ref 204"
       }
     ],
     "metadata": {
-      "category": "infrastructure",
+      "category": "planning",
       "stability": "stable",
-      "version": "2.4.0"
+      "version": "1.0.0"
     }
   },
   {
     "id": "equity",
     "index": 1,
     "nodeNumber": 2,
-    "title": "Discovery & Data Equity",
-    "subtitle": "Democratic Inspection & Balanced Distribution",
-    "summary": "Delivering transparent exploration channels and equal information density for both mobile handhelds and ultra-wide workstations.",
-    "tagline": "Stage 02 · Exploratory Protocol",
+    "title": "System Planning",
+    "subtitle": "Functional Analysis & Workflow Specification",
+    "summary": "Detailed analysis of operational workflows, data specifications, and departmental integration criteria.",
+    "tagline": "Stage 02 · Analysis Phase",
     "accentColor": "#881337",
     "accentTint": "#ffe4e6",
     "heroImage": {
       "src": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&q=80&auto=format&fit=crop",
-      "alt": "Microprocessor circuitry illustrating distributed data equity and telemetry flows",
-      "caption": "Transparent exploration channels distributing balanced telemetry across user touchpoints.",
+      "alt": "System schematics and workflow architecture diagram",
+      "caption": "Workflow mapping and procedural specification review.",
       "showCaption": true
     },
-    "annotation": "Stage 02 ensures equal visual ergonomics across diverse client form factors.",
+    "annotation": "Stage 02 defines procedural workflows and operational specifications.",
     "stages": [
       {
         "step": 1,
-        "stageName": "Where We Are",
-        "narrative": "Dense technical metrics often overload non-specialist users, while mobile layouts frequently strip essential context or truncate data series."
+        "stageName": "Workflow Review",
+        "narrative": "Assessing current task sequences and identifying operational dependencies across units."
       },
       {
         "step": 2,
-        "stageName": "What We Need",
-        "narrative": "Progressive disclosure models that present high-level clarity first, followed by effortless drill-downs to raw CSV records and mathematical proofs."
+        "stageName": "Specification Mapping",
+        "narrative": "Documenting detailed functional criteria and outlining operational boundaries."
       },
       {
         "step": 3,
-        "stageName": "What We Are Doing",
-        "narrative": "Implementing adaptive 2-column editorial grids with sticky rail TOCs on desktop and non-intrusive mobile capsule navigators."
+        "stageName": "Standardization",
+        "narrative": "Establishing uniform reporting templates and administrative operating guidelines."
       },
       {
         "step": 4,
-        "stageName": "What We Are Achieving",
-        "narrative": "Zero cognitive friction, single unified breakpoint transitions at 1024px, and tactile touch interaction on high-density displays."
+        "stageName": "Review Checkpoints",
+        "narrative": "Confirming alignment between planned workflows and overall operational criteria."
       },
       {
         "step": 5,
-        "stageName": "How We Serve Users",
-        "narrative": "Ensuring every stakeholder, from field inspectors to executive coordinators, inspects identical verified truth."
+        "stageName": "Team Coordination",
+        "narrative": "Sharing documented specifications and coordinating task schedules across departments."
       }
     ],
     "sourceItems": [
       {
         "id": "src-eq-01",
-        "title": "Responsive Viewport Parity Audit",
+        "title": "Functional Specifications Sheet",
         "dateStamp": "2026-03-01",
         "photo": {
           "src": "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=800&q=80",
-          "alt": "Responsive design testing across multi-screen matrix",
-          "caption": "Adaptive layout verification across mobile and desktop viewports.",
+          "alt": "Functional specifications checklist and procedural audit",
+          "caption": "Procedural verification across functional components.",
           "showCaption": false
         },
         "imageSrc": "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=800&q=80",
-        "reference": "UX Benchmark Audit 2026-B"
+        "reference": "System Specification Document 2026-A"
       }
     ],
     "metadata": {
-      "category": "ergonomics",
+      "category": "analysis",
       "stability": "active",
-      "version": "2.4.0"
+      "version": "1.0.0"
     }
   },
   {
     "id": "quality",
     "index": 2,
     "nodeNumber": 3,
-    "title": "Architecture & System Quality",
-    "subtitle": "Rigorous AST Schemas & Pure Vector Visualizers",
-    "summary": "Transforming arbitrary tabular streams into high-precision vector charts, interactive drawer controls, and D3 mathematical curves.",
-    "tagline": "Stage 03 · Analytical Protocol",
+    "title": "Execution & Implementation",
+    "subtitle": "Scheduled Deliverables & Core Execution",
+    "summary": "Carrying out scheduled milestones, core task execution, and standard operational activities.",
+    "tagline": "Stage 03 · Execution Phase",
     "accentColor": "#f59e0b",
     "accentTint": "#fef3c7",
     "heroImage": {
       "src": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&q=80&auto=format&fit=crop",
-      "alt": "Financial analytics and vector graphics charting on modern glass interface",
-      "caption": "Dynamic vector charting studio rendering real-time analytical curves.",
+      "alt": "Operational dashboard displaying routine project metrics",
+      "caption": "Implementation phase tracking scheduled deliverables and operational metrics.",
       "showCaption": true
     },
-    "annotation": "Stage 03 anchors vector charting capabilities with instant synchronous rendering.",
+    "annotation": "Stage 03 focuses on active implementation and milestone delivery.",
     "stages": [
       {
         "step": 1,
-        "stageName": "Where We Are",
-        "narrative": "Third-party charting libraries frequently introduce heavy canvas bloat, sluggish bundle sizes, and unstyled tooltips that break design harmony."
+        "stageName": "Task Scheduling",
+        "narrative": "Organizing active work streams and allocating resources according to the schedule."
       },
       {
         "step": 2,
-        "stageName": "What We Need",
-        "narrative": "Pure SVG visualizers driven directly by CSS tokens with zero layout thrashing, responsive tooltips, and instant CSV verification receipts."
+        "stageName": "Activity Rollout",
+        "narrative": "Executing routine operational tasks and tracking day-to-day project milestones."
       },
       {
         "step": 3,
-        "stageName": "What We Are Doing",
-        "narrative": "Crafting native Bar, Line, Donut, Scatter, and Histogram renderers powered by D3 mathematical scales and memoized SVG paths."
+        "stageName": "Progress Monitoring",
+        "narrative": "Maintaining central task logs and recording progress against defined benchmarks."
       },
       {
         "step": 4,
-        "stageName": "What We Are Achieving",
-        "narrative": "Under 10ms initial paint time, interactive drawer parameterization, and LOESS polynomial smoothing curves."
+        "stageName": "Deliverable Verification",
+        "narrative": "Verifying completed work items against established criteria and output requirements."
       },
       {
         "step": 5,
-        "stageName": "How We Serve Users",
-        "narrative": "Enabling precise, verifiable visual analytics without sacrificing page speed or editorial restraint."
+        "stageName": "Operational Reporting",
+        "narrative": "Compiling regular progress reports and updating central project tracking tools."
       }
     ],
     "sourceItems": [
       {
         "id": "src-qual-01",
-        "title": "Vector Rendering Performance Profile",
+        "title": "Milestone Delivery Record",
         "dateStamp": "2026-03-20",
         "photo": {
           "src": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=800&q=80",
-          "alt": "Performance benchmark graphs and telemetry monitor",
-          "caption": "Sub-10ms render latency benchmark across 5000 SVG points.",
+          "alt": "Operational milestone progress tracking chart",
+          "caption": "Delivery verification records across core work streams.",
           "showCaption": false
         },
         "imageSrc": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=800&q=80",
-        "reference": "Performance Profiling Report Q1"
+        "reference": "Delivery Status Report Q1"
       }
     ],
     "metadata": {
-      "category": "visualization",
+      "category": "execution",
       "stability": "active",
-      "version": "2.4.0"
+      "version": "1.0.0"
     }
   },
   {
     "id": "resiliency",
     "index": 3,
     "nodeNumber": 4,
-    "title": "Validation & Resilient Integrity",
-    "subtitle": "Edge-Cached Redundancy & Local-First Durability",
-    "summary": "Hardening client persistence with optimistic transactions, cryptographic verification, and instant rollback safety across offline states.",
-    "tagline": "Stage 04 · Verification Protocol",
+    "title": "Testing & Quality Assurance",
+    "subtitle": "Operational Verification & Compliance Checks",
+    "summary": "Conducting systematic quality assurance checks, compliance audits, and procedural evaluations.",
+    "tagline": "Stage 04 · Review Phase",
     "accentColor": "#15803d",
     "accentTint": "#dcfce7",
     "heroImage": {
       "src": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&q=80&auto=format&fit=crop",
-      "alt": "Encrypted code stream and cryptographic matrix symbolizing data resiliency",
-      "caption": "Local-first persistence architecture with multi-tier cryptographic safeguards.",
+      "alt": "Quality assurance testing logs and review data",
+      "caption": "Systematic verification procedures ensuring procedural quality and compliance.",
       "showCaption": true
     },
-    "annotation": "Stage 04 provides resilient transactional guarantees and rollback safety.",
+    "annotation": "Stage 04 ensures procedural consistency and operational quality.",
     "stages": [
       {
         "step": 1,
-        "stageName": "Where We Are",
-        "narrative": "Network intermittency and cloud sync timeouts risk user data loss when editing dynamic canvas structures in the browser."
+        "stageName": "Quality Review",
+        "narrative": "Reviewing completed deliverables against established operational guidelines."
       },
       {
         "step": 2,
-        "stageName": "What We Need",
-        "narrative": "A dual-channel storage engine combining synchronous localStorage caching with asynchronous IndexedDB transactional undo/redo stacks."
+        "stageName": "Compliance Check",
+        "narrative": "Verifying procedural compliance with standard organizational requirements."
       },
       {
         "step": 3,
-        "stageName": "What We Are Doing",
-        "narrative": "Scaffolding 50-step undo/redo circular ring buffers and automatic recovery procedures for unsaved draft modifications."
+        "stageName": "Remediation Procedures",
+        "narrative": "Addressing identified feedback and refining procedural workflows accordingly."
       },
       {
         "step": 4,
-        "stageName": "What We Are Achieving",
-        "narrative": "Instantaneous optimistic UI dispatch, zero lost keystrokes, and clean separation between draft editing and published channels."
+        "stageName": "Verification Sign-Off",
+        "narrative": "Confirming full compliance and signing off on verified milestone requirements."
       },
       {
         "step": 5,
-        "stageName": "How We Serve Users",
-        "narrative": "Providing an authoring environment where creative changes can be tested boldly with immediate rollback protection."
+        "stageName": "Documentation Filing",
+        "narrative": "Archiving verification checklists and filing quarterly quality audit summaries."
       }
     ],
     "sourceItems": [
       {
         "id": "src-res-01",
-        "title": "Offline Durability & Stress Testing Logs",
+        "title": "Quality Audit Checklist",
         "dateStamp": "2026-04-05",
         "photo": {
           "src": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&q=80",
-          "alt": "Server rack cabling and edge infrastructure cluster",
-          "caption": "Cluster redundancy tests under simulated network partitioning.",
+          "alt": "Quality audit records and verification checklist",
+          "caption": "Audit summary records and verification checklist data.",
           "showCaption": false
         },
         "imageSrc": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&q=80",
-        "reference": "Resilience Test Report SEC-44"
+        "reference": "Audit Summary Log QA-44"
       }
     ],
     "metadata": {
-      "category": "storage",
+      "category": "verification",
       "stability": "active",
-      "version": "2.4.0"
+      "version": "1.0.0"
     }
   },
   {
     "id": "governance",
     "index": 4,
     "nodeNumber": 5,
-    "title": "Scale & Coordinated Governance",
-    "subtitle": "Multi-Tenant Orchestration & Versioned History",
-    "summary": "Enabling collaborative multi-editor workflows with audit logging, pin-secured publication gates, and tenant autonomy.",
-    "tagline": "Stage 05 · Governance Protocol",
+    "title": "Operations & Maintenance",
+    "subtitle": "Routine Administration & Lifecycle Management",
+    "summary": "Managing ongoing operations, regular maintenance schedules, and long-term administrative reporting.",
+    "tagline": "Stage 05 · Maintenance Phase",
     "accentColor": "#d97706",
     "accentTint": "#ffedd5",
     "heroImage": {
       "src": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=1200&q=80&auto=format&fit=crop",
-      "alt": "Modern collaborative architectural workspace representing team governance",
-      "caption": "Collaborative coordinator governance with multi-editor publication checkpoints.",
+      "alt": "Administrative office workspace representing routine operations",
+      "caption": "Ongoing administration and routine maintenance operations.",
       "showCaption": true
     },
-    "annotation": "Stage 05 manages multi-editor deployment gates and historical audit logs.",
+    "annotation": "Stage 05 coordinates ongoing administrative processes and routine oversight.",
     "stages": [
       {
         "step": 1,
-        "stageName": "Where We Are",
-        "narrative": "Unregulated deployments and uncoordinated concurrent edits cause staging collisions and inadvertent overwrites in production."
+        "stageName": "Operational Handover",
+        "narrative": "Transitioning completed project components into routine administrative management."
       },
       {
         "step": 2,
-        "stageName": "What We Need",
-        "narrative": "Role-gated coordinator mode secured by salted SHA-256 PIN authentication and explicit staging review checkpoints."
+        "stageName": "Maintenance Scheduling",
+        "narrative": "Establishing recurring service calendars and standard upkeep procedures."
       },
       {
         "step": 3,
-        "stageName": "What We Are Doing",
-        "narrative": "Integrating DevPinModal, DevModeBadge, DevLockService, and UniversalEditModal into a unified coordinator dock."
+        "stageName": "Performance Tracking",
+        "narrative": "Monitoring ongoing operational metrics and tracking periodic indicators."
       },
       {
         "step": 4,
-        "stageName": "What We Are Achieving",
-        "narrative": "Cryptographically verified release pipelines, tamper-evident publication records, and instantaneous edge KV sync."
+        "stageName": "Administrative Oversight",
+        "narrative": "Maintaining central documentation and reviewing operational logs periodically."
       },
       {
         "step": 5,
-        "stageName": "How We Serve Users",
-        "narrative": "Delivering enterprise-grade administrative governance with complete transparency and zero operational downtime."
+        "stageName": "Lifecycle Reporting",
+        "narrative": "Providing periodic administrative summaries and ongoing lifecycle updates."
       }
     ],
     "sourceItems": [
       {
         "id": "src-gov-01",
-        "title": "Cryptographic Audit & Access Logs",
+        "title": "Administrative Operations Log",
         "dateStamp": "2026-04-18",
         "photo": {
           "src": "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&q=80",
-          "alt": "Cryptographic key signature and audit trail verification UI",
-          "caption": "Cryptographic commit verification for edge deployment pipeline.",
+          "alt": "Administrative documentation and operational log UI",
+          "caption": "Periodic operational review records and maintenance logs.",
           "showCaption": false
         },
         "imageSrc": "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&q=80",
-        "reference": "Governance Standard GOV-2026"
+        "reference": "Operations Manual Standard 2026"
       }
     ],
     "metadata": {
-      "category": "governance",
+      "category": "operations",
       "stability": "active",
-      "version": "2.4.0"
+      "version": "1.0.0"
     }
   }
 ]

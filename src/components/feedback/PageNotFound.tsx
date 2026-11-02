@@ -1,4 +1,5 @@
 import React from 'react';
+import { EditableText } from '../ui/EditableText';
 import styles from './PageNotFound.module.css';
 
 export interface PageNotFoundProps {
@@ -23,10 +24,25 @@ export const PageNotFound: React.FC<PageNotFoundProps> = ({
   className,
 }) => {
   return (
-    <main className={`${styles.notFoundWrapper} ${className ?? ''}`.trim()} role="main">
-      <div className={styles.errorCode}>{errorCode}</div>
-      <h1 className={styles.title}>{title}</h1>
-      <p className={styles.description}>{description}</p>
+    <main className={`${styles.notFoundWrapper} ${className || ""}`.trim()} role="main">
+      <EditableText
+        pointId="notFound.errorCode"
+        defaultText={errorCode}
+        as="div"
+        className={styles.errorCode}
+      />
+      <EditableText
+        pointId="notFound.title"
+        defaultText={title}
+        as="h1"
+        className={styles.title}
+      />
+      <EditableText
+        pointId="notFound.description"
+        defaultText={description}
+        as="p"
+        className={styles.description}
+      />
       {onReturn && (
         <button type="button" className={styles.returnButton} onClick={onReturn}>
           <svg
@@ -41,7 +57,12 @@ export const PageNotFound: React.FC<PageNotFoundProps> = ({
           >
             <path d="M10 13L5 8l5-5" />
           </svg>
-          <span>{returnLabel}</span>
+          <EditableText
+            pointId="notFound.returnButton"
+            defaultText={returnLabel}
+            as="span"
+            inline={true}
+          />
         </button>
       )}
     </main>

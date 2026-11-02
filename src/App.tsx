@@ -231,7 +231,6 @@ const AppContent: React.FC = () => {
       {/* 1. App Header: Restrained floating glass capsule */}
       <AppHeader
         brandTitle={engineConfig.branding.appName || "Folio"}
-        brandSubtitle={engineConfig.branding.tagline || "Engine"}
         brandLetter={engineConfig.branding.logoText || "F"}
         navItems={navItems}
         mobileOnlyNav={isNodeRoute}
@@ -280,8 +279,11 @@ const AppContent: React.FC = () => {
               <section id="node-overview" className={styles.overviewSection} aria-label="Node Overview">
                 <PageTitle
                   kicker={`Stage 0${currentNode.nodeNumber ?? 1}: ${currentNode.title}`}
+                  kickerPointId={`node.${currentNode.id}.kicker`}
                   title={currentNode.subtitle ?? currentNode.title}
+                  titlePointId={`node.${currentNode.id}.title`}
                   subtitle={currentNode.summary}
+                  subtitlePointId={`node.${currentNode.id}.subtitle`}
                   accentColor={currentNode.accentColor}
                 />
               </section>

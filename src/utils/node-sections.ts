@@ -14,11 +14,11 @@ export interface NodeSection extends NavItem {
  */
 export function getNodeSections(node: NodeItem): NavItem[] {
   const stageLabels = [
-    'Where We Are',
-    'What We Need',
-    'What We Are Doing',
-    'What We Are Achieving',
-    'Community Impact',
+    'Current Assessment',
+    'Requirements Definition',
+    'Process Alignment',
+    'Milestone Deliverables',
+    'Stakeholder Review',
   ];
 
   const sections: NodeSection[] = [
@@ -31,7 +31,7 @@ export function getNodeSections(node: NodeItem): NavItem[] {
 
   node.stages?.forEach((stage, idx) => {
     const stageNum = String(stage.step).padStart(2, '0');
-    const label = stageLabels[idx] || stage.stageName;
+    const label = stage.stageName || stageLabels[idx] || `Stage ${stageNum}`;
     sections.push({
       id: `stage-${stage.step}`,
       label,
@@ -42,7 +42,7 @@ export function getNodeSections(node: NodeItem): NavItem[] {
 
   sections.push({
     id: 'node-evidence',
-    label: 'Evidence & Proof',
+    label: 'Supporting Documentation',
     href: '#node-evidence',
   });
 

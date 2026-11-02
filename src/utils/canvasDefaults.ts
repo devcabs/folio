@@ -66,9 +66,9 @@ export function createDefaultGallery(nodeId: string): GalleryElement {
     id,
     type: 'gallery',
     pointId: `node.${nodeId}.gallery.${id}`,
-    title: 'Evidence Gallery',
+    title: 'Media Gallery',
     titlePointId: `node.${nodeId}.gallery.${id}.title`,
-    subtitle: 'Photo and document gallery',
+    subtitle: 'Image and document attachments',
     subtitlePointId: `node.${nodeId}.gallery.${id}.subtitle`,
   };
 }
@@ -82,8 +82,8 @@ export function createDefaultChart(nodeId: string): ChartElement {
     id,
     type: 'chart',
     chartId: `chart-${nodeId}-${Date.now().toString(36)}`,
-    title: 'Indicator Chart',
-    subtitle: 'Performance indicators and metrics data',
+    title: 'Data Chart',
+    subtitle: 'Metrics and summary data',
   };
 }
 
@@ -97,7 +97,7 @@ export function createDefaultSubsection(nodeId?: string): SubsectionElement {
     type: 'subsection',
     title: 'Subsection Title',
     titlePointId: nodeId ? `node.${nodeId}.subsection.${id}.title` : undefined,
-    subtitle: 'Subsection details and source',
+    subtitle: 'Subsection details and documentation',
     subtitlePointId: nodeId ? `node.${nodeId}.subsection.${id}.subtitle` : undefined,
     elements: [],
   };
@@ -115,7 +115,7 @@ export function createDefaultSection(index: number, nodeId?: string): SectionEle
     isNumbered: true,
     title: 'Section Title',
     titlePointId: nodeId ? `node.${nodeId}.section.${id}.title` : undefined,
-    subtitle: 'Strategic initiatives and source of progress',
+    subtitle: 'Milestone initiatives and summary of progress',
     subtitlePointId: nodeId ? `node.${nodeId}.section.${id}.subtitle` : undefined,
     elements: [],
   };

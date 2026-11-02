@@ -1,30 +1,30 @@
 [
   {
     "chartId": "chart-access-enrolment",
-    "title": "Cluster Throughput & Ingestion Rate",
-    "subtitle": "Real-time telemetry distribution across processing nodes (ops/sec)",
-    "unit": "ops/s",
+    "title": "Operational Activity Volume",
+    "subtitle": "Monthly processed transaction volume across regional units (units)",
+    "unit": "units",
     "asOfDate": "2026-Q1",
     "chartType": "bar",
     "nodeId": "access",
     "visualConfig": {
-      "unit": "ops/s",
+      "unit": "units",
       "excludeSummaryRows": true,
       "yMin": 0,
       "orientation": "vertical",
       "barOrientation": "vertical"
     },
     "categories": [
-      "Cluster Alpha",
-      "Cluster Beta",
-      "Cluster Gamma",
-      "Cluster Delta",
-      "Cluster Epsilon",
-      "Cluster Zeta"
+      "Unit 1",
+      "Unit 2",
+      "Unit 3",
+      "Unit 4",
+      "Unit 5",
+      "Unit 6"
     ],
     "series": [
       {
-        "name": "Ingress Stream",
+        "name": "Completed Tasks",
         "data": [
           420,
           510,
@@ -36,7 +36,7 @@
         "color": "#0284c7"
       },
       {
-        "name": "Egress Sync",
+        "name": "Pending Tasks",
         "data": [
           390,
           480,
@@ -48,12 +48,12 @@
         "color": "#38bdf8"
       }
     ],
-    "sanitizedCsvContent": "# Title: Cluster Throughput & Ingestion Rate (ops/s)\nCategory,Ingress Stream,Egress Sync\nCluster Alpha,420,390\nCluster Beta,510,480\nCluster Gamma,630,580\nCluster Delta,590,560\nCluster Epsilon,710,670\nCluster Zeta,680,640"
+    "sanitizedCsvContent": "# Title: Operational Activity Volume (units)\nCategory,Completed Tasks,Pending Tasks\nUnit 1,420,390\nUnit 2,510,480\nUnit 3,630,580\nUnit 4,590,560\nUnit 5,710,670\nUnit 6,680,640"
   },
   {
     "chartId": "chart-equity-assistance",
-    "title": "Compute & Memory Allocation Ratios",
-    "subtitle": "Resource distribution percentage across core engine subsystems",
+    "title": "Resource Allocation by Department",
+    "subtitle": "Percentage distribution of standard operational expenditure",
     "unit": "%",
     "asOfDate": "2026-Q1",
     "chartType": "donut",
@@ -64,11 +64,11 @@
       "donutVariant": "donut"
     },
     "categories": [
-      "AST Parser",
-      "Bézier Coordinate Engine",
-      "Vector Chart Studio",
-      "Storage & Cache Tier",
-      "Coordinator Chrome"
+      "Operations",
+      "Logistics",
+      "Administration",
+      "Planning",
+      "Support"
     ],
     "series": [
       {
@@ -83,33 +83,33 @@
         "color": "#881337"
       }
     ],
-    "sanitizedCsvContent": "# Title: Compute & Memory Allocation Ratios (%)\nCategory,Allocation\nAST Parser,32\nBézier Coordinate Engine,26\nVector Chart Studio,20\nStorage & Cache Tier,14\nCoordinator Chrome,8"
+    "sanitizedCsvContent": "# Title: Resource Allocation by Department (%)\nCategory,Allocation\nOperations,32\nLogistics,26\nAdministration,20\nPlanning,14\nSupport,8"
   },
   {
     "chartId": "chart-quality-mps",
-    "title": "Response Latency Benchmarks (P95 vs P99)",
-    "subtitle": "Query execution time across quarterly release versions",
-    "unit": "ms",
+    "title": "Quarterly Performance Index",
+    "subtitle": "Standard performance indicators recorded over consecutive quarters",
+    "unit": "pts",
     "asOfDate": "2026-Q1",
     "chartType": "line",
     "nodeId": "quality",
     "visualConfig": {
-      "unit": "ms",
+      "unit": "pts",
       "excludeSummaryRows": true,
       "yMin": 0,
       "curveInterpolation": "smooth",
       "showAreaFill": true
     },
     "categories": [
-      "v2.0",
-      "v2.1",
-      "v2.2",
-      "v2.3",
-      "v2.4"
+      "Q1",
+      "Q2",
+      "Q3",
+      "Q4",
+      "Q5"
     ],
     "series": [
       {
-        "name": "P95 Latency",
+        "name": "Primary Indicator",
         "data": [
           48,
           41,
@@ -120,7 +120,7 @@
         "color": "#f59e0b"
       },
       {
-        "name": "P99 Latency",
+        "name": "Secondary Indicator",
         "data": [
           82,
           69,
@@ -131,12 +131,12 @@
         "color": "#b45309"
       }
     ],
-    "sanitizedCsvContent": "# Title: Response Latency Benchmarks (ms)\nVersion,P95 Latency,P99 Latency\nv2.0,48,82\nv2.1,41,69\nv2.2,33,54\nv2.3,26,42\nv2.4,19,31"
+    "sanitizedCsvContent": "# Title: Quarterly Performance Index (pts)\nQuarter,Primary Indicator,Secondary Indicator\nQ1,48,82\nQ2,41,69\nQ3,33,54\nQ4,26,42\nQ5,19,31"
   },
   {
     "chartId": "chart-resiliency-drrm",
-    "title": "Failover Recovery Switchover Durations",
-    "subtitle": "Distribution of automated cluster recovery durations under partition",
+    "title": "Response Time Distribution",
+    "subtitle": "Distribution of response completion times across standard requests",
     "unit": "ms",
     "asOfDate": "2026-Q1",
     "chartType": "bar",
@@ -156,7 +156,7 @@
     ],
     "series": [
       {
-        "name": "Failover Incidents",
+        "name": "Recorded Responses",
         "data": [
           142,
           89,
@@ -168,18 +168,18 @@
         "color": "#15803d"
       }
     ],
-    "sanitizedCsvContent": "# Title: Failover Recovery Switchover Durations (ms)\nBucket,Failover Incidents\n0-10ms,142\n10-20ms,89\n20-30ms,45\n30-40ms,12\n40-50ms,4\n>50ms,1"
+    "sanitizedCsvContent": "# Title: Response Time Distribution (ms)\nBucket,Recorded Responses\n0-10ms,142\n10-20ms,89\n20-30ms,45\n30-40ms,12\n40-50ms,4\n>50ms,1"
   },
   {
     "chartId": "chart-governance-mooe",
-    "title": "Audit Trail Events & Edge Publication Volume",
-    "subtitle": "Verified configuration commits and cryptographic publications per week",
-    "unit": "events",
+    "title": "Scheduled Tasks & Administrative Reviews",
+    "subtitle": "Weekly completed reviews and administrative filings",
+    "unit": "tasks",
     "asOfDate": "2026-Q1",
     "chartType": "bar",
     "nodeId": "governance",
     "visualConfig": {
-      "unit": "events",
+      "unit": "tasks",
       "excludeSummaryRows": true,
       "yMin": 0
     },
@@ -193,7 +193,7 @@
     ],
     "series": [
       {
-        "name": "Audit Events",
+        "name": "Scheduled Tasks",
         "data": [
           120,
           145,
@@ -205,7 +205,7 @@
         "color": "#d97706"
       },
       {
-        "name": "Edge Publications",
+        "name": "Completed Reviews",
         "data": [
           18,
           22,
@@ -217,6 +217,6 @@
         "color": "#b45309"
       }
     ],
-    "sanitizedCsvContent": "# Title: Audit Trail Events & Edge Publication Volume (events)\nWeek,Audit Events,Edge Publications\nWeek 1,120,18\nWeek 2,145,22\nWeek 3,160,28\nWeek 4,185,31\nWeek 5,210,35\nWeek 6,230,42"
+    "sanitizedCsvContent": "# Title: Scheduled Tasks & Administrative Reviews (tasks)\nWeek,Scheduled Tasks,Completed Reviews\nWeek 1,120,18\nWeek 2,145,22\nWeek 3,160,28\nWeek 4,185,31\nWeek 5,210,35\nWeek 6,230,42"
   }
 ]

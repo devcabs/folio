@@ -1,5 +1,6 @@
 import React, { useCallback } from "react";
 import type { NodeItem } from "../../types/node";
+import { EditableText } from "../ui/EditableText";
 import styles from "./RoadmapNode.module.css";
 
 export const PHOTO_STACKED_BREAKPOINT = 1024;
@@ -123,20 +124,29 @@ export const RoadmapNode = React.memo<RoadmapNodeProps>(
           <div className={styles.contentBlock}>
             {/* 2.1 Benchmark Category Badge */}
             <span className={styles.depedBadge}>
-              <span>{categoryBadgeText}</span>
+              <EditableText
+                pointId={`node.${page.id}.tagline`}
+                defaultText={categoryBadgeText}
+                as="span"
+                inline={true}
+              />
             </span>
 
             {/* 2.2 Layperson Display Title */}
-            <h3 className={styles.displayTitle}>
-              {titleText}
-            </h3>
+            <EditableText
+              pointId={`node.${page.id}.title`}
+              defaultText={titleText}
+              as="h3"
+              className={styles.displayTitle}
+            />
 
             {/* 2.3 Community Story Hook (Single-Sentence Source-Bound) */}
-            {summaryText && (
-              <p className={styles.summary}>
-                {summaryText}
-              </p>
-            )}
+            <EditableText
+              pointId={`node.${page.id}.summary`}
+              defaultText={summaryText}
+              as="p"
+              className={styles.summary}
+            />
 
             {/* 2.4 Refined Editorial Action Link */}
             <div className={styles.actionWrapper}>
