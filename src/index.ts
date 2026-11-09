@@ -36,6 +36,20 @@ export * from "./components/roadmap/use-roadmap-scroll";
 export * from "./components/roadmap/RoadmapNode";
 export * from "./components/roadmap/RoadmapTrack";
 export * from "./components/roadmap/RoadmapSection";
+export * from "./components/roadmap/PhotoFlightEngine";
+export {
+  NODE_PHOTO_CONFIGS,
+  getNodePhotoConfig,
+  DESTINATION_GLOBAL_MARGINS,
+  DEFAULT_DEST_MAX_WIDTH_VW,
+  PHOTO_DESTINATION_TIMING_OFFSET,
+  PHOTO_MOBILE_BREAKPOINT,
+  type GlobalMarginSettings,
+  type FocalPoint,
+  type PhotoSourcePlacement,
+  type PhotoDestPlacement,
+  type NodePhotoConfig,
+} from "./data/node-photo-configs";
 
 // Hooks & Navigation
 export * from "./hooks/use-hash-route";

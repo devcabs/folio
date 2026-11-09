@@ -1,0 +1,87 @@
+/**
+ * PhotoFlightEngine.module.css
+ * Real-Time Scroll Flight & Docking Engine Styles
+ * 100% Token Pure — Universal Zero Outline Policy
+ */
+
+.flightContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 6; /* Layered above svgTrack (z-index: 1) and roadmap station nodes (z-index: 4) so docked cards are clickable */
+}
+
+.flightCardWrapper {
+  position: absolute;
+  pointer-events: none; /* Default off: preserve touch scroll from flying card intercept */
+  will-change: transform;
+  transform-origin: center center;
+  box-sizing: border-box;
+  display: block;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Flight State Dynamics: Hero Resting vs Dormant vs Flying vs Docked
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* 0. Dormant State (Hidden between Hero and Milestone) */
+.flightCardWrapper[data-flight-state="dormant"] {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden;
+}
+
+/* 1. Hero Resting State (Edge Peeking) */
+.flightCardWrapper[data-flight-state="hero"] {
+  pointer-events: auto; /* Hero peeking is intentionally clickable to trigger stage scroll */
+  opacity: 0.94;
+  filter: saturate(0.95);
+  z-index: 6;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    filter var(--duration-fast) var(--ease-out);
+}
+
+.flightCardWrapper[data-flight-state="hero"]:hover {
+  opacity: 1;
+  filter: saturate(1.05);
+}
+
+/* 2. Flying State (During Active Scroll Flight) */
+.flightCardWrapper[data-flight-state="flying"] {
+  opacity: 0.98;
+  filter: saturate(1);
+  z-index: 25;
+}
+
+/* 3. Docked State (Anchored at Milestone Station) */
+.flightCardWrapper[data-flight-state="docked"] {
+  pointer-events: auto; /* Docked card is intentionally clickable to open node details page */
+  opacity: 1;
+  filter: saturate(1);
+  z-index: 6;
+}
+
+/* Inner Card Fit */
+.innerCard {
+  width: 100%;
+  height: 100%;
+}
+
+/* ==========================================================================
+   Accessibility & Mobile Fallback
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .flightCardWrapper {
+    transform: none !important;
+    transition: none !important;
+  }
+}
+

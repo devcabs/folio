@@ -5,6 +5,7 @@ import type { RoadmapSectionHandle, RoadmapScrollZone } from './components/roadm
 import { AppHeader, type NavItem } from './components/layout/AppHeader';
 import { HeroWelcome } from './components/layout/HeroWelcome';
 import { RoadmapSection } from './components/roadmap/RoadmapSection';
+import { PhotoFlightEngine } from './components/roadmap/PhotoFlightEngine';
 import { AppFooter } from './components/layout/AppFooter';
 import { FAB } from './components/ui/FAB';
 import { Breadcrumb } from './components/ui/Breadcrumb';
@@ -327,6 +328,12 @@ const AppContent: React.FC = () => {
               ref={roadmapRef}
               nodes={nodes}
               onStageChange={handleStageChange}
+              onExploreNode={handleExploreNode}
+            />
+            {/* Photo Flight Engine: Real-Time Scrubbed Motion from Hero Edge to Roadmap Milestone Station */}
+            <PhotoFlightEngine
+              nodes={nodes}
+              onSelectStage={(stage) => roadmapRef.current?.scrollToStage(stage)}
               onExploreNode={handleExploreNode}
             />
           </main>

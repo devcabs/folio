@@ -1,9 +1,10 @@
 import React, { useCallback } from "react";
 import type { NodeItem } from "../../types/node";
+import { PHOTO_STACKED_BREAKPOINT } from "../../data/node-photo-configs";
 import { EditableText } from "../ui/EditableText";
 import styles from "./RoadmapNode.module.css";
 
-export const PHOTO_STACKED_BREAKPOINT = 1024;
+export { PHOTO_STACKED_BREAKPOINT };
 
 export interface RoadmapNodeProps {
   page: NodeItem;

@@ -1,7 +1,7 @@
 /**
  * Folio Engine - Unified History Hub Service
  * Location: src/services/historyService.ts
- * Specification: docs/tasks/task9_3_unified_school_history_hub.md
+ * Specification: docs/tasks/task9_3_unified_history_hub.md
  * Aligned with: docs/00_WORKFLOW.md, docs/03_ARCHITECTURE.md, docs/07_CODING_STANDARDS.md
  *
  * Implements:

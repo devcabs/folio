@@ -1,0 +1,113 @@
+{
+  "name": "folio-engine",
+  "version": "0.1.2",
+  "description": "Agent configuration and skill manifest for Folio Engine (@devcabs/folio-engine)",
+  "skills": [
+    {
+      "name": "frontend-design",
+      "path": "skills/frontend-design/SKILL.md",
+      "description": "Use when designing, building, or refining frontend UI/UX to enforce distinctive visual aesthetics, token-first CSS styling, and calm focus interactions."
+    },
+    {
+      "name": "superpowers",
+      "path": "skills/superpowers/SKILL.md",
+      "description": "Use for disciplined, test-driven feature development, decomposing work into atomic units, and enforcing quality gates."
+    },
+    {
+      "name": "context7",
+      "path": "skills/context7/SKILL.md",
+      "description": "Use when navigating codebase architecture, inspecting component hierarchy, and referencing Diátaxis documentation."
+    },
+    {
+      "name": "code-review",
+      "path": "skills/code-review/SKILL.md",
+      "description": "Use to run structured code reviews on staged changes against design tokens, zero outline policy, and TypeScript contracts."
+    },
+    {
+      "name": "code-simplifier",
+      "path": "skills/code-simplifier/SKILL.md",
+      "description": "Use to refactor and compress bloated code, stripping redundancy while preserving contracts and functionality."
+    },
+    {
+      "name": "skill-creator",
+      "path": "skills/skill-creator/SKILL.md",
+      "description": "Use when creating, packaging, or testing new agent skills and SOPs with generic, reusable standards."
+    },
+    {
+      "name": "github-mcp",
+      "path": "skills/github-mcp/SKILL.md",
+      "description": "Use when managing git commits, branches, pull requests, and conventional commit tracking."
+    },
+    {
+      "name": "playwright",
+      "path": "skills/playwright/SKILL.md",
+      "description": "Use for browser automation, visual snapshots, and end-to-end testing of sequence tracks, document canvases, and chart drawers."
+    },
+    {
+      "name": "claudemd-management",
+      "path": "skills/claudemd-management/SKILL.md",
+      "description": "Use to maintain and update project memory, conventions, stack decisions, and documentation across sessions."
+    },
+    {
+      "name": "feature-dev",
+      "path": "skills/feature-dev/SKILL.md",
+      "description": "Use for disciplined end-to-end feature implementation: contract verification, token locking, scaffolding, tests, and review."
+    },
+    {
+      "name": "typescript-lsp",
+      "path": "skills/typescript-lsp/SKILL.md",
+      "description": "Use when writing or refactoring TypeScript code to enforce strict types, resolve diagnostics, and maintain public exports."
+    },
+    {
+      "name": "security-guidance",
+      "path": "skills/security-guidance/SKILL.md",
+      "description": "Use to audit code for secret leaks, sanitize inputs (CSV, Google Sheets, markdown), and secure edge functions."
+    },
+    {
+      "name": "caveman",
+      "path": "skills/caveman/SKILL.md",
+      "description": "Use when concise, ultra-terse, minimal-token communication is preferred without sacrificing technical accuracy."
+    },
+    {
+      "name": "g-stack",
+      "path": "skills/g-stack/SKILL.md",
+      "description": "Use for holistic product workflows: clarifying technical moat, curating taste, locking tokens, scaffolding, and verification."
+    },
+    {
+      "name": "karpathy-rules",
+      "path": "skills/karpathy-rules/SKILL.md",
+      "description": "Use to enforce disciplined engineering rules: think before coding, make surgical changes, and verify with tests."
+    },
+    {
+      "name": "business-coach",
+      "path": "skills/business-coach/SKILL.md",
+      "description": "Strategic business coach for developer tools, SaaS architecture, monetization models, and developer adoption loops."
+    },
+    {
+      "name": "marketing-context",
+      "path": "skills/marketing-context/SKILL.md",
+      "description": "Developer positioning, value proposition, and communication framework for Folio Engine."
+    },
+    {
+      "name": "accessibility",
+      "path": "skills/accessibility/SKILL.md",
+      "description": "Use when auditing and implementing WCAG 2.1 AA accessibility, keyboard navigation, focus management, and ARIA roles."
+    },
+    {
+      "name": "vercel-react-best-practices",
+      "path": "skills/vercel-react-best-practices/SKILL.md",
+      "description": "Use when writing or optimizing React 19 components for render performance, composition, and bundle efficiency."
+    },
+    {
+      "name": "seo",
+      "path": "skills/seo/SKILL.md",
+      "description": "Use when configuring OpenGraph metadata, structured JSON-LD schemas, and social preview optimization."
+    },
+    {
+      "name": "ios-safari-debug",
+      "path": "skills/ios-safari-debug/SKILL.md",
+      "description": "Debug iOS Safari pages via ios-webkit-debug-proxy."
+    }
+  ],
+  "agents": []
+}

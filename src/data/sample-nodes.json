@@ -10,9 +10,9 @@
     "accentColor": "#0284c7",
     "accentTint": "#e0f2fe",
     "heroImage": {
-      "src": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&q=80&auto=format&fit=crop",
-      "alt": "Abstract network graph illustrating project baseline parameters",
-      "caption": "Baseline project scoping and preliminary operational requirements.",
+      "src": "/images/nodes/01-access.webp",
+      "alt": "Scholars engaged in reading and foundational study",
+      "caption": "Foundational scoping and open door accessibility for all learners.",
       "showCaption": true
     },
     "annotation": "Stage 01 outlines initial project parameters and documentation.",
@@ -88,9 +88,9 @@
     "accentColor": "#881337",
     "accentTint": "#ffe4e6",
     "heroImage": {
-      "src": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&q=80&auto=format&fit=crop",
-      "alt": "System schematics and workflow architecture diagram",
-      "caption": "Workflow mapping and procedural specification review.",
+      "src": "/images/nodes/02-equity.webp",
+      "alt": "Collaborative planning and inclusive curriculum strategy session",
+      "caption": "Coordinated planning tailored for diverse and specialized needs.",
       "showCaption": true
     },
     "annotation": "Stage 02 defines procedural workflows and operational specifications.",
@@ -153,9 +153,9 @@
     "accentColor": "#f59e0b",
     "accentTint": "#fef3c7",
     "heroImage": {
-      "src": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&q=80&auto=format&fit=crop",
-      "alt": "Operational dashboard displaying routine project metrics",
-      "caption": "Implementation phase tracking scheduled deliverables and operational metrics.",
+      "src": "/images/nodes/03-quality.webp",
+      "alt": "Learners conducting scientific inquiry and experimentation in laboratory",
+      "caption": "Hands-on collaborative inquiry and quality standard benchmarking.",
       "showCaption": true
     },
     "annotation": "Stage 03 focuses on active implementation and milestone delivery.",
@@ -218,9 +218,9 @@
     "accentColor": "#15803d",
     "accentTint": "#dcfce7",
     "heroImage": {
-      "src": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&q=80&auto=format&fit=crop",
-      "alt": "Quality assurance testing logs and review data",
-      "caption": "Systematic verification procedures ensuring procedural quality and compliance.",
+      "src": "/images/nodes/04-resiliency.webp",
+      "alt": "Resilient, storm-hardened facilities and green campus grounds",
+      "caption": "Sustainable and secure operational infrastructure built for resilience.",
       "showCaption": true
     },
     "annotation": "Stage 04 ensures procedural consistency and operational quality.",
@@ -283,9 +283,9 @@
     "accentColor": "#d97706",
     "accentTint": "#ffedd5",
     "heroImage": {
-      "src": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=1200&q=80&auto=format&fit=crop",
-      "alt": "Administrative office workspace representing routine operations",
-      "caption": "Ongoing administration and routine maintenance operations.",
+      "src": "/images/nodes/05-governance.webp",
+      "alt": "Stakeholders and community leaders meeting for transparent governance",
+      "caption": "General assembly of educators, parents, and leaders discussing resource allocations.",
       "showCaption": true
     },
     "annotation": "Stage 05 coordinates ongoing administrative processes and routine oversight.",
