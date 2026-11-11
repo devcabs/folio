@@ -44,11 +44,19 @@ docs/
     │   ├── 01-getting-started.md                # Quickstart: install, configure, render
     │   └── 02-building-a-stepped-canvas.md      # Building sequence track + document canvas
     ├── how-to/                                  # Goal-oriented solution recipes
-    │   ├── 01-dual-channel-content-db.md        # Live vs. draft Supabase persistence
-    │   ├── 02-google-sheets-chart-sync.md       # In-browser chart studio + live sheet sync
-    │   ├── 03-edge-pre-baking-and-kv-cache.md   # Cloudflare Pages Functions + KV cache
-    │   ├── 04-theming-and-design-tokens.md      # CSS design tokens, fonts, and themes
-    │   └── 05-diagnostics-and-testing.md        # Verifying integrity, purity, and schemas
+    │   ├── end-users/                           # Non-technical Dev Mode guides for webapp editors
+    │   │   ├── 01-entering-dev-mode.md          # Unlocking Dev Mode, PIN, sessions & locks
+    │   │   ├── 02-editing-content-and-canvas.md # Editing copy, links & Document Canvas blocks
+    │   │   ├── 03-photos-and-drive-galleries.md # Uploading photos & syncing Google Drive folders
+    │   │   ├── 04-configuring-charts-in-browser.md # Connecting Google Sheets & styling charts
+    │   │   └── 05-history-undo-and-publishing.md   # Undo/Redo, History drawer & publishing live
+    │   └── developers/                          # Engineering, integration & infra recipes
+    │       ├── 01-dual-channel-content-db.md    # Live vs. draft Supabase persistence
+    │       ├── 02-google-sheets-chart-sync.md   # In-browser chart studio + live sheet sync
+    │       ├── 03-edge-pre-baking-and-kv-cache.md # Cloudflare Pages Functions + KV cache
+    │       ├── 04-theming-and-design-tokens.md  # CSS design tokens, fonts, and themes
+    │       ├── 05-diagnostics-and-testing.md    # Verifying integrity, purity, and schemas
+    │       └── 06-configuring-dev-mode.md       # Wiring EngineConfig, PIN hash & Dev chrome
     ├── reference/                               # Exhaustive technical specifications
     │   ├── 01-public-api-exports.md             # Package entrypoints and exported APIs
     │   ├── 02-data-contracts.md                 # TypeScript models and Zod schemas
@@ -68,7 +76,8 @@ docs/
 
 ## ⚡ Quick Links by Role
 
-- **For Application Developers Consuming Folio**: Start with [Tutorial 01: Getting Started](file:///Users/francisdave/Documents/folio/docs/folio-engine/tutorials/01-getting-started.md) and review [Public API Exports](file:///Users/francisdave/Documents/folio/docs/folio-engine/reference/01-public-api-exports.md).
-- **For Content & Editorial Coordinators**: Read [How-To: Dual-Channel Content DB](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/01-dual-channel-content-db.md) and [Explanation: Coordinator Mode](file:///Users/francisdave/Documents/folio/docs/folio-engine/explanation/05-coordinator-mode-concurrency.md).
-- **For Designers & Frontend Engineers**: Read [How-To: Theming and Design Tokens](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/04-theming-and-design-tokens.md) and [Component Catalog](file:///Users/francisdave/Documents/folio/docs/folio-engine/reference/03-components.md).
-- **For DevOps & Cloud Architects**: Read [How-To: Edge Pre-Baking & KV Cache](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/03-edge-pre-baking-and-kv-cache.md) and [Explanation: System Architecture](file:///Users/francisdave/Documents/folio/docs/folio-engine/explanation/01-system-architecture.md).
+- **For End-Users & Editorial Coordinators (In-Browser Editing)**: Start with [How-To: Enter & Manage Dev Mode](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/end-users/01-entering-dev-mode.md) and browse [how-to/end-users/](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/end-users/).
+- **For Application Developers Consuming Folio**: Start with [Tutorial 01: Getting Started](file:///Users/francisdave/Documents/folio/docs/folio-engine/tutorials/01-getting-started.md), [How-To: Configure Dev Mode](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/developers/06-configuring-dev-mode.md), and [Public API Exports](file:///Users/francisdave/Documents/folio/docs/folio-engine/reference/01-public-api-exports.md).
+- **For Content Infrastructure & Persistence**: Read [How-To: Dual-Channel Content DB](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/developers/01-dual-channel-content-db.md) and [Explanation: Coordinator Mode](file:///Users/francisdave/Documents/folio/docs/folio-engine/explanation/05-coordinator-mode-concurrency.md).
+- **For Designers & Frontend Engineers**: Read [How-To: Theming and Design Tokens](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/developers/04-theming-and-design-tokens.md) and [Component Catalog](file:///Users/francisdave/Documents/folio/docs/folio-engine/reference/03-components.md).
+- **For DevOps & Cloud Architects**: Read [How-To: Edge Pre-Baking & KV Cache](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/developers/03-edge-pre-baking-and-kv-cache.md) and [Explanation: System Architecture](file:///Users/francisdave/Documents/folio/docs/folio-engine/explanation/01-system-architecture.md).

@@ -8,6 +8,14 @@ describe('Subpath Exports & Multi-Entry Architecture', () => {
     expect(rootExports.App).toBeDefined();
     expect(typeof rootExports.App).toBe('function');
     expect(rootExports.getEngineConfig).toBeDefined();
+    expect(rootExports.MigrationProvider).toBeDefined();
+    expect(rootExports.useMigrationContext).toBeDefined();
+    expect(rootExports.resolveContentWatermark).toBeDefined();
+    expect(rootExports.updateWatermark).toBeDefined();
+    expect(rootExports.compareSemver).toBeDefined();
+    expect(rootExports.isValidSemver).toBeDefined();
+    expect(rootExports.generateAiMigrationPrompt).toBeDefined();
+    expect(typeof rootExports.generateAiMigrationPrompt).toBe('function');
   });
 
   it('exposes edge and KV contracts without importing React components', () => {

@@ -93,7 +93,12 @@ export interface DeveloperModeContextType {
   cloudSyncStatus?: CloudDraftSyncStatus;
 
   /** Display a floating Toast feedback capsule */
-  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  showToast: (
+    message: string,
+    type?: 'success' | 'error' | 'info',
+    actionLabel?: string,
+    onAction?: () => void
+  ) => void;
 }
 
 export type DevEditType = 'text' | 'link' | 'image' | 'file';

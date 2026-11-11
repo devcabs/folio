@@ -17,6 +17,7 @@ export const EngineConfigSchema = z.object({
   appId: z.string().min(1, "appId is required"),
   appNamespace: z.string().min(1, "appNamespace is required"),
   basePath: z.string().optional(),
+  contentVersion: z.string().optional(),
   nodes: z.array(z.any()).default([]),
   branding: EngineBrandingConfigSchema,
   securitySalt: z.string().optional(),
@@ -44,6 +45,7 @@ export interface EngineConfig {
   appId: string;
   appNamespace: string;      // Storage & event prefix (e.g. 'folio_app')
   basePath?: string;         // Optional hosting subpath (e.g. '/portal' or '')
+  contentVersion?: string;   // Content watermark declared by consumer app
   nodes: NodeItem[];
   branding: EngineBrandingConfig;
   securitySalt?: string;
@@ -67,6 +69,7 @@ export function createDefaultEngineConfig(overrides?: Partial<EngineConfig>): En
       markWaviness: 0.15,
     },
     nodes: [],
+    contentVersion: undefined,
     securitySalt: undefined,
     expectedPinHash: undefined,
     features: {

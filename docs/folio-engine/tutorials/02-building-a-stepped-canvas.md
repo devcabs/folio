@@ -201,5 +201,6 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
 ## 🚀 Next Steps
 
 Explore the **How-To Guides** to extend this experience:
-- Learn how to persist changes with [How-To: Dual-Channel Content DB](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/01-dual-channel-content-db.md).
-- Learn how to bind Google Sheets to charts with [How-To: Google Sheets Chart Sync](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/02-google-sheets-chart-sync.md).
+- Learn how to persist changes with [How-To: Dual-Channel Content DB](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/developers/01-dual-channel-content-db.md).
+- Learn how to bind Google Sheets to charts with [How-To: Google Sheets Chart Sync](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/developers/02-google-sheets-chart-sync.md).
+- Learn how to configure Dev Mode for your app with [How-To: Configure Dev Mode in Your App](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/developers/06-configuring-dev-mode.md).

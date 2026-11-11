@@ -87,6 +87,27 @@ npx vitest run tests/components/vector-chart-studio.test.ts
 npx vitest run --coverage
 ```
 
+### Storage Isolation & Deterministic Test Ordering
+
+All migration and watermark tests (such as `tests/migration.test.ts`, `tests/services/migration-service.test.ts`, and `tests/utils/watermark-resolver.test.ts`) MUST isolate persistence state between test cases using `createInMemoryAdapter()` in `beforeEach`:
+
+```typescript
+import { createInMemoryAdapter, type StorageAdapter } from '../src/utils/storageAdapter';
+
+describe('watermark resolution', () => {
+  let storage: StorageAdapter;
+
+  beforeEach(() => {
+    storage = createInMemoryAdapter();
+  });
+
+  // Pass `storage` explicitly to all service and resolver functions
+});
+```
+
+- Direct `localStorage`, `window.localStorage`, or `globalThis.localStorage` calls are forbidden in test files.
+- `vitest.config.ts` sets `globals: true` and `clearMocks: true` (under `environment: 'node'`) so test state and mock call histories never leak across test ordering or parallel runs.
+
 ---
 
 ## 5. Wiring CI / GitHub Actions Quality Gate

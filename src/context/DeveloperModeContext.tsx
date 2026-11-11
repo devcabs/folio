@@ -52,6 +52,51 @@ import {
 import type { CloudDraftSyncStatus } from '../types/draft';
 import { Toast } from '../components/feedback/Toast';
 import { handleBeforeUnloadGuard } from '../services/unsavedChangesService';
+import { useMigrationContext } from './MigrationContext';
+
+export interface ToastState {
+  message: string;
+  type: 'error' | 'success' | 'info';
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
+interface MigrationToastWatcherProps {
+  isDevMode: boolean;
+  setToastState: React.Dispatch<React.SetStateAction<ToastState | null>>;
+}
+
+const MigrationToastWatcher: React.FC<MigrationToastWatcherProps> = ({
+  isDevMode,
+  setToastState,
+}) => {
+  let migration: ReturnType<typeof useMigrationContext> | null = null;
+  try {
+    migration = useMigrationContext();
+  } catch {
+    migration = null;
+  }
+
+  const hasFiredRef = useRef(false);
+
+  useEffect(() => {
+    if (isDevMode && migration?.pendingReport?.hasPendingContentChanges) {
+      if (!hasFiredRef.current) {
+        hasFiredRef.current = true;
+        setToastState({
+          message: 'Pending content migrations detected.',
+          type: 'info',
+          actionLabel: 'Review Migrations',
+          onAction: migration.openMigrationModal,
+        });
+      }
+    } else if (!isDevMode) {
+      hasFiredRef.current = false;
+    }
+  }, [isDevMode, migration?.pendingReport, migration?.openMigrationModal, setToastState]);
+
+  return null;
+};
 
 const DeveloperModeContext = createContext<DeveloperModeContextType | null>(null);
 
@@ -61,7 +106,7 @@ export interface DeveloperModeProviderProps {
   expectedPinHash?: string;
 }
 
-export const DeveloperModeProvider: React.FC<DeveloperModeProviderProps> = ({
+const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
   children,
   securitySalt,
   expectedPinHash,
@@ -99,10 +144,7 @@ export const DeveloperModeProvider: React.FC<DeveloperModeProviderProps> = ({
     return getRemainingSessionMinutes(getSessionUnlockTime());
   });
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState<boolean>(() => isDraftDirty());
-  const [toastState, setToastState] = useState<{
-    message: string;
-    type: 'error' | 'success' | 'info';
-  } | null>(null);
+  const [toastState, setToastState] = useState<ToastState | null>(null);
 
   const sessionCheckIntervalRef = useRef<number | null>(null);
   const lockoutIntervalRef = useRef<number | null>(null);
@@ -752,9 +794,17 @@ export const DeveloperModeProvider: React.FC<DeveloperModeProviderProps> = ({
     }
   }, [openPinModal]);
 
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    setToastState({ message, type });
-  }, []);
+  const showToast = useCallback(
+    (
+      message: string,
+      type: 'success' | 'error' | 'info' = 'success',
+      actionLabel?: string,
+      onAction?: () => void
+    ) => {
+      setToastState({ message, type, actionLabel, onAction });
+    },
+    []
+  );
 
   const value: DeveloperModeContextType = {
     isDevMode,
@@ -791,17 +841,22 @@ export const DeveloperModeProvider: React.FC<DeveloperModeProviderProps> = ({
 
   return (
     <DeveloperModeContext.Provider value={value}>
+      <MigrationToastWatcher isDevMode={isDevMode} setToastState={setToastState} />
       {children}
       {toastState && (
         <Toast
           message={toastState.message}
           type={toastState.type}
+          actionLabel={toastState.actionLabel}
+          onAction={toastState.onAction}
           onDismiss={() => setToastState(null)}
         />
       )}
     </DeveloperModeContext.Provider>
   );
 };
+
+export const DeveloperModeProvider = React.memo(DeveloperModeProviderComponent);
 
 export const useDeveloperMode = (): DeveloperModeContextType => {
   const context = useContext(DeveloperModeContext);

@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { calculateTargetVersion, compareSemver } from './lib/semver-utils.js';
 
 // ANSI color formatting
 const colors = {
@@ -40,6 +41,18 @@ function getOutput(command: string): string {
   }
 }
 
+function printMissingLedgerEntry(targetVersion: string, c: typeof colors): void {
+  console.error(`${c.dim}  {
+    version: '${targetVersion}',
+    releaseDate: 'YYYY-MM-DD',
+    title: 'Release title',
+    summary: 'Brief summary of this release.',
+    breakingChanges: ['Describe breaking change here'],
+    codeActions: [],
+    contentChanges: ['Describe content change here'],
+  }${c.reset}\n`);
+}
+
 async function main() {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
@@ -56,7 +69,7 @@ async function main() {
   console.log(`${colors.dim}   Current Version: v${currentVersion}${colors.reset}`);
   console.log(`${colors.bright}${colors.blue}══════════════════════════════════════════════════════════${colors.reset}`);
 
-  const totalSteps = 6;
+  const totalSteps = 7;
 
   // Parse bump argument: patch | minor | major | explicit semver (default: patch)
   const rawArg = process.argv.slice(2).find((arg) => !arg.startsWith('-')) || 'patch';
@@ -151,8 +164,77 @@ async function main() {
   run('npm run build:lib', 'Library compilation & type generation');
   console.log(`  ${colors.green}✓${colors.reset} Library bundle and declaration files generated.`);
 
-  // ── Step 4: Bump Version & Create Release Tag ──
-  logStep(4, totalSteps, `Bumping version (${bumpType})...`);
+  // ── Step 3.5: Ledger Pre-Flight Check ──
+  logStep(4, totalSteps, 'Ledger Pre-Flight Check (migration ledger gate)...');
+
+  const targetVersion = calculateTargetVersion(currentVersion, bumpType);
+  console.log(`  ${colors.dim}  Target version:${colors.reset} ${colors.bright}v${targetVersion}${colors.reset}`);
+
+  const ledgerPath = path.join(rootDir, 'src', 'migrations', 'ledger.ts');
+
+  if (!fs.existsSync(ledgerPath)) {
+    console.error(`\n${colors.red}❌ DEPLOY BLOCKED: Migration ledger not found at src/migrations/ledger.ts!${colors.reset}`);
+    console.error(`\nCreate the file and add the following entry BEFORE running deploy:\n`);
+    printMissingLedgerEntry(targetVersion, colors);
+    process.exit(1);
+  }
+
+  const ledgerText = fs.readFileSync(ledgerPath, 'utf-8');
+
+  // Extract all version strings present in the ledger.
+  const versionRe = /version:\s*['"](\d+\.\d+\.\d+[^'"]*)['"]/g;
+  const foundVersions: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = versionRe.exec(ledgerText)) !== null) {
+    foundVersions.push(m[1]);
+  }
+
+  if (!foundVersions.includes(targetVersion)) {
+    console.error(`\n${colors.red}❌ DEPLOY BLOCKED: Missing migration ledger entry for v${targetVersion}!${colors.reset}`);
+    console.error(`\nAdd the following entry to src/migrations/ledger.ts BEFORE running deploy:\n`);
+    printMissingLedgerEntry(targetVersion, colors);
+    process.exit(1);
+  }
+
+  // Confirm the found entry has non-empty breakingChanges and contentChanges.
+  // We locate the version's block by finding its position and scanning forward
+  // to the next version block (or end of array literal).
+  const versionIdx = ledgerText.indexOf(`version: '${targetVersion}'`) !== -1
+    ? ledgerText.indexOf(`version: '${targetVersion}'`)
+    : ledgerText.indexOf(`version: "${targetVersion}"`);
+
+  // Find the closing bracket of this entry's object (heuristic: next top-level `}`).
+  const entrySlice = ledgerText.slice(versionIdx);
+  const nextEntryStart = entrySlice.search(/},\s*\{/) !== -1
+    ? versionIdx + entrySlice.search(/},\s*\{/) + 1
+    : ledgerText.length;
+  const entryBlock = ledgerText.slice(versionIdx, nextEntryStart);
+
+  const hasBreakingChanges = /breakingChanges:\s*\[[^\]]*\S[^\]]*\]/.test(entryBlock);
+  const hasContentChanges = /contentChanges:\s*\[[^\]]*\S[^\]]*\]/.test(entryBlock);
+
+  if (!hasBreakingChanges || !hasContentChanges) {
+    const missing: string[] = [];
+    if (!hasBreakingChanges) missing.push('breakingChanges (must be a non-empty array)');
+    if (!hasContentChanges) missing.push('contentChanges (must be a non-empty array)');
+
+    console.error(`\n${colors.red}❌ DEPLOY BLOCKED: Incomplete migration ledger entry for v${targetVersion}!${colors.reset}`);
+    console.error(`\nMissing required fields in the ledger entry:`);
+    missing.forEach((f) => console.error(`  ${colors.yellow}•${colors.reset} ${f}`));
+    console.error(`\nUpdate the entry in src/migrations/ledger.ts to include non-empty arrays for all required fields.\n`);
+    process.exit(1);
+  }
+
+  // Also assert target > current as a sanity guard.
+  if (compareSemver(targetVersion, currentVersion) <= 0) {
+    console.error(`\n${colors.red}❌ DEPLOY BLOCKED: Target version v${targetVersion} is not greater than current v${currentVersion}.${colors.reset}`);
+    process.exit(1);
+  }
+
+  console.log(`  ${colors.green}✓${colors.reset} Ledger entry confirmed for ${colors.bright}v${targetVersion}${colors.reset} with breakingChanges and contentChanges.`);
+
+  // ── Step 5: Bump Version & Create Release Tag ──
+  logStep(5, totalSteps, `Bumping version (${bumpType})...`);
   run(`npm version ${bumpType} -m "chore(release): %s"`, `Bumping version via npm version ${bumpType}`);
 
   // Re-read updated package.json
@@ -160,13 +242,13 @@ async function main() {
   const newVersion = updatedPkg.version;
   console.log(`  ${colors.green}✓${colors.reset} Version bumped: ${colors.dim}v${currentVersion}${colors.reset} ➔ ${colors.bright}${colors.green}v${newVersion}${colors.reset}`);
 
-  // ── Step 5: Publish to npm ──
-  logStep(5, totalSteps, `Publishing ${pkgName}@${newVersion} to npm...`);
+  // ── Step 6: Publish to npm ──
+  logStep(6, totalSteps, `Publishing ${pkgName}@${newVersion} to npm...`);
   run('npm publish', `Publishing to npm registry`);
   console.log(`  ${colors.green}✓${colors.reset} Successfully published ${pkgName}@${newVersion} to npm!`);
 
-  // ── Step 6: Push Release Commit & Tag to GitHub ──
-  logStep(6, totalSteps, `Pushing release commit and tag (v${newVersion}) to GitHub...`);
+  // ── Step 7: Push Release Commit & Tag to GitHub ──
+  logStep(7, totalSteps, `Pushing release commit and tag (v${newVersion}) to GitHub...`);
   run(`git push origin ${branch} --follow-tags`, `Pushing release commit and tags to origin/${branch}`);
   console.log(`  ${colors.green}✓${colors.reset} Pushed to GitHub with tags.`);
 

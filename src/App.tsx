@@ -20,6 +20,7 @@ import { cinematicScrollTo } from './utils/smooth-scroll';
 import rawNodes from './data/sample-nodes.json';
 import type { NodeItem, NodeCode } from './types/node';
 
+import { MigrationProvider } from './context/MigrationContext';
 import { DeveloperModeProvider } from './context/DeveloperModeContext';
 import { UndoRedoProvider } from './context/UndoRedoContext';
 import {
@@ -403,12 +404,16 @@ export const App: React.FC<AppProps> = ({ config }) => {
     }
   }, [config]);
 
+  const activeConfig = config ? { ...getEngineConfig(), ...config } : getEngineConfig();
+
   return (
-    <DeveloperModeProvider>
-      <UndoRedoProvider>
-        <AppContent />
-      </UndoRedoProvider>
-    </DeveloperModeProvider>
+    <MigrationProvider engineConfig={activeConfig}>
+      <DeveloperModeProvider>
+        <UndoRedoProvider>
+          <AppContent />
+        </UndoRedoProvider>
+      </DeveloperModeProvider>
+    </MigrationProvider>
   );
 };
 

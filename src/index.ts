@@ -14,6 +14,7 @@ export * from './types/source';
 export * from './types/history';
 export * from './types/media';
 export * from './types/navigation';
+export * from './types/migration';
 
 // Engine Configuration & Diagnostics
 export * from './config/engine.config';
@@ -78,12 +79,18 @@ export * from "./services/undoRedoService";
 export * from "./services/unsavedChangesService";
 export * from "./utils/contentDb";
 export * from "./utils/storage";
+export * from "./utils/storageAdapter";
+export * from "./utils/watermarkResolver";
+export * from "./utils/semver-utils";
+export * from "./utils/migrationPromptFormatter";
+export * from "./services/migrationService";
 export * from "./utils/devSecurity";
 export * from "./utils/supabase-config";
 
 // Coordinator Chrome, Modals & Workflows (Task 18.8)
 export * from "./components/dev";
 export * from "./components/history";
+export * from "./context/MigrationContext";
 export * from "./context/DeveloperModeContext";
 export * from "./context/UndoRedoContext";
 export * from "./hooks/useDeveloperMode";

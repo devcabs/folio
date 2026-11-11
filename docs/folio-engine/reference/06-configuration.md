@@ -16,7 +16,7 @@ export interface EngineConfig {
   nodes: NodeItem[];                        // Array of sequence waypoints
   branding: EngineBrandingConfig;           // Branding and aesthetic settings
   securitySalt?: string;                    // Salt for PIN SHA-256 hash
-  expectedPinHash?: string;                 // SHA-256 expected hash of 6-digit coordinator PIN
+  expectedPinHash?: string;                 // SHA-256 expected hash of 4-digit coordinator PIN
   features?: {
     enableChartDrawer?: boolean;            // Toggle in-browser chart drawer (default: true)
     enableEditorMode?: boolean;             // Toggle coordinator editing mode (default: true)
@@ -48,8 +48,9 @@ export interface EngineBrandingConfig {
 | :--- | :--- | :--- |
 | `VITE_SUPABASE_URL` | String | Cloud Supabase project URL (`https://xyz.supabase.co`). |
 | `VITE_SUPABASE_ANON_KEY` | String | Public Supabase anonymous client key. |
-| `VITE_EXPECTED_PIN_HASH` | String | SHA-256 hash of coordinator PIN. |
-| `VITE_SECURITY_SALT` | String | Salt string concatenated with PIN before hashing. |
+| `VITE_DEV_PIN_HASH` | String | Salted SHA-256 hash (`SHA-256("${salt}:${pin}")`) of 4-digit coordinator PIN. |
+| `VITE_DEV_SALT` | String | Salt string prepended with `:` before hashing the PIN. |
+| `VITE_GOOGLE_DRIVE_API_KEY` | String | Google Drive API key used to verify public Drive folders and sync photos. |
 
 ---
 

@@ -24,3 +24,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Auto-generated from src/migrations/ledger.ts at publish time — do not commit.
+CHANGELOG.md

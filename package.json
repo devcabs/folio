@@ -62,7 +62,9 @@
     "test:tokens": "tsx scripts/verify-token-aliases.ts",
     "lint": "eslint .",
     "prepack": "npm run build:lib",
-    "deploy": "tsx scripts/deploy.ts"
+    "deploy": "tsx scripts/deploy.ts",
+    "changelog": "tsx scripts/generate-changelog.ts",
+    "changelog:verify": "tsx scripts/generate-changelog.ts --verify"
   },
   "files": [
     "dist"
