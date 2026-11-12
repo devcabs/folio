@@ -82,6 +82,7 @@ export * from "./utils/storage";
 export * from "./utils/storageAdapter";
 export * from "./utils/watermarkResolver";
 export * from "./utils/semver-utils";
+export * from "./migrations/ledger";
 export * from "./utils/migrationPromptFormatter";
 export * from "./services/migrationService";
 export * from "./utils/devSecurity";

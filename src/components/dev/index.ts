@@ -6,3 +6,5 @@ export type { UniversalEditModalProps } from './UniversalEditModal';
 export { DevLockBlockedModal } from './DevLockBlockedModal';
 export { DevExitConfirmModal } from './DevExitConfirmModal';
 export { DevPublishModal } from './DevPublishModal';
+export { DevMigrationModal } from './DevMigrationModal';
+export type { DevMigrationModalProps } from './DevMigrationModal';

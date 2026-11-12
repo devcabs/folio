@@ -32,6 +32,7 @@ import { ... } from '@devcabs/folio-engine';
 - **Canvas AST Contracts**: `CanvasElement`, `CanvasElementType`, `CanvasElementBase`, `SectionElement`, `SubsectionElement`, `CanvasLeafElement`, `CanvasChildElement`, `TextElement`, `PhotoElement`, `GalleryElement`, `ChartElement`, `NodeCanvasDocument`.
 - **Chart Contracts**: `ChartType`, `ChartConfig`, `ChartSeries`, `ScatterPoint`, `HistogramBin`, `ChartVisualConfig`.
 - **Developer & History Contracts**: `CoordinatorLock`, `HistoryEntry`, `HistoryLedger`, `DraftDiff`.
+- **Migration Contracts & Schemas**: `ContentMigration`, `CodeMigration`, `MigrationEntry`, `MigrationEntryInput`, `PendingMigrationReport`, `ContentMigrationSchema`, `CodeMigrationSchema`, `MigrationEntrySchema`, `PendingMigrationReportSchema`, `SEMVER_REGEX`.
 - **Navigation Contracts**: `NavItem`, `SubchapterNav`, `BreadcrumbItem`.
 
 ### Engine Configuration & Store

@@ -28,6 +28,7 @@ import {
   DevModeBadge,
   DevLockBlockedModal,
   DevExitConfirmModal,
+  DevMigrationModal,
 } from './components/dev';
 import { hydrateHistoryFromIndexedDB } from './services/historyService';
 import styles from './App.module.css';
@@ -373,6 +374,7 @@ const AppContent: React.FC = () => {
       <DevPinModal />
       <DevLockBlockedModal />
       <DevExitConfirmModal />
+      <DevMigrationModal />
       <DevModeBadge />
     </div>
   );

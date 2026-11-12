@@ -38,12 +38,12 @@ This initiative introduces a comprehensive 3-pillar safety system:
 
 | Subtask ID | Title | Scope | File Reference | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **1.10** | [Migration Data Contracts & Config](file:///Users/francisdave/Documents/folio/docs/task/1.10-migration-data-contracts.md) | Define TypeScript contracts + Zod schemas for migration entries, extend `EngineConfig` | `docs/task/1.10-migration-data-contracts.md` | Pending |
-| **1.11** | [Migration Ledger & Runtime Service](file:///Users/francisdave/Documents/folio/docs/task/1.11-migration-ledger-and-service.md) | Implement `src/migrations/ledger.ts` and `src/services/migrationService.ts` with baseline history | `docs/task/1.11-migration-ledger-and-service.md` | Pending |
+| **1.10** | [Migration Data Contracts & Config](file:///Users/francisdave/Documents/folio/docs/task/1.10-migration-data-contracts.md) | Define TypeScript contracts + Zod schemas for migration entries, extend `EngineConfig` | `docs/task/1.10-migration-data-contracts.md` | Completed |
+| **1.11** | [Migration Ledger & Runtime Service](file:///Users/francisdave/Documents/folio/docs/task/1.11-migration-ledger-and-service.md) | Implement `src/migrations/ledger.ts` and `src/services/migrationService.ts` with baseline history | `docs/task/1.11-migration-ledger-and-service.md` | Completed |
 | **1.12** | [Dev Mode Notification & Review Modal](file:///Users/francisdave/Documents/folio/docs/task/1.12-dev-mode-notification-and-modal.md) | Build `DevMigrationModal`, Dev Mode toast trigger, and `DevModeBadge` indicator pill | `docs/task/1.12-dev-mode-notification-and-modal.md` | Pending |
-| **1.13** | [CLI Doctor & AI Migration Agent Rules](file:///Users/francisdave/Documents/folio/docs/task/1.13-cli-doctor-and-agent-reminders.md) | Create `npx folio-engine doctor` CLI runner and `.agents/rules/folio-engine-migration.md` | `docs/task/1.13-cli-doctor-and-agent-reminders.md` | Pending |
-| **1.14** | [Hard Deploy Gate & Auto-Changelog](file:///Users/francisdave/Documents/folio/docs/task/1.14-deploy-release-gate-and-changelog.md) | Enforce ledger entry in `scripts/deploy.ts` and compile `CHANGELOG.md` via `--verify` gate | `docs/task/1.14-deploy-release-gate-and-changelog.md` | Pending |
-| **1.15** | [Verification, Unit Tests & Quality Gates](file:///Users/francisdave/Documents/folio/docs/task/1.15-testing-and-verification.md) | Comprehensive test suite for ledger integrity, diff computation, and token audits | `docs/task/1.15-testing-and-verification.md` | Pending |
+| **1.13** | [CLI Doctor & AI Migration Agent Rules](file:///Users/francisdave/Documents/folio/docs/task/1.13-cli-doctor-and-agent-reminders.md) | Create `npx folio-engine doctor` CLI runner and `.agents/rules/folio-engine-migration.md` | `docs/task/1.13-cli-doctor-and-agent-reminders.md` | Completed |
+| **1.14** | [Hard Deploy Gate & Auto-Changelog](file:///Users/francisdave/Documents/folio/docs/task/1.14-deploy-release-gate-and-changelog.md) | Enforce ledger entry in `scripts/deploy.ts` and compile `CHANGELOG.md` via `--verify` gate | `docs/task/1.14-deploy-release-gate-and-changelog.md` | Completed |
+| **1.15** | [Verification, Unit Tests & Quality Gates](file:///Users/francisdave/Documents/folio/docs/task/1.15-testing-and-verification.md) | Comprehensive test suite for ledger integrity, diff computation, and token audits | `docs/task/1.15-testing-and-verification.md` | Completed |
 
 ---
 
@@ -90,9 +90,9 @@ flowchart TD
 ## 🛡️ Quality Verification Gates
 
 Before completing the overall task:
-- [ ] `npm run test:tokens` passes with 0 token mismatches or raw values.
-- [ ] `npm test` runs with 100% passing tests (including `tests/migration.test.ts`).
-- [ ] `npm run build:lib` and `tsc --noEmit` succeed with zero TypeScript diagnostics.
-- [ ] `scripts/deploy.ts` pre-flight validation successfully blocks bump if ledger entry is omitted.
-- [ ] Dev Mode entry in consumer test scenario prompts toast and opens `DevMigrationModal`.
+- [x] `npm run test:tokens` passes with 0 token mismatches or raw values.
+- [x] `npm test` runs with 100% passing tests (including `tests/migration.test.ts`).
+- [x] `npm run build:lib` and `tsc --noEmit` succeed with zero TypeScript diagnostics.
+- [x] `scripts/deploy.ts` pre-flight validation successfully blocks bump if ledger entry is omitted.
+- [x] Dev Mode entry in consumer test scenario prompts toast and opens `DevMigrationModal`.
 

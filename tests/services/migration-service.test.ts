@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   getContentVersionWatermark,
   setContentVersionWatermark,
@@ -8,12 +8,18 @@ import {
   FOLIO_CONTENT_VERSION_KEY,
 } from '../../src/services/migrationService';
 import { createInMemoryAdapter, type StorageAdapter } from '../../src/utils/storageAdapter';
+import { setEngineConfig, resetEngineConfig } from '../../src/config/engine.config';
 
-describe('migrationService (Pre-wired SSR & Storage Safety)', () => {
+describe('migrationService (SSR, Storage Safety & Ledger Runtime)', () => {
   let storage: StorageAdapter;
 
   beforeEach(() => {
+    resetEngineConfig();
     storage = createInMemoryAdapter();
+  });
+
+  afterEach(() => {
+    resetEngineConfig();
   });
 
   describe('Watermark Persistence & Retrieval', () => {
@@ -57,16 +63,48 @@ describe('migrationService (Pre-wired SSR & Storage Safety)', () => {
     });
   });
 
-  describe('Pending Migrations & Prompt Stubs', () => {
-    it('returns initial pending migrations report with resolved watermark', () => {
+  describe('Pending Migrations & Prompt Generation', () => {
+    it('returns pending migrations report with resolved watermark and unapplied versions', () => {
       storage.setItem(FOLIO_CONTENT_VERSION_KEY, '0.1.1');
+      const ledger = getMigrationLedger();
+      const latestVersion = ledger[ledger.length - 1].version;
       const report = getPendingMigrations(undefined, storage);
 
-      expect(report.currentEngineVersion).toBe('0.1.3');
+      expect(report.currentEngineVersion).toBe(latestVersion);
       expect(report.contentVersionWatermark).toBe('0.1.1');
+      expect(report.hasPendingContentChanges).toBe(true);
+      expect(report.pendingContentChanges.length).toBeGreaterThan(0);
+      expect(report.unappliedVersions).toEqual(
+        expect.arrayContaining(['0.1.2', '0.1.3', latestVersion])
+      );
+    });
+
+    it('returns empty pending changes when watermark matches latest engine version', () => {
+      const ledger = getMigrationLedger();
+      const latestVersion = ledger[ledger.length - 1].version;
+      storage.setItem(FOLIO_CONTENT_VERSION_KEY, latestVersion);
+
+      const report = getPendingMigrations(undefined, storage);
+      expect(report.currentEngineVersion).toBe(latestVersion);
+      expect(report.contentVersionWatermark).toBe(latestVersion);
       expect(report.hasPendingContentChanges).toBe(false);
-      expect(Array.isArray(report.pendingContentChanges)).toBe(true);
-      expect(Array.isArray(report.unappliedVersions)).toBe(true);
+      expect(report.pendingContentChanges).toEqual([]);
+      expect(report.unappliedVersions).toEqual([]);
+    });
+
+    it('falls back to active EngineConfig.contentVersion when config argument is omitted', () => {
+      setEngineConfig({ contentVersion: '0.1.2' });
+      expect(getContentVersionWatermark(undefined, storage)).toBe('0.1.2');
+
+      const report = getPendingMigrations(undefined, storage);
+      expect(report.contentVersionWatermark).toBe('0.1.2');
+      expect(report.unappliedVersions).not.toContain('0.1.2');
+    });
+
+    it('throws on invalid explicit watermark semver', () => {
+      expect(() => getPendingMigrations('v0.1.1', storage)).toThrow(
+        /Invalid watermark semver/
+      );
     });
 
     it('uses explicit watermark if provided to getPendingMigrations', () => {
@@ -74,9 +112,11 @@ describe('migrationService (Pre-wired SSR & Storage Safety)', () => {
       expect(report.contentVersionWatermark).toBe('0.1.0');
     });
 
-    it('returns migration ledger as an array', () => {
+    it('returns migration ledger as a sorted array', () => {
       const ledger = getMigrationLedger();
       expect(Array.isArray(ledger)).toBe(true);
+      expect(ledger.length).toBeGreaterThanOrEqual(4);
+      expect(ledger[0].version).toBe('0.1.0');
     });
 
     it('generates an AI migration prompt string', () => {

@@ -231,3 +231,49 @@ export interface PublicPortalManifestPayload {
   generatedAt: string;
 }
 ```
+
+---
+
+## 5. Migration Ledger Contracts (`src/types/migration.ts`)
+
+All migration contracts are backed by strict Zod schemas (`ContentMigrationSchema`, `CodeMigrationSchema`, `MigrationEntrySchema`, `PendingMigrationReportSchema`) and validated against bare semver strings (`SEMVER_REGEX`, no leading `v` prefix).
+
+### `ContentMigration` & `CodeMigration`
+```typescript
+export interface ContentMigration {
+  id: string;
+  title: string;
+  required: boolean;
+  description: string;
+  affectedEntities?: string[];
+  migrationPrompt?: string;
+}
+
+export interface CodeMigration {
+  description: string;
+  affectedFiles?: string[];
+  exampleBefore?: string;
+  exampleAfter?: string;
+}
+```
+
+### `MigrationEntry` & `PendingMigrationReport`
+```typescript
+export interface MigrationEntry {
+  version: string;                          // Bare semver (e.g. '0.1.4')
+  releaseDate: string;                      // ISO format or YYYY-MM-DD
+  title: string;
+  summary: string;
+  breakingChanges: string[];
+  codeActions: CodeMigration[];
+  contentChanges: ContentMigration[];
+}
+
+export interface PendingMigrationReport {
+  currentEngineVersion: string;
+  contentVersionWatermark: string;
+  hasPendingContentChanges: boolean;
+  pendingContentChanges: ContentMigration[];
+  unappliedVersions: string[];
+}
+```

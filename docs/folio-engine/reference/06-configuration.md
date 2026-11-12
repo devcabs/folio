@@ -13,6 +13,7 @@ export interface EngineConfig {
   appId: string;                            // Unique application ID (e.g. 'showcase-app')
   appNamespace: string;                     // Storage prefix for localStorage & events (default: 'folio')
   basePath?: string;                        // Hosting base path (e.g. '/portal' or '')
+  contentVersion?: string;                  // Content watermark declared by consumer app
   nodes: NodeItem[];                        // Array of sequence waypoints
   branding: EngineBrandingConfig;           // Branding and aesthetic settings
   securitySalt?: string;                    // Salt for PIN SHA-256 hash

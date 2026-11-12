@@ -13,6 +13,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { FOLIO_MIGRATION_LEDGER, compareSemver } from '../src/migrations/ledger';
+import type { MigrationEntry } from '../src/types/migration';
 
 export const DEFAULT_OUTPUT_PATH = './CHANGELOG.md';
 const MAX_DIFF_LINES = 20;
@@ -80,12 +82,78 @@ export function parseChangelogArgs(argv: string[]): ChangelogCliOptions {
   return { outputPath, isDryRun, isVerify };
 }
 
+function formatIndentedCodeBlock(code: string, indent = '    '): string {
+  const lines = code.trimEnd().split('\n');
+  return [`${indent}\`\`\`ts`, ...lines.map((line) => `${indent}${line}`), `${indent}\`\`\``].join('\n');
+}
+
 /**
- * Generate the formatted CHANGELOG.md contents.
+ * Generate the formatted CHANGELOG.md contents from FOLIO_MIGRATION_LEDGER.
+ * Releases are ordered newest-first using deterministic semver comparison.
  */
-export function generateChangelog(): string {
-  // TODO (task 1.14): Import FOLIO_MIGRATION_LEDGER and format CHANGELOG.md
-  return '';
+export function generateChangelog(ledger: MigrationEntry[] = FOLIO_MIGRATION_LEDGER): string {
+  const sortedEntries = [...ledger].sort((a, b) => compareSemver(b.version, a.version));
+  const sections: string[] = [
+    '# Changelog',
+    '',
+    'All notable changes to `@devcabs/folio-engine` are compiled automatically from [`src/migrations/ledger.ts`](src/migrations/ledger.ts).',
+  ];
+
+  for (const entry of sortedEntries) {
+    const block: string[] = [
+      '',
+      `## v${entry.version} — ${entry.title} (${entry.releaseDate})`,
+      '',
+      entry.summary,
+    ];
+
+    if (entry.breakingChanges.length > 0) {
+      block.push('', '### Breaking Changes');
+      for (const item of entry.breakingChanges) {
+        block.push(`- ${item}`);
+      }
+    }
+
+    if (entry.codeActions.length > 0) {
+      block.push('', '### Code Migrations & Examples');
+      for (const action of entry.codeActions) {
+        block.push(`- ${action.description}`);
+        if (action.affectedFiles && action.affectedFiles.length > 0) {
+          block.push(
+            `  - **Affected files:** ${action.affectedFiles.map((file) => `\`${file}\``).join(', ')}`
+          );
+        }
+        if (action.exampleBefore) {
+          block.push('  - **Before:**', formatIndentedCodeBlock(action.exampleBefore));
+        }
+        if (action.exampleAfter) {
+          block.push('  - **After:**', formatIndentedCodeBlock(action.exampleAfter));
+        }
+      }
+    }
+
+    if (entry.contentChanges.length > 0) {
+      block.push('', '### Content Changes');
+      for (const change of entry.contentChanges) {
+        const badge = change.required ? 'REQUIRED' : 'OPTIONAL';
+        block.push(`- **[${badge}] ${change.title}** (\`${change.id}\`): ${change.description}`);
+        if (change.affectedEntities && change.affectedEntities.length > 0) {
+          block.push(
+            `  - **Affected entities / schemas:** ${change.affectedEntities
+              .map((entity) => `\`${entity}\``)
+              .join(', ')}`
+          );
+        }
+        if (change.migrationPrompt) {
+          block.push(`  - **Migration prompt:** ${change.migrationPrompt}`);
+        }
+      }
+    }
+
+    sections.push(block.join('\n'));
+  }
+
+  return `${sections.join('\n')}\n`;
 }
 
 /**

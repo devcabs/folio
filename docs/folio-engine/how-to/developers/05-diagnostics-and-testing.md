@@ -154,3 +154,32 @@ jobs:
       - name: Gate 5 - Dual-Mode Library Bundle
         run: npm run build:lib
 ```
+
+---
+
+## 6. CLI Migration Doctor (`folio-engine doctor`)
+
+Consumer repositories and AI coding assistants can audit engine compatibility, breaking code changes, and pending content migrations directly from the terminal via `bin/folio-engine.js` (`src/diagnostics/migrationDoctor.ts`):
+
+```bash
+# Run full migration diagnostic report (ANSI terminal output)
+npx folio-engine doctor
+npx folio-engine check
+
+# Machine-readable JSON output for CI pipelines or AI agents
+npx folio-engine doctor --format json
+
+# Audit changes starting from a specific prior engine version
+npx folio-engine doctor --from 0.1.2
+
+# Inspect release history or CLI version
+npx folio-engine changelog
+npx folio-engine version
+
+# Run directly in the engine repository during development
+npm run doctor
+```
+
+The diagnostic routine uses monorepo-safe resolution (`src/diagnostics/packageResolver.ts`) to locate the consumer's installed `@devcabs/folio-engine` package, consumer `package.json`, and local setup/content files (`sample-nodes.json`, `src/engine-setup.ts`, `engine-setup.ts`, `src/folio/engine-setup.ts`), compares versions against `FOLIO_MIGRATION_LEDGER`, and prints an actionable **Agent Prompt Block** when migrations are pending.
+
+For consumer AI workflows, copy or import `.agents/rules/folio-engine-migration.md` into your consumer application so AI assistants automatically run `npx folio-engine doctor` after every `@devcabs/folio-engine` upgrade.

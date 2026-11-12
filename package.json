@@ -5,6 +5,9 @@
   "main": "./dist/folio.cjs",
   "module": "./dist/folio.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "folio-engine": "./bin/folio-engine.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -63,10 +66,14 @@
     "lint": "eslint .",
     "prepack": "npm run build:lib",
     "deploy": "tsx scripts/deploy.ts",
+    "doctor": "tsx src/diagnostics/migrationDoctor.ts",
     "changelog": "tsx scripts/generate-changelog.ts",
     "changelog:verify": "tsx scripts/generate-changelog.ts --verify"
   },
   "files": [
-    "dist"
+    "dist",
+    "bin",
+    "docs/folio-engine",
+    "docs/README.md"
   ]
 }

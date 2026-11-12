@@ -73,9 +73,81 @@ describe('generate-changelog CLI', () => {
     });
   });
 
-  describe('generateChangelog (stub)', () => {
-    it('returns an empty string stub until task 1.14', () => {
-      expect(generateChangelog()).toBe('');
+  describe('generateChangelog', () => {
+    it('formats FOLIO_MIGRATION_LEDGER into newest-first GitHub-flavored Markdown', () => {
+      const output = generateChangelog();
+
+      expect(output).toContain('# Changelog');
+      expect(output).toContain('## v0.1.4 —');
+      expect(output).toContain('## v0.1.3 —');
+      expect(output).toContain('## v0.1.2 —');
+      expect(output).toContain('## v0.1.1 —');
+      expect(output).toContain('## v0.1.0 —');
+
+      // Newest-first ordering
+      expect(output.indexOf('## v0.1.4')).toBeLessThan(output.indexOf('## v0.1.3'));
+      expect(output.indexOf('## v0.1.3')).toBeLessThan(output.indexOf('## v0.1.0'));
+
+      // Breaking changes & content changes from 0.1.4
+      expect(output).toContain('### Breaking Changes');
+      expect(output).toContain('### Content Changes');
+      expect(output).toContain('content-version-watermark-0.1.4');
+      expect(output).toContain('[OPTIONAL]');
+      expect(output.endsWith('\n')).toBe(true);
+    });
+
+    it('formats codeActions with affectedFiles and before/after examples and required contentChanges', () => {
+      const output = generateChangelog([
+        {
+          version: '0.2.0',
+          releaseDate: '2026-12-01',
+          title: 'Schema v2',
+          summary: 'Major AST upgrade.',
+          breakingChanges: ['Removed legacy NodeItem.slug field.'],
+          codeActions: [
+            {
+              description: 'Rename slug prop to id in FolioNode.',
+              affectedFiles: ['src/App.tsx', 'src/data/nodes.json'],
+              exampleBefore: '<FolioNode slug="intro" />',
+              exampleAfter: '<FolioNode id="intro" />',
+            },
+          ],
+          contentChanges: [
+            {
+              id: 'ast-v2-required',
+              title: 'AST v2 Document Schema',
+              required: true,
+              description: 'All document blocks must specify blockType.',
+              affectedEntities: ['CanvasDocument', 'sample-nodes.json'],
+              migrationPrompt: 'Add blockType to each block in sample-nodes.json.',
+            },
+          ],
+        },
+        {
+          version: '0.1.0',
+          releaseDate: '2026-10-28',
+          title: 'Initial Release',
+          summary: 'Initial engine release.',
+          breakingChanges: [],
+          codeActions: [],
+          contentChanges: [],
+        },
+      ]);
+
+      expect(output.indexOf('## v0.2.0')).toBeLessThan(output.indexOf('## v0.1.0'));
+      expect(output).toContain('### Breaking Changes');
+      expect(output).toContain('Removed legacy NodeItem.slug field.');
+      expect(output).toContain('### Code Migrations & Examples');
+      expect(output).toContain('Rename slug prop to id in FolioNode.');
+      expect(output).toContain('`src/App.tsx`');
+      expect(output).toContain('`src/data/nodes.json`');
+      expect(output).toContain('<FolioNode slug="intro" />');
+      expect(output).toContain('<FolioNode id="intro" />');
+      expect(output).toContain('### Content Changes');
+      expect(output).toContain('[REQUIRED]');
+      expect(output).toContain('`ast-v2-required`');
+      expect(output).toContain('`CanvasDocument`');
+      expect(output).toContain('Add blockType to each block in sample-nodes.json.');
     });
   });
 

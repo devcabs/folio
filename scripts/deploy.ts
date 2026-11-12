@@ -41,8 +41,12 @@ function getOutput(command: string): string {
   }
 }
 
-function printMissingLedgerEntry(targetVersion: string, c: typeof colors): void {
-  console.error(`${c.dim}  {
+function printMissingLedgerEntry(
+  targetVersion: string,
+  c: typeof colors,
+  writeError: (msg: string) => void = (msg) => console.error(msg)
+): void {
+  writeError(`${c.dim}  {
     version: '${targetVersion}',
     releaseDate: 'YYYY-MM-DD',
     title: 'Release title',
@@ -51,6 +55,216 @@ function printMissingLedgerEntry(targetVersion: string, c: typeof colors): void 
     codeActions: [],
     contentChanges: ['Describe content change here'],
   }${c.reset}\n`);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function advancePastStringOrComment(source: string, idx: number): number | null {
+  const ch = source[idx];
+  if (ch === "'" || ch === '"' || ch === '`') {
+    let i = idx + 1;
+    while (i < source.length) {
+      if (source[i] === '\\') {
+        i += 2;
+        continue;
+      }
+      if (source[i] === ch) return i;
+      i++;
+    }
+    return source.length - 1;
+  }
+  if (ch === '/' && source[idx + 1] === '/') {
+    const nl = source.indexOf('\n', idx + 2);
+    return nl === -1 ? source.length - 1 : nl;
+  }
+  if (ch === '/' && source[idx + 1] === '*') {
+    const end = source.indexOf('*/', idx + 2);
+    return end === -1 ? source.length - 1 : end + 1;
+  }
+  return null;
+}
+
+function findMatchingDelimiter(
+  source: string,
+  openIndex: number,
+  openChar: '{' | '[',
+  closeChar: '}' | ']'
+): number {
+  let depth = 0;
+  for (let i = openIndex; i < source.length; i++) {
+    const skipped = advancePastStringOrComment(source, i);
+    if (skipped !== null) {
+      i = skipped;
+      continue;
+    }
+    if (source[i] === openChar) depth++;
+    else if (source[i] === closeChar) {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+function extractLedgerEntryBlock(ledgerText: string, targetVersion: string): string | null {
+  const versionPattern = new RegExp(`version:\\s*['"]${escapeRegExp(targetVersion)}['"]`);
+  const match = versionPattern.exec(ledgerText);
+  if (!match) return null;
+
+  let depth = 0;
+  let openBraceIdx = -1;
+  for (let i = match.index - 1; i >= 0; i--) {
+    if (ledgerText[i] === '}') depth++;
+    else if (ledgerText[i] === '{') {
+      if (depth === 0) {
+        openBraceIdx = i;
+        break;
+      }
+      depth--;
+    }
+  }
+
+  if (openBraceIdx === -1) return null;
+  const closeBraceIdx = findMatchingDelimiter(ledgerText, openBraceIdx, '{', '}');
+  if (closeBraceIdx === -1) return null;
+
+  return ledgerText.slice(openBraceIdx, closeBraceIdx + 1);
+}
+
+function isNonEmptyArrayField(entryBlock: string, fieldName: string): boolean {
+  const fieldPattern = new RegExp(`\\b${escapeRegExp(fieldName)}\\s*:\\s*\\[`);
+  const match = fieldPattern.exec(entryBlock);
+  if (!match) return false;
+
+  const openBracketIdx = entryBlock.indexOf('[', match.index);
+  const closeBracketIdx = findMatchingDelimiter(entryBlock, openBracketIdx, '[', ']');
+  if (closeBracketIdx === -1) return false;
+
+  const inner = entryBlock.slice(openBracketIdx + 1, closeBracketIdx);
+  const withoutComments = inner.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  return /\S/.test(withoutComments);
+}
+
+export type LedgerGateFailureReason =
+  | 'ledger-missing'
+  | 'version-not-greater'
+  | 'missing-entry'
+  | 'incomplete-entry';
+
+export interface LedgerGateResult {
+  valid: boolean;
+  targetVersion: string;
+  reason?: LedgerGateFailureReason;
+  missingFields?: string[];
+}
+
+export interface LedgerGateOptions {
+  currentVersion: string;
+  bumpType: string;
+  ledgerPath: string;
+  writeError?: (msg: string) => void;
+}
+
+/**
+ * Pure verification check for the Pre-Release Migration Ledger Gate.
+ * Computes the target version and inspects src/migrations/ledger.ts before npm version runs.
+ */
+export function verifyLedgerReleaseGate(options: LedgerGateOptions): LedgerGateResult {
+  const { currentVersion, bumpType, ledgerPath } = options;
+  const targetVersion = calculateTargetVersion(currentVersion, bumpType);
+
+  if (!fs.existsSync(ledgerPath)) {
+    return { valid: false, targetVersion, reason: 'ledger-missing' };
+  }
+
+  if (compareSemver(targetVersion, currentVersion) <= 0) {
+    return { valid: false, targetVersion, reason: 'version-not-greater' };
+  }
+
+  const ledgerText = fs.readFileSync(ledgerPath, 'utf-8');
+  const entryBlock = extractLedgerEntryBlock(ledgerText, targetVersion);
+  if (!entryBlock) {
+    return {
+      valid: false,
+      targetVersion,
+      reason: 'missing-entry',
+      missingFields: ['breakingChanges', 'codeActions', 'contentChanges'],
+    };
+  }
+
+  const missingFields: string[] = [];
+  if (!isNonEmptyArrayField(entryBlock, 'breakingChanges')) {
+    missingFields.push('breakingChanges (must be a non-empty array)');
+  }
+  if (!isNonEmptyArrayField(entryBlock, 'contentChanges')) {
+    missingFields.push('contentChanges (must be a non-empty array)');
+  }
+
+  if (missingFields.length > 0) {
+    return {
+      valid: false,
+      targetVersion,
+      reason: 'incomplete-entry',
+      missingFields,
+    };
+  }
+
+  return { valid: true, targetVersion };
+}
+
+/**
+ * Runs the Pre-Release Ledger Verification Gate and prints clear diagnostic errors on failure.
+ */
+export function runLedgerReleaseGate(options: LedgerGateOptions): boolean {
+  const writeError = options.writeError ?? ((msg: string) => console.error(msg));
+  const result = verifyLedgerReleaseGate(options);
+
+  if (result.valid) {
+    return true;
+  }
+
+  const { targetVersion, reason, missingFields } = result;
+
+  if (reason === 'ledger-missing') {
+    writeError(
+      `\n${colors.red}❌ DEPLOY BLOCKED: Migration ledger not found at src/migrations/ledger.ts!${colors.reset}`
+    );
+    writeError(`\nCreate the file and add the following entry BEFORE running deploy:\n`);
+    printMissingLedgerEntry(targetVersion, colors, writeError);
+    return false;
+  }
+
+  if (reason === 'missing-entry') {
+    writeError(
+      `\n${colors.red}❌ DEPLOY BLOCKED: Missing migration ledger entry for v${targetVersion}!${colors.reset}`
+    );
+    writeError(`Please add a release entry in src/migrations/ledger.ts detailing:`);
+    writeError(`  - breakingChanges`);
+    writeError(`  - codeActions`);
+    writeError(`  - contentChanges`);
+    writeError(`before running deploy.\n`);
+    printMissingLedgerEntry(targetVersion, colors, writeError);
+    return false;
+  }
+
+  if (reason === 'incomplete-entry') {
+    writeError(
+      `\n${colors.red}❌ DEPLOY BLOCKED: Incomplete migration ledger entry for v${targetVersion}!${colors.reset}`
+    );
+    writeError(`\nMissing required fields in the ledger entry:`);
+    (missingFields ?? []).forEach((f) => writeError(`  ${colors.yellow}•${colors.reset} ${f}`));
+    writeError(
+      `\nUpdate the entry in src/migrations/ledger.ts to include non-empty arrays for all required fields.\n`
+    );
+    return false;
+  }
+
+  writeError(
+    `\n${colors.red}❌ DEPLOY BLOCKED: Target version v${targetVersion} is not greater than current v${options.currentVersion}.${colors.reset}`
+  );
+  return false;
 }
 
 async function main() {
@@ -69,7 +283,7 @@ async function main() {
   console.log(`${colors.dim}   Current Version: v${currentVersion}${colors.reset}`);
   console.log(`${colors.bright}${colors.blue}══════════════════════════════════════════════════════════${colors.reset}`);
 
-  const totalSteps = 7;
+  const totalSteps = 8;
 
   // Parse bump argument: patch | minor | major | explicit semver (default: patch)
   const rawArg = process.argv.slice(2).find((arg) => !arg.startsWith('-')) || 'patch';
@@ -164,77 +378,42 @@ async function main() {
   run('npm run build:lib', 'Library compilation & type generation');
   console.log(`  ${colors.green}✓${colors.reset} Library bundle and declaration files generated.`);
 
-  // ── Step 3.5: Ledger Pre-Flight Check ──
+  // ── Step 4: Ledger Pre-Flight Check ──
   logStep(4, totalSteps, 'Ledger Pre-Flight Check (migration ledger gate)...');
 
   const targetVersion = calculateTargetVersion(currentVersion, bumpType);
   console.log(`  ${colors.dim}  Target version:${colors.reset} ${colors.bright}v${targetVersion}${colors.reset}`);
 
   const ledgerPath = path.join(rootDir, 'src', 'migrations', 'ledger.ts');
-
-  if (!fs.existsSync(ledgerPath)) {
-    console.error(`\n${colors.red}❌ DEPLOY BLOCKED: Migration ledger not found at src/migrations/ledger.ts!${colors.reset}`);
-    console.error(`\nCreate the file and add the following entry BEFORE running deploy:\n`);
-    printMissingLedgerEntry(targetVersion, colors);
-    process.exit(1);
-  }
-
-  const ledgerText = fs.readFileSync(ledgerPath, 'utf-8');
-
-  // Extract all version strings present in the ledger.
-  const versionRe = /version:\s*['"](\d+\.\d+\.\d+[^'"]*)['"]/g;
-  const foundVersions: string[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = versionRe.exec(ledgerText)) !== null) {
-    foundVersions.push(m[1]);
-  }
-
-  if (!foundVersions.includes(targetVersion)) {
-    console.error(`\n${colors.red}❌ DEPLOY BLOCKED: Missing migration ledger entry for v${targetVersion}!${colors.reset}`);
-    console.error(`\nAdd the following entry to src/migrations/ledger.ts BEFORE running deploy:\n`);
-    printMissingLedgerEntry(targetVersion, colors);
-    process.exit(1);
-  }
-
-  // Confirm the found entry has non-empty breakingChanges and contentChanges.
-  // We locate the version's block by finding its position and scanning forward
-  // to the next version block (or end of array literal).
-  const versionIdx = ledgerText.indexOf(`version: '${targetVersion}'`) !== -1
-    ? ledgerText.indexOf(`version: '${targetVersion}'`)
-    : ledgerText.indexOf(`version: "${targetVersion}"`);
-
-  // Find the closing bracket of this entry's object (heuristic: next top-level `}`).
-  const entrySlice = ledgerText.slice(versionIdx);
-  const nextEntryStart = entrySlice.search(/},\s*\{/) !== -1
-    ? versionIdx + entrySlice.search(/},\s*\{/) + 1
-    : ledgerText.length;
-  const entryBlock = ledgerText.slice(versionIdx, nextEntryStart);
-
-  const hasBreakingChanges = /breakingChanges:\s*\[[^\]]*\S[^\]]*\]/.test(entryBlock);
-  const hasContentChanges = /contentChanges:\s*\[[^\]]*\S[^\]]*\]/.test(entryBlock);
-
-  if (!hasBreakingChanges || !hasContentChanges) {
-    const missing: string[] = [];
-    if (!hasBreakingChanges) missing.push('breakingChanges (must be a non-empty array)');
-    if (!hasContentChanges) missing.push('contentChanges (must be a non-empty array)');
-
-    console.error(`\n${colors.red}❌ DEPLOY BLOCKED: Incomplete migration ledger entry for v${targetVersion}!${colors.reset}`);
-    console.error(`\nMissing required fields in the ledger entry:`);
-    missing.forEach((f) => console.error(`  ${colors.yellow}•${colors.reset} ${f}`));
-    console.error(`\nUpdate the entry in src/migrations/ledger.ts to include non-empty arrays for all required fields.\n`);
-    process.exit(1);
-  }
-
-  // Also assert target > current as a sanity guard.
-  if (compareSemver(targetVersion, currentVersion) <= 0) {
-    console.error(`\n${colors.red}❌ DEPLOY BLOCKED: Target version v${targetVersion} is not greater than current v${currentVersion}.${colors.reset}`);
+  const gatePassed = runLedgerReleaseGate({ currentVersion, bumpType, ledgerPath });
+  if (!gatePassed) {
     process.exit(1);
   }
 
   console.log(`  ${colors.green}✓${colors.reset} Ledger entry confirmed for ${colors.bright}v${targetVersion}${colors.reset} with breakingChanges and contentChanges.`);
 
-  // ── Step 5: Bump Version & Create Release Tag ──
-  logStep(5, totalSteps, `Bumping version (${bumpType})...`);
+  // ── Step 5: Compile & Verify CHANGELOG.md ──
+  logStep(5, totalSteps, 'Compiling & verifying CHANGELOG.md from migration ledger...');
+  run('npm run changelog', 'Compiling CHANGELOG.md from migration ledger');
+  run('npm run changelog:verify', 'Verifying CHANGELOG.md matches migration ledger');
+
+  let isChangelogIgnored = false;
+  try {
+    execSync('git check-ignore -q CHANGELOG.md', { stdio: 'ignore' });
+    isChangelogIgnored = true;
+  } catch {
+    isChangelogIgnored = false;
+  }
+
+  if (isChangelogIgnored) {
+    console.log(`  ${colors.green}✓${colors.reset} CHANGELOG.md compiled and verified (gitignored per repository policy).`);
+  } else {
+    run('git add CHANGELOG.md', 'Staging compiled CHANGELOG.md');
+    console.log(`  ${colors.green}✓${colors.reset} CHANGELOG.md compiled, verified, and staged.`);
+  }
+
+  // ── Step 6: Bump Version & Create Release Tag ──
+  logStep(6, totalSteps, `Bumping version (${bumpType})...`);
   run(`npm version ${bumpType} -m "chore(release): %s"`, `Bumping version via npm version ${bumpType}`);
 
   // Re-read updated package.json
@@ -242,13 +421,13 @@ async function main() {
   const newVersion = updatedPkg.version;
   console.log(`  ${colors.green}✓${colors.reset} Version bumped: ${colors.dim}v${currentVersion}${colors.reset} ➔ ${colors.bright}${colors.green}v${newVersion}${colors.reset}`);
 
-  // ── Step 6: Publish to npm ──
-  logStep(6, totalSteps, `Publishing ${pkgName}@${newVersion} to npm...`);
+  // ── Step 7: Publish to npm ──
+  logStep(7, totalSteps, `Publishing ${pkgName}@${newVersion} to npm...`);
   run('npm publish', `Publishing to npm registry`);
   console.log(`  ${colors.green}✓${colors.reset} Successfully published ${pkgName}@${newVersion} to npm!`);
 
-  // ── Step 7: Push Release Commit & Tag to GitHub ──
-  logStep(7, totalSteps, `Pushing release commit and tag (v${newVersion}) to GitHub...`);
+  // ── Step 8: Push Release Commit & Tag to GitHub ──
+  logStep(8, totalSteps, `Pushing release commit and tag (v${newVersion}) to GitHub...`);
   run(`git push origin ${branch} --follow-tags`, `Pushing release commit and tags to origin/${branch}`);
   console.log(`  ${colors.green}✓${colors.reset} Pushed to GitHub with tags.`);
 
@@ -263,4 +442,15 @@ async function main() {
   console.log(`${colors.bright}${colors.green}══════════════════════════════════════════════════════════${colors.reset}\n`);
 }
 
-main();
+function isMainModule(): boolean {
+  if (!process.argv[1]) return false;
+  try {
+    return fs.realpathSync(path.resolve(process.argv[1])) === fs.realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  }
+}
+
+if (isMainModule()) {
+  main();
+}

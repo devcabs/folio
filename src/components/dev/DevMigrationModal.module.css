@@ -1,0 +1,261 @@
+/**
+ * DevMigrationModal.module.css
+ * Folio Engine — Dev Mode Content Migration Review Modal
+ * Strictly adheres to 100% design token purity, Universal Zero Outline Policy,
+ * and Modern Academic Editorial aesthetic.
+ */
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--text-primary);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.headerTopRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.versionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background-color: var(--bg-surface-muted);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.versionArrow {
+  color: var(--folio-primary);
+}
+
+.summaryPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background-color: var(--admin-pill-bg);
+  border: 1px solid var(--admin-pill-border);
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-sm);
+  font-weight: 600;
+  color: var(--admin-pill-text);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+
+.subtitle {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Scrollable Migration List */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+
+.migrationCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-flat);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.migrationCard:hover {
+  border-color: var(--border-strong);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cardTitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.severityBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badgeRequired {
+  background-color: var(--brand-primary-tint);
+  color: var(--folio-primary);
+  border: 1px solid var(--color-node-2-border);
+}
+
+.badgeRecommended {
+  background-color: var(--brand-accent-tint);
+  color: var(--admin-pill-text);
+  border: 1px solid var(--admin-pill-border);
+}
+
+.cardDescription {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.entitiesRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.entitiesLabel {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-right: var(--space-1);
+}
+
+.entityChip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-0-5) var(--space-2);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-sm);
+  color: var(--text-primary);
+}
+
+.promptBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+}
+
+.promptLabel {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-muted);
+}
+
+.promptCode {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-sm);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.emptyState {
+  padding: var(--space-5);
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+/* Footer Actions */
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+}
+
+.copyGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.primaryActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.copySuccessButton {
+  background-color: var(--color-node-4-tint) !important;
+  color: var(--color-node-4) !important;
+  border-color: var(--color-node-4-border) !important;
+}
+
+/* Universal Zero Outline Policy Enforcement across all interactive controls */
+.footer button {
+  outline: none;
+}
+
+.footer button:hover,
+.footer button:active,
+.footer button:focus,
+.footer button:focus-visible {
+  outline: none;
+}
+

@@ -12,6 +12,9 @@ import {
   type MigrationEntry,
   type MigrationEntryInput,
 } from '../types/migration';
+import { compareSemver } from '../utils/semver-utils';
+
+export { compareSemver };
 
 const _RAW_LEDGER: MigrationEntryInput[] = [
   {
@@ -38,7 +41,18 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       'Enhanced Google Sheets chart sync, Drive photo verification, and vector chart drawers.',
     breakingChanges: [],
     codeActions: [],
-    contentChanges: [],
+    contentChanges: [
+      {
+        id: 'hero-accent-markdown-0.1.2',
+        title: 'Hero Title Accent Markdown Support',
+        required: false,
+        description:
+          'Hero titles now parse inline **accent** markdown segments for editorial emphasis.',
+        affectedEntities: ['EngineBrandingConfig.heroTitle', 'HeroWelcome'],
+        migrationPrompt:
+          'Review branding.heroTitle in your EngineConfig setup and optionally wrap emphasized phrases in **double asterisks** to leverage accent text rendering.',
+      },
+    ],
   },
   {
     version: '0.1.3',
@@ -48,7 +62,18 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       'Standalone library distribution (dist/folio.js, dist/edge.js, dist/diagnostics.js), token CSS bundles, and deploy automation.',
     breakingChanges: [],
     codeActions: [],
-    contentChanges: [],
+    contentChanges: [
+      {
+        id: 'milestone-photo-flight-0.1.3',
+        title: 'Milestone Photo Flight & Hero Media Configuration',
+        required: false,
+        description:
+          'Nodes with hero photos now support PhotoFlightEngine transitions via node photo configs and milestone image URLs.',
+        affectedEntities: ['nodes', 'sample-nodes.json', 'node-photo-configs'],
+        migrationPrompt:
+          'Verify milestone node heroImage URLs and optional getNodePhotoConfig overrides so roadmap-to-canvas photo flight transitions align with your node IDs.',
+      },
+    ],
   },
   {
     version: '0.1.4',
@@ -67,6 +92,32 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
         required: false,
         description:
           'Set optional contentVersion in EngineConfig to track consumer app content migrations across engine upgrades.',
+        affectedEntities: ['EngineConfig', 'src/App.tsx'],
+        migrationPrompt:
+          'Add contentVersion to your EngineConfig object in your app entry point (e.g., contentVersion: "0.1.4") so Folio Engine tracks acknowledged content migrations.',
+      },
+    ],
+  },
+  {
+    version: '0.1.5',
+    releaseDate: '2026-11-12',
+    title: 'Migration Doctor CLI, Dev Migration Modal & Packaged Docs',
+    summary:
+      'Added the folio-engine CLI migration doctor, in-app DevMigrationModal notification flow, and bundled Diátaxis documentation in the npm package.',
+    breakingChanges: [
+      'No breaking API removals; introduces the folio-engine CLI binary, DevMigrationModal, and packaged docs/folio-engine/ documentation.',
+    ],
+    codeActions: [],
+    contentChanges: [
+      {
+        id: 'migration-doctor-and-docs-0.1.5',
+        title: 'Run folio-engine doctor & Review Packaged Docs',
+        required: false,
+        description:
+          'Consumer apps now receive docs/folio-engine/ inside @devcabs/folio-engine and can run npx folio-engine doctor to inspect migration watermarks.',
+        affectedEntities: ['package.json', 'EngineConfig', 'DevMigrationModal'],
+        migrationPrompt:
+          'Run `npx folio-engine doctor` in your consumer app after upgrading to 0.1.5 and review node_modules/@devcabs/folio-engine/docs/folio-engine/README.md for setup and migration guides.',
       },
     ],
   },

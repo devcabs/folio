@@ -97,7 +97,8 @@ export interface DeveloperModeContextType {
     message: string,
     type?: 'success' | 'error' | 'info',
     actionLabel?: string,
-    onAction?: () => void
+    onAction?: () => void,
+    durationMs?: number
   ) => void;
 }
 

@@ -151,6 +151,53 @@
   letter-spacing: var(--tracking-tight);
 }
 
+/* Pending Content Migrations Warning Pill (4-State Matrix + Zero Outline Policy) */
+.migrationWarningPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  height: 36px;
+  padding: 0 var(--space-3);
+  background-color: var(--admin-pill-bg);
+  border: 1px solid var(--admin-pill-border);
+  border-radius: var(--radius-full);
+  box-shadow: var(--admin-pill-shadow);
+  color: var(--admin-pill-text);
+  font-family: var(--font-body);
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  white-space: nowrap;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  transition: background-color var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+.migrationWarningPill:hover:not(:disabled) {
+  background-color: var(--admin-pill-hover-bg);
+  color: var(--admin-pill-hover-text);
+  border-color: var(--admin-pill-hover-border);
+  box-shadow: var(--admin-pill-shadow-hover);
+  outline: none;
+}
+
+.migrationWarningPill:active:not(:disabled) {
+  transform: scale(0.97);
+  outline: none;
+}
+
+.migrationWarningPill:focus-visible {
+  outline: none;
+  background-color: var(--admin-pill-hover-bg);
+  color: var(--admin-pill-hover-text);
+  border-color: var(--admin-pill-hover-border);
+}
+
 
 
 @keyframes badgeSlideIn {

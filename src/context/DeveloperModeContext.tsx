@@ -59,6 +59,7 @@ export interface ToastState {
   type: 'error' | 'success' | 'info';
   actionLabel?: string;
   onAction?: () => void;
+  durationMs?: number;
 }
 
 interface MigrationToastWatcherProps {
@@ -77,23 +78,27 @@ const MigrationToastWatcher: React.FC<MigrationToastWatcherProps> = ({
     migration = null;
   }
 
+  const pendingReport = migration?.pendingReport ?? null;
+  const openMigrationModal = migration?.openMigrationModal;
   const hasFiredRef = useRef(false);
 
   useEffect(() => {
-    if (isDevMode && migration?.pendingReport?.hasPendingContentChanges) {
+    if (isDevMode && pendingReport?.hasPendingContentChanges && openMigrationModal) {
       if (!hasFiredRef.current) {
         hasFiredRef.current = true;
+        const count = pendingReport.pendingContentChanges.length;
         setToastState({
-          message: 'Pending content migrations detected.',
+          message: `⚠️ Folio Engine updated to v${pendingReport.currentEngineVersion}: ${count} content migration(s) pending`,
           type: 'info',
-          actionLabel: 'Review Migrations',
-          onAction: migration.openMigrationModal,
+          actionLabel: 'Review',
+          onAction: openMigrationModal,
+          durationMs: 8000,
         });
       }
     } else if (!isDevMode) {
       hasFiredRef.current = false;
     }
-  }, [isDevMode, migration?.pendingReport, migration?.openMigrationModal, setToastState]);
+  }, [isDevMode, pendingReport, openMigrationModal, setToastState]);
 
   return null;
 };
@@ -149,6 +154,7 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
   const sessionCheckIntervalRef = useRef<number | null>(null);
   const lockoutIntervalRef = useRef<number | null>(null);
   const heartbeatIntervalRef = useRef<number | null>(null);
+  const pinSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLockBlockedRef = useRef<boolean>(isLockBlocked);
   const isPinModalOpenRef = useRef<boolean>(isPinModalOpen);
   const isExitConfirmOpenRef = useRef<boolean>(isExitConfirmOpen);
@@ -164,6 +170,15 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
   useEffect(() => {
     isExitConfirmOpenRef.current = isExitConfirmOpen;
   }, [isExitConfirmOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (pinSuccessTimerRef.current !== null) {
+        clearTimeout(pinSuccessTimerRef.current);
+        pinSuccessTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Cloned / Duplicate Tab Collision Detection via BroadcastChannel
   useEffect(() => {
@@ -247,7 +262,7 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
 
   // Hydrate active published version from Supabase on startup
   useEffect(() => {
-    hydrateActiveVersionFromCloud().catch(() => {});
+    hydrateActiveVersionFromCloud().catch(() => { });
   }, []);
 
   // Initialize draft session whenever Dev Mode is enabled or refreshed across F5/Cmd+R
@@ -704,7 +719,11 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
           isLockBlockedRef.current = false;
           setIsLockBlocked(false);
           setActiveLockInfo(null);
-          setTimeout(() => {
+          if (pinSuccessTimerRef.current !== null) {
+            clearTimeout(pinSuccessTimerRef.current);
+          }
+          pinSuccessTimerRef.current = setTimeout(() => {
+            pinSuccessTimerRef.current = null;
             isPinModalOpenRef.current = false;
             setIsPinModalOpen(false);
             setPinState('idle');
@@ -799,9 +818,10 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
       message: string,
       type: 'success' | 'error' | 'info' = 'success',
       actionLabel?: string,
-      onAction?: () => void
+      onAction?: () => void,
+      durationMs?: number
     ) => {
-      setToastState({ message, type, actionLabel, onAction });
+      setToastState({ message, type, actionLabel, onAction, durationMs });
     },
     []
   );
@@ -847,6 +867,7 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
         <Toast
           message={toastState.message}
           type={toastState.type}
+          durationMs={toastState.durationMs}
           actionLabel={toastState.actionLabel}
           onAction={toastState.onAction}
           onDismiss={() => setToastState(null)}
@@ -870,25 +891,25 @@ export const useDeveloperMode = (): DeveloperModeContextType => {
       lockoutRemainingSeconds: 0,
       sessionRemainingMinutes: 0,
       isRenewal: false,
-      openPinModal: () => {},
-      closePinModal: () => {},
+      openPinModal: () => { },
+      closePinModal: () => { },
       submitPin: async () => false,
-      exitDevMode: () => {},
+      exitDevMode: () => { },
       isExitConfirmOpen: false,
-      requestExitDevMode: () => {},
-      confirmExitDevMode: () => {},
-      closeExitConfirmModal: () => {},
-      toggleDevMode: () => {},
+      requestExitDevMode: () => { },
+      confirmExitDevMode: () => { },
+      closeExitConfirmModal: () => { },
+      toggleDevMode: () => { },
       sessionId: '',
       isLockBlocked: false,
       activeLockInfo: null,
-      closeLockBlockedModal: () => {},
-      refreshLockStatus: async () => {},
+      closeLockBlockedModal: () => { },
+      refreshLockStatus: async () => { },
       hasUnpublishedChanges: false,
-      setHasUnpublishedChanges: () => {},
+      setHasUnpublishedChanges: () => { },
       isCloudHydrating: false,
       cloudSyncStatus: 'saved',
-      showToast: () => {},
+      showToast: () => { },
     };
   }
   return context;

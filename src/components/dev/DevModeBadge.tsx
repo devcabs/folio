@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
+import { useMigrationContext, type MigrationContextType } from '../../context/MigrationContext';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { HistoryHubModal } from '../history/HistoryHubModal';
 import { DevPublishModal } from './DevPublishModal';
@@ -124,6 +125,12 @@ export const DevModeBadge: React.FC = () => {
     requestExitDevMode,
     cloudSyncStatus,
   } = useDeveloperMode();
+  let migration: MigrationContextType | null = null;
+  try {
+    migration = useMigrationContext();
+  } catch {
+    migration = null;
+  }
   const { canUndo, canRedo, lastActionDescription, nextRedoDescription, undo, redo } =
     useUndoRedo();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -134,6 +141,11 @@ export const DevModeBadge: React.FC = () => {
   if (!isDevMode || !isDesktop) {
     return null;
   }
+
+  const pendingMigrationsCount = migration?.pendingReport?.pendingContentChanges?.length ?? 0;
+  const hasPendingMigrations = Boolean(
+    migration?.pendingReport?.hasPendingContentChanges && pendingMigrationsCount > 0
+  );
 
   const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
   const undoShortcut = isMac ? '⌘Z' : 'Ctrl+Z';
@@ -196,6 +208,26 @@ export const DevModeBadge: React.FC = () => {
             </span>
           )}
         </div>
+
+        {/* Pending Content Migrations Warning Pill */}
+        {hasPendingMigrations && (
+          <button
+            type="button"
+            className={styles.migrationWarningPill}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              migration?.openMigrationModal();
+            }}
+            aria-label={`Review ${pendingMigrationsCount} pending content migration${pendingMigrationsCount === 1 ? '' : 's'}`}
+            title="Review pending Folio Engine content migrations"
+          >
+            <span aria-hidden="true">⚠️</span>
+            <span>
+              {pendingMigrationsCount} Pending Migration{pendingMigrationsCount === 1 ? '' : 's'}
+            </span>
+          </button>
+        )}
 
         {/* Undo Button */}
         <button
