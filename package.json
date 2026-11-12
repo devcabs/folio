@@ -1,6 +1,6 @@
 {
   "name": "@devcabs/folio-engine",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "main": "./dist/folio.cjs",
   "module": "./dist/folio.js",
