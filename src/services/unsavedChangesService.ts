@@ -10,7 +10,7 @@
  * 3. Canonical beforeunload event guard complying with W3C browser prompt standards.
  */
 
-import { isDraftDirty } from './draftService';
+import { isDraftDirty, isDraftModeActive } from './draftService';
 
 /** In-memory registry of currently active dirty editors (modals, drawers, forms) */
 const activeDirtyEditors = new Set<string>();
@@ -41,18 +41,20 @@ export function clearAllDirtyEditors(): void {
 }
 
 /**
- * Returns true if there are any active in-flight unsaved form inputs OR unpublished draft changes.
+ * Returns true if there are any active in-flight unsaved form inputs,
+ * draft sandbox mode is currently active, OR unpublished draft changes exist.
+ * Refreshing while on draft breaks ephemeral storage states even if no changes were made.
  */
 export function hasAnyUnsavedChanges(): boolean {
   if (activeDirtyEditors.size > 0) {
     return true;
   }
-  return isDraftDirty();
+  return isDraftModeActive() || isDraftDirty();
 }
 
 /**
  * Canonical W3C-compliant beforeunload guard.
- * Returns empty string and calls preventDefault() if dirty, otherwise does nothing.
+ * Returns empty string and calls preventDefault() if dirty or on draft, otherwise does nothing.
  */
 export function handleBeforeUnloadGuard(e: BeforeUnloadEvent): string | undefined {
   if (hasAnyUnsavedChanges()) {

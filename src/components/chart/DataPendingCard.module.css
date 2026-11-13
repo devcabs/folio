@@ -22,6 +22,55 @@
   outline: none;
 }
 
+.staticState {
+  background-color: var(--folio-bg-surface);
+  border: 1px dashed var(--folio-border);
+  border-radius: var(--radius-surface);
+}
+
+.loadingState {
+  background: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Transient Loading Indicator Overlay
+   -------------------------------------------------------------------------- */
+.loadingIndicator {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-gap-tight);
+  padding: var(--space-pad-control-y) var(--space-pad-control-x);
+  background: color-mix(in srgb, var(--bg-surface) 95%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--elevation-raised);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--text-secondary);
+  outline: none;
+}
+
+.loadingSpinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+  color: var(--folio-primary);
+  line-height: 1;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* --------------------------------------------------------------------------
    Public Notice Overlay
    -------------------------------------------------------------------------- */
@@ -122,9 +171,9 @@
 }
 
 .diagBadgeConnection {
-  background: var(--brand-primary-tint);
-  color: var(--folio-primary);
-  border: 1px solid var(--border-subtle);
+  background: var(--color-warning-surface);
+  color: var(--color-warning-text);
+  border: 1px solid var(--color-warning-border);
 }
 
 .diagBadgeDataFormat {

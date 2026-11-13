@@ -20,6 +20,24 @@ import type {
   NodeCanvasDocument,
 } from '../types/canvas';
 
+export const AUTHORING_PLACEHOLDERS = new Set<string>([
+  'Click Edit to add narrative text for this section.',
+  'Photo documentation.',
+  'Milestone initiatives and summary of progress',
+  'Subsection details and documentation',
+  'Subsection Title',
+  'Section Title',
+]);
+
+/**
+ * Checks whether a text string contains unedited factory authoring placeholder copy.
+ */
+export function isAuthoringPlaceholder(text?: string | null): boolean {
+  if (!text) return true;
+  const trimmed = text.trim();
+  return trimmed.length === 0 || AUTHORING_PLACEHOLDERS.has(trimmed);
+}
+
 /**
  * Generate a unique element ID with type prefix and collision-resistant entropy.
  */

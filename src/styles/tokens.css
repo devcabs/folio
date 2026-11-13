@@ -84,6 +84,10 @@
    /* Academic slate-blue for kicker badge */
    --text-nav-active: #111827;
    /* High contrast dark hover for navigation */
+   --folio-text-primary: var(--text-primary);
+   /* Folio Engine Semantic Primary Text Token */
+   --folio-text-secondary: var(--text-secondary);
+   /* Folio Engine Semantic Secondary Text Token */
 
    /* ==========================================================================
      3. Institutional Brand Identity
@@ -229,6 +233,9 @@
    --radius-xs: 2px;
    --color-white: #ffffff;
    --color-danger: #e11d48;
+   --color-warning-surface: hsl(38, 92%, 95%);
+   --color-warning-text: hsl(38, 92%, 25%);
+   --color-warning-border: hsl(38, 92%, 80%);
    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
    --shadow-md: var(--elevation-raised);
    --card-accent: var(--folio-accent);

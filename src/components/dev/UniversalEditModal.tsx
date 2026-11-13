@@ -228,6 +228,14 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
 
   // Determine operational domain: Canvas AST element vs Generic portal string
   const isCanvasDomain = Boolean(elementType || onSubmit);
+  const isCanvasElement = Boolean(
+    isCanvasDomain ||
+    (elementType && ['section', 'subsection', 'text', 'photo', 'gallery'].includes(elementType)) ||
+    (pointId && (
+      /^(node\.[^.]+\.(section|subsection|text|photo|gallery)|canvas\.)/i.test(pointId) ||
+      /\.(section|subsection|text|photo|gallery)(\.|$)/i.test(pointId)
+    ))
+  );
 
   // Canvas Draft State
   const [canvasDraft, setCanvasDraft] = useState<CanvasElementFormData>(() => {
@@ -480,14 +488,17 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
         break;
     }
 
-    // Persist section numbering strictly in draft sandbox
-    if (isSectionItem && isNumberedKey) {
+    // Persist section numbering strictly in draft sandbox (only for non-canvas portal sections)
+    if (isSectionItem && isNumberedKey && !isCanvasElement) {
       setContent(isNumberedKey, String(isNumberedDraft), true);
       onNumberedChange?.(isNumberedDraft);
+    } else if (isSectionItem && onNumberedChange) {
+      onNumberedChange(isNumberedDraft);
     }
 
     // Persist content override strictly in draft sandbox
-    if (pointId) {
+    // Subtask 3.7: Canvas AST is the sole authority for canvas items — strip ContentDB writes for canvas elements
+    if (pointId && !isCanvasElement) {
       const prevVal = getContent(
         pointId,
         typeof defaultValue === 'string'
@@ -525,7 +536,7 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
 
   // Reset Handler
   const handleReset = () => {
-    if (isCanvasDomain) {
+    if (isCanvasDomain || isCanvasElement) {
       if (onResetToDefault) {
         onResetToDefault();
       }

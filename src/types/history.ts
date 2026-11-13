@@ -52,6 +52,16 @@ import type { NodeCanvasDocument } from './canvas';
 
 export type SnapshotType = 'milestone' | 'autosave' | 'safety_backup';
 
+export interface SnapshotMetricsSummary {
+  totalSections: number;
+  totalSubsections: number;
+  totalLeafElements: number;
+  totalTextOverrides: number;
+  totalTextElements?: number;
+  totalPhotoElements?: number;
+  totalChartElements?: number;
+}
+
 export interface UnifiedPortalSnapshot {
   id: string;
   schemaVersion: number;
@@ -65,12 +75,7 @@ export interface UnifiedPortalSnapshot {
   /** Complete key-value registry of all Content DB text overrides */
   contentOverrides: Record<string, string>;
   /** Metrics summary for quick scannability in UI */
-  summary: {
-    totalSections: number;
-    totalSubsections: number;
-    totalLeafElements: number;
-    totalTextOverrides: number;
-  };
+  summary: SnapshotMetricsSummary;
 }
 
 export interface HistoryManifest {
@@ -91,12 +96,7 @@ export interface PublishedSnapshot {
   isActive: boolean;
   canvases: Record<string, NodeCanvasDocument>;
   contentOverrides: Record<string, string>;
-  summary: {
-    totalSections: number;
-    totalSubsections: number;
-    totalLeafElements: number;
-    totalTextOverrides: number;
-  };
+  summary: SnapshotMetricsSummary;
 }
 
 export interface PublishSnapshotResult {

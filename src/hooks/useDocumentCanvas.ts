@@ -23,7 +23,6 @@ import type { PublicNodePayload } from '../types/edge';
 import {
   getNodeCanvas,
   saveNodeCanvas,
-  saveLiveNodeCanvas,
   resetNodeCanvas,
   subscribeToCanvasChange,
   deployNodeCanvasToCloud,
@@ -39,12 +38,12 @@ import {
 import {
   createDefaultSection,
   createDefaultSubsection,
+  createDefaultCanvasDocument,
 } from '../utils/canvasDefaults';
 import { useUndoRedo } from './useUndoRedo';
 import { useDeveloperMode } from './useDeveloperMode';
 import { parseCsvToMatrix } from '../services/sheetsDataService';
 import { setCachedChartConfig } from '../services/chartSourceService';
-import { getMatrixCacheKey } from './useSheetChartData';
 import type { NodeCode } from '../types/node';
 
 export interface UseNodeCanvasReturn {
@@ -92,7 +91,13 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
   const { isDevMode } = useDeveloperMode();
 
   // Vercel Best Practice: rerender-lazy-state-init
-  const [document, setDocument] = useState<NodeCanvasDocument>(() => getNodeCanvas(nodeId, isDevMode));
+  // For public visitors, start with an empty hydrating document shell
+  const [document, setDocument] = useState<NodeCanvasDocument>(() => {
+    if (isDevMode) {
+      return getNodeCanvas(nodeId, true);
+    }
+    return createDefaultCanvasDocument(nodeId);
+  });
   // Vercel Best Practice: rerender-transitions
   const [isPending, startTransition] = useTransition();
   const [isHydrating, setIsHydrating] = useState<boolean>(() => !isDevMode && typeof window !== 'undefined');
@@ -106,7 +111,7 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
 
   useEffect(() => {
     // Synchronize initial document if nodeId or isDevMode changed
-    const initialDoc = getNodeCanvas(nodeId, isDevMode);
+    const initialDoc = isDevMode ? getNodeCanvas(nodeId, true) : createDefaultCanvasDocument(nodeId);
     documentRef.current = initialDoc;
     setDocument(initialDoc);
 
@@ -149,24 +154,27 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
               for (const [chartId, chartDataset] of Object.entries(edgeData.chartDatasets)) {
                 if (chartDataset && typeof chartDataset === 'object') {
                   const dataset = chartDataset as any;
+                  let matrix: (string | number | null)[][] | undefined;
                   if (dataset.sanitizedCsvContent) {
-                    const matrix = parseCsvToMatrix(dataset.sanitizedCsvContent);
-                    if (matrix && matrix.length > 0 && typeof window !== 'undefined' && window.localStorage) {
-                      window.localStorage.setItem(getMatrixCacheKey(chartId), JSON.stringify(matrix));
-                    }
+                    matrix = parseCsvToMatrix(dataset.sanitizedCsvContent);
                   }
-                  setCachedChartConfig({
-                    chartId,
-                    nodeId: (nodeId || 'access') as NodeCode,
-                    sheetUrl: '',
-                    defaultType: dataset.chartType || 'bar',
-                    titleOverride: dataset.title,
-                    subtitleOverride: dataset.subtitle,
-                    unitOverride: dataset.unit,
-                    visualConfig: dataset.visualConfig,
-                    updatedAt: dataset.asOfDate || new Date().toISOString(),
-                    updatedBy: 'edge-prebake',
-                  });
+                  // Public visitors must NEVER write to localStorage!
+                  setCachedChartConfig(
+                    {
+                      chartId,
+                      nodeId: (nodeId || 'access') as NodeCode,
+                      sheetUrl: '',
+                      defaultType: dataset.chartType || 'bar',
+                      titleOverride: dataset.title,
+                      subtitleOverride: dataset.subtitle,
+                      unitOverride: dataset.unit,
+                      visualConfig: dataset.visualConfig,
+                      cachedDataset: matrix && matrix.length > 0 ? matrix : undefined,
+                      updatedAt: dataset.asOfDate || new Date().toISOString(),
+                      updatedBy: 'edge-prebake',
+                    },
+                    { memoryOnly: true }
+                  );
                 }
               }
             } catch {
@@ -181,12 +189,8 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
               edgeData.canvas.sections.length !== documentRef.current.sections.length
             ) {
               documentRef.current = edgeData.canvas;
-              // Silently warm local storage cache for subsequent offline / cold boots
-              try {
-                saveLiveNodeCanvas(edgeData.canvas, { silent: true });
-              } catch {
-                // Non-blocking storage cache write
-              }
+              // Public visitors must NEVER write to localStorage!
+              // saveLiveNodeCanvas removed to prevent storage bloat and QuotaExceededError
               startTransition(() => {
                 setDocument(edgeData.canvas);
               });

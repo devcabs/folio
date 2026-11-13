@@ -24,6 +24,7 @@ import { CanvasGallery } from './CanvasGallery';
 import { CanvasChart } from './CanvasChart';
 import { CanvasAddBar } from './CanvasAddBar';
 import { CanvasGhostWireframe } from './CanvasGhostWireframe';
+import { CanvasEmptyNotice } from './CanvasEmptyNotice';
 import { CanvasItemControls } from './CanvasItemControls';
 // CanvasElementModal unified canonically into UniversalEditModal
 import { UniversalEditModal } from '../dev/UniversalEditModal';
@@ -551,9 +552,9 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     return <CanvasGhostWireframe nodeId={nodeId} className={className} />;
   }
 
-  // Empty state: In public mode render nothing once hydrated
+  // Subtask 3.4: Dignified Public Empty Canvas State — render dignified notice in public mode once hydrated
   if ((!document || document.sections.length === 0) && !isAuthoringActive) {
-    return null;
+    return <CanvasEmptyNotice nodeTitle={nodeTitle} accentColor={accentColor} className={className} />;
   }
 
   return (

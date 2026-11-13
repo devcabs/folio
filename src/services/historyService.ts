@@ -24,6 +24,7 @@ import { createDefaultCanvasDocument } from '../utils/canvasDefaults';
 import { saveToIndexedDB, loadFromIndexedDB, notifyIndexedDBError } from './historyStorage';
 import {
   getNodeCanvas,
+  getLiveNodeCanvas,
   saveNodeCanvas,
   saveLiveNodeCanvas,
   renumberSections,
@@ -51,6 +52,7 @@ import {
   getAllContentOverrides,
   setAllContentOverrides,
   setLiveContentOverrides,
+  clearDraftTombstones,
 } from '../utils/contentDb';
 import { getSessionId } from './devLockService';
 import {
@@ -64,7 +66,6 @@ import {
   type DraftStalenessCheck,
 } from './draftService';
 import { getSessionUnlockTime, isSessionValid } from '../utils/devSecurity';
-import { compileAndDeployToEdgeKV } from './edgePreBakeService';
 
 export interface EngineSyncBroadcastMessage {
   type: 'MASID_PUBLISH_BROADCAST';
@@ -100,19 +101,24 @@ let inMemoryManifest: HistoryManifest | null = null;
 let lastAutoSaveTimestamp = 0;
 
 /**
- * Computes scannable metrics summary across all 5 node canvas trees and Content DB.
+ * Computes scannable metrics summary strictly against the Canvas AST hierarchy.
+ * Omits legacy flat content overrides tracking to eliminate phantom diffs.
  */
 export function computeMetricsSummary(
   canvases: Record<string, NodeCanvasDocument>,
-  contentOverrides: Record<string, string>
+  _legacyContentOverrides?: Record<string, string>
 ): UnifiedPortalSnapshot['summary'] {
   let totalSections = 0;
   let totalSubsections = 0;
   let totalLeafElements = 0;
+  let totalTextElements = 0;
+  let totalPhotoElements = 0;
+  let totalChartElements = 0;
 
   for (const doc of Object.values(canvases)) {
     if (!doc || !Array.isArray(doc.sections)) continue;
     totalSections += doc.sections.length;
+
     for (const sec of doc.sections) {
       if (!sec || !Array.isArray(sec.elements)) continue;
       for (const el of sec.elements) {
@@ -121,21 +127,27 @@ export function computeMetricsSummary(
           const sub = el as SubsectionElement;
           if (Array.isArray(sub.elements)) {
             totalLeafElements += sub.elements.length;
+            for (const leaf of sub.elements) {
+              if (leaf.type === 'text') totalTextElements += 1;
+              if (leaf.type === 'photo') totalPhotoElements += 1;
+              if (leaf.type === 'chart') totalChartElements += 1;
+            }
           }
         } else {
           totalLeafElements += 1;
+          if (el.type === 'text') totalTextElements += 1;
+          if (el.type === 'photo') totalPhotoElements += 1;
+          if (el.type === 'chart') totalChartElements += 1;
         }
       }
     }
   }
 
-  const totalTextOverrides = Object.keys(contentOverrides || {}).length;
-
   return {
     totalSections,
     totalSubsections,
     totalLeafElements,
-    totalTextOverrides,
+    totalTextOverrides: totalTextElements, // Preserves contract compatibility
   };
 }
 
@@ -219,26 +231,23 @@ export function getDefaultSystemBaselineSnapshot(isActive = true): PublishedSnap
 }
 
 /**
- * Lightweight snapshot metadata for localStorage manifest (< 50KB).
+ * Lightweight snapshot metadata for localStorage manifest (< 5 KB).
  * Excludes heavy canvas document ASTs and Content DB dictionaries.
  */
 export interface HistorySnapshotMetadata {
   id: string;
   title: string;
-  label?: string;
   createdAt: string;
   type: SnapshotType | string;
   notes?: string;
   authorSessionId?: string;
-  author?: string;
   summary?: UnifiedPortalSnapshot['summary'];
-  metricsSummary?: unknown;
 }
 
 export interface LightweightHistoryManifest {
   version: number;
-  lastUpdated: string;
-  updatedAt?: string;
+  updatedAt: string;
+  lastUpdated?: string;
   snapshots: HistorySnapshotMetadata[]; // No canvases or contentOverrides!
 }
 
@@ -318,40 +327,41 @@ export function saveHistoryManifest(manifest: HistoryManifest): void {
     notifyIndexedDBError('save', err);
   });
 
-  // 3. Strip heavy payloads to create lightweight metadata manifest for localStorage
+  // 3. Strip heavy payloads to create lightweight metadata manifest for localStorage (< 5 KB budget)
   const storage = getStorage();
   if (storage) {
-    const lightweight: LightweightHistoryManifest = {
+    let sanitizedSnapshots: HistorySnapshotMetadata[] = updated.snapshots.map((s) => ({
+      id: s.id,
+      title: s.title,
+      createdAt: s.createdAt,
+      type: s.type,
+      notes: s.notes || undefined,
+      authorSessionId: s.authorSessionId,
+      summary: s.summary,
+    }));
+
+    let serialized = JSON.stringify({
       version: HISTORY_SCHEMA_VERSION,
-      lastUpdated: updated.updatedAt,
       updatedAt: updated.updatedAt,
-      snapshots: updated.snapshots.map((s) => ({
-        id: s.id,
-        title: s.title || (s as unknown as Record<string, string>).label || 'Snapshot',
-        label: (s as unknown as Record<string, string>).label || s.title,
-        createdAt: s.createdAt,
-        type: s.type,
-        notes: s.notes,
-        authorSessionId: s.authorSessionId || (s as unknown as Record<string, string>).author,
-        author: (s as unknown as Record<string, string>).author || s.authorSessionId,
-        summary: s.summary,
-        metricsSummary: (s as unknown as Record<string, unknown>).metricsSummary || s.summary,
-      })),
-    };
+      snapshots: sanitizedSnapshots,
+    });
+
+    // Strict < 5 KB guard: if metadata exceeds 5120 bytes, prune older entries from localStorage cache
+    if (serialized.length > 5120) {
+      while (sanitizedSnapshots.length > 1 && serialized.length > 5120) {
+        sanitizedSnapshots.pop();
+        serialized = JSON.stringify({
+          version: HISTORY_SCHEMA_VERSION,
+          updatedAt: updated.updatedAt,
+          snapshots: sanitizedSnapshots,
+        });
+      }
+    }
 
     try {
-      storage.setItem(getHistoryManifestKey(), JSON.stringify(lightweight));
+      storage.setItem(getHistoryManifestKey(), serialized);
     } catch {
-      // If storage quota or restriction hit, prune autosaves from lightweight metadata
-      try {
-        const pruned: LightweightHistoryManifest = {
-          ...lightweight,
-          snapshots: lightweight.snapshots.filter((s) => s.type !== 'autosave'),
-        };
-        storage.setItem(getHistoryManifestKey(), JSON.stringify(pruned));
-      } catch {
-        // Maintained in-memory
-      }
+      // If storage quota or restriction hit, maintain in-memory & IndexedDB
     }
   }
 
@@ -400,7 +410,7 @@ export function captureCurrentSnapshot(
 ): UnifiedPortalSnapshot {
   const canvases: Record<string, NodeCanvasDocument> = {};
   for (const nodeId of getActiveNodeIds()) {
-    canvases[nodeId] = getNodeCanvas(nodeId);
+    canvases[nodeId] = getLiveNodeCanvas(nodeId);
   }
 
   const contentOverrides = getAllContentOverrides();
@@ -521,7 +531,7 @@ export async function restoreUnifiedSnapshot(
   // 6. Dispatch Canvas Change Notifications so UI updates reactively
   if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
     for (const nodeId of getActiveNodeIds()) {
-      const doc = getNodeCanvas(nodeId, false);
+      const doc = getLiveNodeCanvas(nodeId);
       const detail: CanvasChangeEventDetail = {
         nodeId,
         document: doc,
@@ -581,7 +591,7 @@ export function exportHistoryBackupJson(): string {
   const manifest = getHistoryManifest();
   const currentCanvases: Record<string, NodeCanvasDocument> = {};
   for (const nodeId of getActiveNodeIds()) {
-    currentCanvases[nodeId] = getNodeCanvas(nodeId);
+    currentCanvases[nodeId] = getLiveNodeCanvas(nodeId);
   }
 
   const exportData: HistoryBackupExport = {
@@ -715,10 +725,8 @@ export function restoreSnapshotToDraft(
       }
     }
 
-    setAllContentOverrides(snapshot.contentOverrides || {}, true);
-
-    // Fold in legacy canvas overrides if any exist in the restored snapshot
-    migrateCanvasOverridesIntoAst('draft');
+    // 2. Clear lingering draft tombstones and DO NOT restore flat contentOverrides for canvas elements
+    clearDraftTombstones();
 
     if (typeof window !== 'undefined') {
       for (const nodeId of getActiveNodeIds()) {
@@ -1046,6 +1054,65 @@ export async function publishNewSnapshot(
     summary,
   };
 
+  // Step 3: Atomic Server Edge Publish Dispatch (POST /api/publish)
+  let cloudSynced = false;
+  let edgeDeployed = false;
+  let cloudError: string | undefined;
+  let edgeError: string | undefined;
+  let serverRejected = false;
+  let serverErrorMessage: string | undefined;
+
+  try {
+    const endpoint =
+      typeof window !== 'undefined' && window.location?.origin
+        ? `${window.location.origin}/api/publish`
+        : '/api/publish';
+
+    const publishRes = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ snapshot }),
+    });
+
+    if (publishRes.ok) {
+      const publishData = await publishRes.json().catch(() => ({}));
+      cloudSynced = Boolean(publishData.cloudSynced ?? publishData.success ?? false);
+      edgeDeployed = Boolean(publishData.edgeDeployed ?? publishData.success ?? false);
+      cloudError = publishData.cloudError;
+      edgeError = publishData.edgeError;
+    } else if (publishRes.status === 404) {
+      // Offline / Local development fallback when running without Cloudflare Pages Functions
+      cloudSynced = false;
+      edgeDeployed = false;
+    } else {
+      const errData = await publishRes.json().catch(() => ({ error: `HTTP ${publishRes.status}` }));
+      const msg = errData?.error || `Server publish returned HTTP ${publishRes.status}`;
+      if (publishRes.status === 400 || publishRes.status === 401 || publishRes.status === 403) {
+        serverRejected = true;
+        serverErrorMessage = msg;
+      } else {
+        cloudError = msg;
+      }
+    }
+  } catch (err: unknown) {
+    // Offline / Network error during fetch('/api/publish') - graceful local fallback
+    const msg = err instanceof Error ? err.message : 'Network error during publish';
+    cloudError = msg;
+  }
+
+  // If server explicitly rejected (e.g. malformed payload, invalid session), abort before committing to client storage
+  if (serverRejected) {
+    return {
+      success: false,
+      snapshot: null as unknown as PublishedSnapshot,
+      localSaved: false,
+      cloudSynced: false,
+      edgeDeployed: false,
+      error: serverErrorMessage || 'Publish rejected by server',
+    };
+  }
+
+  // Step 4: Record snapshot in client storage & IndexedDB only after server confirmation / local fallback
   // Atomically save all 5 canvases to folio_live_canvas_[nodeId] silently
   for (const nodeId of getActiveNodeIds()) {
     saveLiveNodeCanvas(canvases[nodeId], { silent: true });
@@ -1075,11 +1142,11 @@ export async function publishNewSnapshot(
   setActivePublishedId(snapshot.id);
   saveHistoryManifest(manifest);
 
-  // Step 4: Post-Publish Draft Synchronization
+  // Step 5: Post-Publish Draft Synchronization
   // Synchronize draft storage to match newly published live state and set dirty = false
   syncDraftWithPublished(canvases, contentOverrides);
 
-  // Step 4b: Cross-Tab Broadcast Synchronization
+  // Step 6: Cross-Tab Broadcast Synchronization
   broadcastLiveSync({
     type: 'MASID_PUBLISH_BROADCAST',
     snapshotId: snapshot.id,
@@ -1088,91 +1155,6 @@ export async function publishNewSnapshot(
     contentOverrides: snapshot.contentOverrides,
     activePublishedId: snapshot.id,
   });
-
-  // Step 5: Cloud Persistence Bridge (Supabase)
-  let cloudSynced = false;
-  let cloudError: string | undefined;
-
-  const config = getSupabaseConfig();
-  if (config) {
-    try {
-      // Step A: Insert the new active snapshot FIRST (Zero-Downtime Guarantee)
-      const payload = {
-        id: snapshot.id,
-        schema_version: snapshot.schemaVersion,
-        title: snapshot.title,
-        description: snapshot.description,
-        snapshot_data: {
-          canvases: snapshot.canvases,
-          contentOverrides: snapshot.contentOverrides,
-        },
-        summary: snapshot.summary,
-        is_active: true,
-        author_session_id: snapshot.authorSessionId,
-        created_at: snapshot.createdAt,
-      };
-
-      const insertRes = await fetch(`${config.url}/rest/v1/engine_history`, {
-        method: 'POST',
-        headers: {
-          apikey: config.anonKey,
-          Authorization: `Bearer ${config.anonKey}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=representation',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (insertRes.status === 404) {
-        markTableMissing('engine_history');
-      }
-
-      if (insertRes.ok) {
-        cloudSynced = true;
-        markTableAvailable('engine_history');
-        // Step B: Now that new active snapshot is safely persisted, demote previous active snapshots
-        try {
-          const patchRes = await fetch(
-            `${config.url}/rest/v1/engine_history?is_active=eq.true&id=neq.${snapshot.id}`,
-            {
-              method: 'PATCH',
-              headers: {
-                apikey: config.anonKey,
-                Authorization: `Bearer ${config.anonKey}`,
-                'Content-Type': 'application/json',
-                Prefer: 'return=minimal',
-              },
-              body: JSON.stringify({ is_active: false }),
-            }
-          );
-          if (!patchRes.ok) {
-            console.warn(`[historyService] Demoting previous active snapshots returned HTTP ${patchRes.status}`);
-          }
-        } catch (patchErr) {
-          console.warn('[historyService] Failed to demote previous active snapshots in Supabase:', patchErr);
-        }
-      } else {
-        cloudError = `Cloud sync failed with HTTP ${insertRes.status}`;
-      }
-    } catch (err: unknown) {
-      cloudError = err instanceof Error ? err.message : 'Network error during cloud publish';
-    }
-  }
-
-  // Step 6: Await Edge Pre-Bake & KV Synchronization
-  let edgeDeployed = false;
-  let edgeError: string | undefined;
-
-  try {
-    const edgeResult = await compileAndDeployToEdgeKV(snapshot);
-    edgeDeployed = edgeResult.success;
-    if (!edgeResult.success) {
-      edgeError = edgeResult.deployResult?.error || 'Edge KV deployment was rejected';
-    }
-  } catch (edgeDispatchErr: unknown) {
-    edgeError = edgeDispatchErr instanceof Error ? edgeDispatchErr.message : 'Edge KV deployment network error';
-    console.warn('[historyService] Edge KV pre-bake dispatch error:', edgeError);
-  }
 
   // Primary success requires localSaved = true. If cloud or edge failed, success is still true
   // for the snapshot creation, but the partial failure is surfaced in the result contract.

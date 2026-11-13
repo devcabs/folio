@@ -100,28 +100,30 @@ export function useSheetChartData({
   });
 
   const [initialResolvedDataset] = useState<ChartDataset | null>(() => {
-    // 1. Check if cached liveMatrix exists in localStorage for instant real-world paint
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const raw = window.localStorage.getItem(getMatrixCacheKey(chartId));
-        if (raw) {
-          const parsedMatrix = JSON.parse(raw);
-          if (Array.isArray(parsedMatrix) && parsedMatrix.length > 0) {
-            return parseTabularDataset({
-              chartId,
-              title: cachedConfig?.titleOverride || '',
-              subtitle: cachedConfig?.subtitleOverride,
-              unit: cachedConfig?.unitOverride,
-              chartType: cachedConfig?.defaultType,
-              nodeId,
-              visualConfig: cachedConfig?.visualConfig,
-              rawMatrix: parsedMatrix,
-            });
+    // 1. Check if cached liveMatrix exists in localStorage for instant real-world paint (Developer Mode only)
+    if (isDevMode) {
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const raw = window.localStorage.getItem(getMatrixCacheKey(chartId));
+          if (raw) {
+            const parsedMatrix = JSON.parse(raw);
+            if (Array.isArray(parsedMatrix) && parsedMatrix.length > 0) {
+              return parseTabularDataset({
+                chartId,
+                title: cachedConfig?.titleOverride || '',
+                subtitle: cachedConfig?.subtitleOverride,
+                unit: cachedConfig?.unitOverride,
+                chartType: cachedConfig?.defaultType,
+                nodeId,
+                visualConfig: cachedConfig?.visualConfig,
+                rawMatrix: parsedMatrix,
+              });
+            }
           }
         }
+      } catch {
+        // Fall through to baseline
       }
-    } catch {
-      // Fall through to baseline
     }
 
     // 2. Check if cachedConfig has cachedDataset
@@ -141,14 +143,10 @@ export function useSheetChartData({
     if (initialDataset) {
       return applyConfigToDataset(initialDataset, cachedConfig);
     }
-    const matchedBaked = bakedCharts.find((c) => c.chartId === chartId);
-    if (matchedBaked) {
-      return applyConfigToDataset(matchedBaked, cachedConfig);
-    }
-    if (nodeId) {
-      const nodeBaked = bakedCharts.find((c) => c.nodeId === nodeId);
-      if (nodeBaked) {
-        return applyConfigToDataset(nodeBaked, cachedConfig);
+    if (chartId) {
+      const matchedBaked = bakedCharts.find((c) => c.chartId === chartId);
+      if (matchedBaked) {
+        return applyConfigToDataset(matchedBaked, cachedConfig);
       }
     }
     return null;
@@ -203,15 +201,21 @@ export function useSheetChartData({
         }
 
         // Fallback: update dataset with remote overrides on top of baseline
+        let hasResolvedData = false;
         setDataset((prev) => {
           if (!prev) {
-            const baked = bakedCharts.find((c) => c.chartId === chartId);
-            return baked ? applyConfigToDataset(baked, remoteConfig) : null;
+            const baked = chartId ? bakedCharts.find((c) => c.chartId === chartId) : undefined;
+            if (baked) {
+              hasResolvedData = true;
+              return applyConfigToDataset(baked, remoteConfig);
+            }
+            return null;
           }
+          hasResolvedData = true;
           return applyConfigToDataset(prev, remoteConfig);
         });
 
-        setStatus('success');
+        setStatus(hasResolvedData ? 'success' : 'pending_data');
       } else {
         // Fall back to baked if available
         setDataset((prev) => {
@@ -358,14 +362,20 @@ export function useSheetChartData({
             return;
           }
 
+          let hasData = false;
           setDataset((prev) => {
             if (!prev) {
-              const baked = bakedCharts.find((c) => c.chartId === chartId);
-              return baked ? applyConfigToDataset(baked, freshConfig) : null;
+              const baked = chartId ? bakedCharts.find((c) => c.chartId === chartId) : undefined;
+              if (baked) {
+                hasData = true;
+                return applyConfigToDataset(baked, freshConfig);
+              }
+              return null;
             }
+            hasData = true;
             return applyConfigToDataset(prev, freshConfig);
           });
-          setStatus('success');
+          setStatus(hasData ? 'success' : 'pending_data');
           return;
         }
         loadCloudConfig();

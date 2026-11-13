@@ -148,7 +148,8 @@ describe('Task 18.7: Storage Isolation & Namespace Parameterization', () => {
       const summary = computeMetricsSummary(canvases, { key1: 'val1', key2: 'val2' });
       expect(summary.totalSections).toBe(2);
       expect(summary.totalSubsections).toBe(1);
-      expect(summary.totalTextOverrides).toBe(2);
+      // Pure AST metrics: 3 text elements across doc1 & doc2, ignoring legacy flat overrides
+      expect(summary.totalTextOverrides).toBe(3);
     });
   });
   describe("Mutex & Dev Lock Service", () => {

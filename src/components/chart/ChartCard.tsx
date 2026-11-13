@@ -234,8 +234,9 @@ export const ChartCard: React.FC<ChartCardProps> = ({
               chartId={chartId}
               nodeTitle={nodeTitle}
               category={problemCategory}
-              errorMessage={errorMessage}
+              errorMessage={errorMessage || (status === 'error' ? 'Failed to synchronize indicator data.' : undefined)}
               hasSheetUrl={Boolean(config?.sheetUrl)}
+              isLoading={isSyncing}
               onEdit={() => setIsDrawerOpen(true)}
             />
           )}

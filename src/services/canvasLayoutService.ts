@@ -223,7 +223,9 @@ function foldInChildElement(
 }
 
 /**
- * Folds ContentDB overrides into a single NodeCanvasDocument.
+ * @deprecated Deprecated in Subtask 3.7: Canvas AST is the sole authority for all canvas elements.
+ * Flat ContentDB overrides for canvas operations are superseded by direct AST mutations.
+ * Folds ContentDB overrides into a single NodeCanvasDocument for legacy migration only.
  */
 export function foldCanvasOverridesIntoDocument(
   doc: NodeCanvasDocument,
@@ -322,16 +324,8 @@ export function migrateCanvasOverridesIntoAst(channel: 'live' | 'draft'): void {
   }
 }
 
-// Auto-migrate on module boot in browser environments
-if (typeof window !== 'undefined') {
-  try {
-    migrateLegacyStorageKeys();
-    migrateCanvasOverridesIntoAst('live');
-    migrateCanvasOverridesIntoAst('draft');
-  } catch {
-    // Tolerant in restricted environments
-  }
-}
+// Deprecated automatic module-level migrateCanvasOverridesIntoAst('live') for public visitors.
+// Edge KV is the unconditional single source of truth for public visitors; migrations execute on-demand during authoring.
 
 /**
  * Validates document schema structure defensively.
@@ -936,14 +930,13 @@ export function saveLiveNodeCanvas(
 }
 
 /**
- * Synchronous local-first retrieval of a node canvas document.
+ * Synchronous retrieval of a node canvas document.
  * Reads from draft sandbox if Developer Mode is active (isDevMode === true);
- * otherwise strictly and unconditionally from the canonical live published channel.
+ * for public visitors (isDevMode === false), returns an empty baseline shell.
+ * Cloudflare Edge KV is the unconditional single source of truth for public visitors.
  */
 export function getNodeCanvas(nodeId: string, isDevMode = false): NodeCanvasDocument {
-  const storage = getStorage();
-
-  // If in Dev Mode, read in-memory draft channel first
+  // Developer Mode: Read in-memory draft channel
   if (isDevMode) {
     const memoryDraft = getInMemoryDraftCanvas(nodeId);
     if (memoryDraft && isValidCanvasDocument(memoryDraft, nodeId)) {
@@ -952,7 +945,7 @@ export function getNodeCanvas(nodeId: string, isDevMode = false): NodeCanvasDocu
         sections: renumberSections(memoryDraft.sections),
       };
     }
-
+    const storage = getStorage();
     if (storage) {
       try {
         const rawDraft = storage.getItem(getDraftCanvasKey(nodeId));
@@ -966,13 +959,14 @@ export function getNodeCanvas(nodeId: string, isDevMode = false): NodeCanvasDocu
           }
         }
       } catch {
-        // Fall through to live storage
+        // Fall through
       }
     }
+    return getLiveNodeCanvas(nodeId);
   }
 
-  // Public Mode strictly reads canonical live published canvas
-  return getLiveNodeCanvas(nodeId);
+  // Public Mode: Return baseline shell; Edge KV is the sole authority
+  return createDefaultCanvasDocument(nodeId);
 }
 
 /**
@@ -1086,7 +1080,7 @@ export function subscribeToCanvasChange(
   callback: (doc: NodeCanvasDocument) => void,
   isDevMode = false
 ): () => void {
-  if (typeof window === 'undefined') return () => {};
+  if (typeof window === 'undefined') return () => { };
 
   const eventName = isDevMode ? EVENT_DRAFT_CANVAS_CHANGE : EVENT_LIVE_CANVAS_CHANGE;
 
@@ -1105,7 +1099,8 @@ export function subscribeToCanvasChange(
   };
 
   const storageHandler = (e: StorageEvent) => {
-    const targetKey = isDevMode ? getDraftCanvasStorageKey(nodeId) : getCanvasStorageKey(nodeId);
+    if (!isDevMode) return;
+    const targetKey = getDraftCanvasStorageKey(nodeId);
     if ((e.key === targetKey || e.key === null) && e.newValue) {
       try {
         const parsed = JSON.parse(e.newValue);
@@ -1132,7 +1127,7 @@ export function subscribeToCanvasChange(
 export async function deployNodeCanvasToCloud(
   nodeId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const doc = getNodeCanvas(nodeId);
+  const doc = getLiveNodeCanvas(nodeId);
   const config = getSupabaseConfig();
 
   if (!config) {

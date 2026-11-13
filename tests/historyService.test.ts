@@ -8,10 +8,8 @@ import {
   getActiveNodeIds,
 } from '../src/services/historyService';
 import { EVENT_LIVE_CANVAS_CHANGE } from '../src/services/canvasLayoutService';
-import * as edgePreBakeService from '../src/services/edgePreBakeService';
 import { resetEngineConfig } from '../src/config/engine.config';
 import { isDraftDirty, clearDraftStorage } from '../src/services/draftService';
-import type { PreBakeResult } from '../src/services/edgePreBakeService';
 
 describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
   const originalFetch = global.fetch;
@@ -60,42 +58,52 @@ describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
     });
   });
 
-  describe('Deterministic Await on Edge KV Deployment', () => {
-    it('awaits compileAndDeployToEdgeKV and reports edgeDeployed: true on successful deployment', async () => {
-      const edgeSpy = vi.spyOn(edgePreBakeService, 'compileAndDeployToEdgeKV').mockResolvedValue({
-        success: true,
-        snapshotId: 'test-snap',
-        transformedNodes: ['overview'],
-        totalKvKeys: 5,
-        deployResult: {
-          success: true,
-          deployedCount: 5,
-        },
-      } as PreBakeResult);
+  describe('Subtask 3.7: Atomic Server Edge Publish & 3-Tier Multi-Channel Reporting', () => {
+    it('awaits POST /api/publish and reports edgeDeployed: true on successful deployment', async () => {
+      global.fetch = vi.fn().mockImplementation(async (url: string | URL | Request) => {
+        const urlStr = url.toString();
+        if (urlStr.includes('/api/publish')) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              snapshotId: 'test-snap',
+              cloudSynced: true,
+              edgeDeployed: true,
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        return new Response('{}', { status: 200 });
+      });
 
       const result = await publishNewSnapshot('Release v1.0.0 valid publication note');
 
-      expect(edgeSpy).toHaveBeenCalledTimes(1);
       expect(result.success).toBe(true);
       expect(result.localSaved).toBe(true);
       expect(result.edgeDeployed).toBe(true);
+      expect(result.cloudSynced).toBe(true);
       expect(result.edgeError).toBeUndefined();
       expect(result.snapshot).toBeDefined();
       expect(result.snapshot.title).toBe('Published Revision');
     });
 
-    it('returns edgeDeployed: false with edgeError when compileAndDeployToEdgeKV returns failure', async () => {
-      vi.spyOn(edgePreBakeService, 'compileAndDeployToEdgeKV').mockResolvedValue({
-        success: false,
-        snapshotId: 'test-snap',
-        transformedNodes: [],
-        totalKvKeys: 5,
-        deployResult: {
-          success: false,
-          deployedCount: 0,
-          error: 'KV quota exceeded: 429 Too Many Requests',
-        },
-      } as PreBakeResult);
+    it('returns edgeDeployed: false with edgeError when server reports edge failure', async () => {
+      global.fetch = vi.fn().mockImplementation(async (url: string | URL | Request) => {
+        const urlStr = url.toString();
+        if (urlStr.includes('/api/publish')) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              snapshotId: 'test-snap',
+              cloudSynced: true,
+              edgeDeployed: false,
+              edgeError: 'KV quota exceeded: 429 Too Many Requests',
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        return new Response('{}', { status: 200 });
+      });
 
       const result = await publishNewSnapshot('Release v1.0.1 with edge failure');
 
@@ -112,8 +120,8 @@ describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
       expect(isDraftDirty()).toBe(false);
     });
 
-    it('catches thrown exceptions during compileAndDeployToEdgeKV and reports edgeDeployed: false with edgeError', async () => {
-      vi.spyOn(edgePreBakeService, 'compileAndDeployToEdgeKV').mockRejectedValue(
+    it('catches thrown network exceptions during /api/publish and reports localSaved with error', async () => {
+      global.fetch = vi.fn().mockRejectedValue(
         new Error('Network timeout contacting Cloudflare KV API')
       );
 
@@ -121,20 +129,16 @@ describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
 
       expect(result.success).toBe(true);
       expect(result.localSaved).toBe(true);
+      expect(result.cloudSynced).toBe(false);
       expect(result.edgeDeployed).toBe(false);
-      expect(result.edgeError).toBe('Network timeout contacting Cloudflare KV API');
+      expect(result.cloudError).toBe('Network timeout contacting Cloudflare KV API');
       expect(result.error).toBe('Network timeout contacting Cloudflare KV API');
 
       // Draft must remain clean and local snapshot intact
       expect(getActivePublishedId()).toBe(result.snapshot.id);
     });
-  });
 
-  describe('Supabase Demotion PATCH & 3-Tier Multi-Channel Reporting', () => {
-    it('awaits Supabase insert and demotion PATCH, returning cloudSynced: true and edgeDeployed: true', async () => {
-      process.env.VITE_SUPABASE_URL = 'https://test-sandbox.supabase.co';
-      process.env.VITE_SUPABASE_ANON_KEY = 'test-anon-key-12345';
-
+    it('awaits /api/publish returning cloudSynced: true and edgeDeployed: true', async () => {
       const fetchCalls: Array<{ url: string; method: string; body?: any }> = [];
 
       global.fetch = vi.fn().mockImplementation(async (url: string | URL | Request, init?: RequestInit) => {
@@ -146,24 +150,19 @@ describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
           body: init?.body ? JSON.parse(init.body as string) : undefined,
         });
 
-        if (urlStr.includes('/rest/v1/engine_history')) {
-          if (method === 'POST') {
-            return new Response(JSON.stringify([{ id: 'mock-id' }]), { status: 201 });
-          }
-          if (method === 'PATCH') {
-            return new Response(JSON.stringify([]), { status: 200 });
-          }
+        if (urlStr.includes('/api/publish')) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              snapshotId: 'pub-test-full',
+              cloudSynced: true,
+              edgeDeployed: true,
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
         }
         return new Response('{}', { status: 200 });
       });
-
-      vi.spyOn(edgePreBakeService, 'compileAndDeployToEdgeKV').mockResolvedValue({
-        success: true,
-        snapshotId: 'test-snap',
-        transformedNodes: ['overview'],
-        totalKvKeys: 5,
-        deployResult: { success: true, deployedCount: 5 },
-      } as PreBakeResult);
 
       const result = await publishNewSnapshot('Full 3-tier publication test');
 
@@ -175,38 +174,29 @@ describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
       expect(result.edgeError).toBeUndefined();
       expect(result.error).toBeUndefined();
 
-      // Verify Supabase insert occurred first, then PATCH for demotion
-      const postCall = fetchCalls.find(c => c.method === 'POST' && c.url.includes('/rest/v1/engine_history'));
-      const patchCall = fetchCalls.find(c => c.method === 'PATCH' && c.url.includes('/rest/v1/engine_history'));
-
-      expect(postCall).toBeDefined();
-      expect(patchCall).toBeDefined();
-      expect(patchCall?.url).toContain(`id=neq.${result.snapshot.id}`);
-      expect(patchCall?.body).toEqual({ is_active: false });
-
-      delete process.env.VITE_SUPABASE_URL;
-      delete process.env.VITE_SUPABASE_ANON_KEY;
+      // Exactly 1 atomic network call to /api/publish
+      expect(fetchCalls.length).toBe(1);
+      expect(fetchCalls[0].url).toContain('/api/publish');
+      expect(fetchCalls[0].body.snapshot.id).toBe(result.snapshot.id);
     });
 
-    it('surfaces cloudError when Supabase insert fails, while edge deployment continues and localSaved is true', async () => {
-      process.env.VITE_SUPABASE_URL = 'https://test-sandbox.supabase.co';
-      process.env.VITE_SUPABASE_ANON_KEY = 'test-anon-key-12345';
-
+    it('surfaces cloudError when cloud sync fails, while edge deployment succeeds and localSaved is true', async () => {
       global.fetch = vi.fn().mockImplementation(async (url: string | URL | Request) => {
         const urlStr = url.toString();
-        if (urlStr.includes('/rest/v1/engine_history')) {
-          return new Response('Database internal error', { status: 500 });
+        if (urlStr.includes('/api/publish')) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              snapshotId: 'test-snap',
+              cloudSynced: false,
+              edgeDeployed: true,
+              cloudError: 'Cloud sync failed with HTTP 500',
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
         }
         return new Response('{}', { status: 200 });
       });
-
-      vi.spyOn(edgePreBakeService, 'compileAndDeployToEdgeKV').mockResolvedValue({
-        success: true,
-        snapshotId: 'test-snap',
-        transformedNodes: ['overview'],
-        totalKvKeys: 5,
-        deployResult: { success: true, deployedCount: 5 },
-      } as PreBakeResult);
 
       const result = await publishNewSnapshot('Partial failure: Cloud 500 but Edge OK');
 
@@ -217,28 +207,26 @@ describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
       expect(result.edgeDeployed).toBe(true);
       expect(result.edgeError).toBeUndefined();
       expect(result.error).toBe('Cloud sync failed with HTTP 500');
-
-      delete process.env.VITE_SUPABASE_URL;
-      delete process.env.VITE_SUPABASE_ANON_KEY;
     });
 
     it('surfaces both cloudError and edgeError when both remote tiers fail', async () => {
-      process.env.VITE_SUPABASE_URL = 'https://test-sandbox.supabase.co';
-      process.env.VITE_SUPABASE_ANON_KEY = 'test-anon-key-12345';
-
-      global.fetch = vi.fn().mockRejectedValue(new Error('Supabase network unreachable'));
-
-      vi.spyOn(edgePreBakeService, 'compileAndDeployToEdgeKV').mockResolvedValue({
-        success: false,
-        snapshotId: 'test-snap',
-        transformedNodes: [],
-        totalKvKeys: 5,
-        deployResult: {
-          success: false,
-          deployedCount: 0,
-          error: 'Cloudflare KV unauthorized: Invalid token',
-        },
-      } as PreBakeResult);
+      global.fetch = vi.fn().mockImplementation(async (url: string | URL | Request) => {
+        const urlStr = url.toString();
+        if (urlStr.includes('/api/publish')) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              snapshotId: 'test-snap',
+              cloudSynced: false,
+              edgeDeployed: false,
+              cloudError: 'Supabase network unreachable',
+              edgeError: 'Cloudflare KV unauthorized: Invalid token',
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        return new Response('{}', { status: 200 });
+      });
 
       const result = await publishNewSnapshot('Dual tier failure test');
 
@@ -249,9 +237,6 @@ describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
       expect(result.edgeDeployed).toBe(false);
       expect(result.edgeError).toBe('Cloudflare KV unauthorized: Invalid token');
       expect(result.error).toBeDefined();
-
-      delete process.env.VITE_SUPABASE_URL;
-      delete process.env.VITE_SUPABASE_ANON_KEY;
     });
   });
 

@@ -190,6 +190,27 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.1.9',
+    releaseDate: '2026-11-13',
+    title: 'Single-Source Data Architecture & Pure AST Revision Rollback',
+    summary:
+      'Streamlined Folio Engine single-source data architecture: eliminated phantom content override diffs, enforced pure Canvas AST revision rollback, added resilient image and chart fallbacks, and optimized history manifests strictly under 5 KB.',
+    breakingChanges: [],
+    codeActions: [],
+    contentChanges: [
+      {
+        id: 'pure-ast-rollback-0.1.9',
+        title: 'Pure AST Snapshot Rollback & History Manifest Optimization',
+        required: false,
+        description:
+          'Revision rollback now restores canvas AST trees directly into draft sandboxes without legacy content override re-hydration. History manifests in localStorage are strictly capped < 5 KB.',
+        affectedEntities: ['historyService', 'restoreSnapshotToDraft', 'computeMetricsSummary', 'HistoryHubModal'],
+        migrationPrompt:
+          'No action required; consumer applications automatically benefit from pure AST rollback, clean changelog diffing, and lighter localStorage footprint.',
+      },
+    ],
+  },
 ];
 
 /**

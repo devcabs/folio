@@ -43,6 +43,7 @@ import {
   initDraftSession,
   discardDraftSession,
   clearDraftStorage,
+  isDraftModeActive,
   isDraftDirty,
   setDraftDirty,
   subscribeToDraftStatus,
@@ -398,11 +399,14 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
       releaseDevLockBeacon(sessionId);
     };
 
-    // Universal guard preventing accidental reload/closure when unpublished or in-flight edits exist
+    // Universal guard preventing accidental reload/closure while on draft or when in-flight edits exist
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDevMode) {
-        handleBeforeUnloadGuard(e);
+      if (isDevMode || isDraftModeActive()) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
       }
+      return handleBeforeUnloadGuard(e);
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -417,6 +421,33 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
       window.removeEventListener('pagehide', handlePageHide);
     };
   }, [isDevMode, sessionId]);
+
+  // 4c. Global Reload Interceptor: prevent accidental keyboard refresh (Cmd+R, Ctrl+R, F5) while on draft
+  useEffect(() => {
+    if (!isDevMode) return;
+
+    const handleReloadKeyDown = (e: KeyboardEvent) => {
+      const isReload =
+        ((e.metaKey || e.ctrlKey) && (e.key === 'r' || e.key === 'R' || e.code === 'KeyR')) ||
+        e.key === 'F5' ||
+        e.code === 'F5';
+
+      if (isReload) {
+        e.preventDefault();
+        e.stopPropagation();
+        setToastState({
+          message: 'Page reload is disabled while on draft to protect storage integrity.',
+          type: 'info',
+          durationMs: 4000,
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleReloadKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', handleReloadKeyDown, { capture: true });
+    };
+  }, [isDevMode]);
 
   // 4b. Immediate Mount & Focus Lock Exclusivity Validation
   useEffect(() => {

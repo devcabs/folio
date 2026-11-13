@@ -12,6 +12,7 @@ export interface DataPendingCardProps {
   category?: ChartProblemCategory;
   errorMessage?: string;
   hasSheetUrl?: boolean;
+  isLoading?: boolean;
   onEdit?: () => void;
   className?: string;
   headline?: string;
@@ -20,16 +21,17 @@ export interface DataPendingCardProps {
 
 /**
  * DataPendingCard Component
- * Folio Engine — Subtask 7.4.5 & Task 8.10
+ * Folio Engine — Subtask 7.4.5, Task 8.10 & Subtask 3.3
  *
- * Universal dignified chart fallback when an indicator dataset has not yet been linked
- * or is encountering access/format issues.
+ * Universal dignified chart fallback when an indicator dataset has not yet been linked,
+ * is actively syncing, or is encountering access/format issues.
  *
  * Visual Architecture:
- * - Background: Universal tokenized SVG ChartGhostWireframe skeleton.
- * - Public View: Quiet, dignified notice with brand mark.
- * - Developer Mode: 3-point diagnostic panel with concrete coordinator troubleshooting hints
- *   and the uniform administrative '✎ Edit' button wired to ChartConfigDrawer.
+ * - Loading State (isLoading = true): Active pulsing SVG ChartGhostWireframe skeleton
+ *   with aria-busy="true" and "Fetching latest data..." indicator.
+ * - Static Problem / Unlinked State (isLoading = false): Calm, token-styled diagnostic card
+ *   with static surface and dashed border (no animated ghost bars), aria-busy="false",
+ *   role-bifurcated between public serene notice and coordinator diagnostic panel.
  */
 export const DataPendingCard: React.FC<DataPendingCardProps> = ({
   chartId,
@@ -37,6 +39,7 @@ export const DataPendingCard: React.FC<DataPendingCardProps> = ({
   category = 'unlinked',
   errorMessage,
   hasSheetUrl = false,
+  isLoading = false,
   onEdit,
   className,
   headline,
@@ -88,16 +91,22 @@ export const DataPendingCard: React.FC<DataPendingCardProps> = ({
 
   return (
     <div
-      className={`${styles.container} ${className || ''}`.trim()}
+      className={`${styles.container} ${isLoading ? styles.loadingState : styles.staticState} ${className || ''}`.trim()}
       role="region"
-      aria-label="Indicator Data Notice"
+      aria-label={isLoading ? 'Loading indicator data' : 'Indicator Data Notice'}
+      aria-busy={isLoading ? 'true' : 'false'}
       tabIndex={-1}
     >
-      {/* Background Ghost Wireframe */}
-      <ChartGhostWireframe />
+      {/* Only render animated ghost wireframe during active network synchronization */}
+      {isLoading && <ChartGhostWireframe />}
 
       {/* Role-Bifurcated Overlay Content */}
-      {canEdit ? (
+      {isLoading ? (
+        <div className={styles.loadingIndicator} data-testid="chart-loading-indicator">
+          <span className={styles.loadingSpinner} aria-hidden="true">↻</span>
+          <span>Fetching latest data...</span>
+        </div>
+      ) : canEdit ? (
         <div className={styles.diagnosticPanel}>
           <span className={`${styles.diagBadge} ${diagnosticConfig.badgeClass}`}>
             {diagnosticConfig.badgeLabel}

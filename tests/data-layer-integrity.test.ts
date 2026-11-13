@@ -466,33 +466,26 @@ describe('Subtask 2.10: Data Layer Integration Testing & Quality Gates', () => {
       process.env.VITE_SUPABASE_URL = 'https://test-sandbox.supabase.co';
       process.env.VITE_SUPABASE_ANON_KEY = 'test-anon-key-12345';
 
-      // Mock Supabase fetch for cloud sync
-      globalThis.fetch = vi.fn().mockImplementation(async (url: string | URL | Request, init?: RequestInit) => {
+      // Subtask 3.7: Unified Atomic Write Pipeline mocks /api/publish
+      globalThis.fetch = vi.fn().mockImplementation(async (url: string | URL | Request) => {
         const urlStr = url.toString();
-        const method = init?.method || 'GET';
-        if (urlStr.includes('/rest/v1/engine_history')) {
-          if (method === 'POST') {
-            return new Response(JSON.stringify([{ id: 'pub-test-id' }]), { status: 201 });
-          }
-          if (method === 'PATCH') {
-            return new Response(JSON.stringify([]), { status: 200 });
-          }
+        if (urlStr.includes('/api/publish')) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              snapshotId: 'pub-test-id',
+              cloudSynced: true,
+              edgeDeployed: false,
+              edgeError: 'KV rate limited',
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
         }
         return new Response('{}', { status: 200 });
       });
 
-      // 1. Mock compileAndDeployToEdgeKV failing with KV rate limited error
-      const edgeDeploySpy = vi.spyOn(edgePreBakeService, 'compileAndDeployToEdgeKV').mockResolvedValueOnce({
-        success: false,
-        snapshotId: 'snap-1',
-        transformedNodes: [],
-        totalKvKeys: 5,
-        deployResult: {
-          success: false,
-          deployedCount: 0,
-          error: 'KV rate limited',
-        },
-      } as PreBakeResult);
+      // 1. Mock edge retry spy
+      const edgeDeploySpy = vi.spyOn(edgePreBakeService, 'compileAndDeployToEdgeKV');
 
       const result = await publishNewSnapshot('Changelog test');
 

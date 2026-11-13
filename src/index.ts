@@ -64,6 +64,7 @@ export * from "./hooks/useDocumentCanvas";
 export * from "./hooks/useNodeCanvas";
 export * from "./hooks/useLightboxHistory";
 export * from "./services/canvasLayoutService";
+export * from "./utils/canvasDefaults";
 
 // Layout Shell & Parametric Geometric Mark
 export * from "./components/layout";

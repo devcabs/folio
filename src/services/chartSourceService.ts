@@ -191,13 +191,27 @@ export function getCachedChartConfig(chartId: string): SheetChartConfig | null {
   return null;
 }
 
+export interface SetCachedChartConfigOptions {
+  memoryOnly?: boolean;
+}
+
 /**
- * Saves a chart configuration to memory and local storage.
+ * Saves a chart configuration to memory and optionally local storage.
+ * When options.memoryOnly is true, skips localStorage writes to enforce storage purity for public visits.
  * Returns true if stored locally (or in memory in non-browser environments).
  */
-export function setCachedChartConfig(config: SheetChartConfig): boolean {
+export function setCachedChartConfig(
+  config: SheetChartConfig,
+  options?: SetCachedChartConfigOptions
+): boolean {
   if (!config || !config.chartId) return false;
   memoryCache.set(config.chartId, config);
+
+  if (options?.memoryOnly) {
+    notifyChartChange(config.chartId, config);
+    return true;
+  }
+
   const stored = setStorageItem(`${getChartSourcePrefix()}${config.chartId}`, JSON.stringify(config));
 
   // Update known IDs manifest
