@@ -25,6 +25,62 @@ import { getStorageNamespace } from '../config/engine.config';
 export const getSourceCacheStorageKey = (ns?: string) => (ns || getStorageNamespace()) + '_evidence_cache_v2';
 export const STORAGE_KEY_SOURCE_CACHE = getSourceCacheStorageKey();
 export const EVENT_SOURCE_SOURCE_CHANGE = 'engine-evidence-source-change';
+export const EVENT_SOURCE_SYNC_STATUS = 'engine-source-sync-status';
+export const EVENT_EVIDENCE_SYNC_STATUS = 'engine-evidence-sync-status';
+
+export interface SourceSyncStatusDetail {
+  pointId: string;
+  cloudSynced: boolean;
+  error?: string;
+  isBackground?: boolean;
+  timestamp: string;
+}
+
+export interface UpsertSourceOptions {
+  isBackground?: boolean;
+}
+
+/**
+ * Dispatches sync status events for cloud persistence observability.
+ */
+export function notifySyncStatus(
+  pointId: string,
+  cloudSynced: boolean,
+  error?: string,
+  isBackground: boolean = false
+): void {
+  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+  try {
+    const detail: SourceSyncStatusDetail = {
+      pointId,
+      cloudSynced,
+      error,
+      isBackground,
+      timestamp: new Date().toISOString(),
+    };
+    window.dispatchEvent(new CustomEvent(EVENT_SOURCE_SYNC_STATUS, { detail }));
+    window.dispatchEvent(new CustomEvent(EVENT_EVIDENCE_SYNC_STATUS, { detail }));
+  } catch {
+    // Non-browser or restricted context
+  }
+}
+
+/**
+ * Subscribes to source cloud sync status events.
+ */
+export function subscribeToSourceSyncStatus(
+  callback: (detail: SourceSyncStatusDetail) => void
+): () => void {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+    return () => {};
+  }
+  const handler = (e: Event) => {
+    const detail = (e as CustomEvent<SourceSyncStatusDetail>).detail;
+    callback(detail);
+  };
+  window.addEventListener(EVENT_SOURCE_SYNC_STATUS, handler);
+  return () => window.removeEventListener(EVENT_SOURCE_SYNC_STATUS, handler);
+}
 
 const baselineRegistry = baselineSourcesRaw as SourceSourceRegistry;
 
@@ -301,7 +357,8 @@ export function getSourceSourceSync(pointId: string): LiveSourceSource | null {
  */
 export async function upsertLiveSourceSource(
   payload: UpsertSourcePayload,
-  token?: string
+  token?: string,
+  options?: UpsertSourceOptions
 ): Promise<LiveSourceSource> {
   const normalizedKey = normalizePointId(payload.pointId);
   if (!normalizedKey) {
@@ -329,6 +386,10 @@ export async function upsertLiveSourceSource(
   saveToStorage(registry);
   notifyChange(normalizedKey, updatedSource);
 
+  const isBackground = Boolean(options?.isBackground);
+  let cloudSynced: boolean | undefined = undefined;
+  let cloudError: string | undefined = undefined;
+
   // 2. Persist to Supabase if configured
   const config = getSupabaseConfig();
   if (config) {
@@ -348,7 +409,7 @@ export async function upsertLiveSourceSource(
         dbRow.synced_photos = updatedSource.syncedPhotos;
       }
 
-      await fetch(`${config.url}/rest/v1/engine_sources`, {
+      const response = await fetch(`${config.url}/rest/v1/engine_sources`, {
         method: 'POST',
         headers: {
           apikey: config.anonKey,
@@ -358,9 +419,31 @@ export async function upsertLiveSourceSource(
         },
         body: JSON.stringify(dbRow),
       });
-    } catch {
-      // Local snapshot remains intact even if network fails
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown cloud error');
+        console.warn(`[sourceService] Supabase write failed (HTTP ${response.status}):`, errorText);
+        cloudSynced = false;
+        cloudError = `HTTP ${response.status}: ${errorText}`;
+        notifySyncStatus(normalizedKey, false, cloudError, isBackground);
+      } else {
+        cloudSynced = true;
+        notifySyncStatus(normalizedKey, true, undefined, isBackground);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Network failure';
+      console.warn('[sourceService] Supabase network error during source upsert:', msg);
+      cloudSynced = false;
+      cloudError = msg;
+      notifySyncStatus(normalizedKey, false, msg, isBackground);
     }
+  }
+
+  if (cloudSynced !== undefined) {
+    updatedSource.cloudSynced = cloudSynced;
+  }
+  if (cloudError !== undefined) {
+    updatedSource.cloudError = cloudError;
   }
 
   return updatedSource;

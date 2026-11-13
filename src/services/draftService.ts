@@ -26,6 +26,7 @@ import {
   invalidateContentCache,
   getAllContentOverrides,
   setAllContentOverrides,
+  clearDraftTombstones,
   EVENT_DRAFT_CONTENT_CHANGE,
 } from '../utils/contentDb';
 import { getSessionUnlockTime, isSessionValid } from '../utils/devSecurity';
@@ -62,6 +63,7 @@ let inMemoryDraftActive = false;
 let inMemoryDraftDirty = false;
 let inMemoryDraftBaseId: string | null = null;
 const inMemoryDraftCanvases: Record<string, NodeCanvasDocument> = {};
+let activeInitDraftPromise: Promise<void> | null = null;
 
 let autoSyncTimer: ReturnType<typeof setTimeout> | null = null;
 let currentSyncStatus: CloudDraftSyncStatus = 'saved';
@@ -247,7 +249,7 @@ export function dispatchDraftChange(): void {
 export function subscribeToDraftStatus(
   callback: (status: { isActive: boolean; isDirty: boolean }) => void
 ): () => void {
-  if (typeof window === 'undefined') return () => {};
+  if (typeof window === 'undefined') return () => { };
 
   const handler = () => {
     callback({
@@ -273,7 +275,7 @@ export function getCloudDraftSyncStatus(): CloudDraftSyncStatus {
 export function subscribeToCloudDraftSync(
   callback: (detail: DraftSyncStatusEventDetail) => void
 ): () => void {
-  if (typeof window === 'undefined') return () => {};
+  if (typeof window === 'undefined') return () => { };
   const handler = (e: Event) => {
     const detail = (e as CustomEvent<DraftSyncStatusEventDetail>).detail;
     callback(detail);
@@ -298,6 +300,8 @@ function notifySyncStatus(status: CloudDraftSyncStatus, error?: string): void {
  * Clears all in-memory draft canvas documents, flags, and any lingering storage keys.
  */
 export function clearDraftStorage(): void {
+  activeInitDraftPromise = null;
+  clearDraftTombstones();
   inMemoryDraftActive = false;
   inMemoryDraftDirty = false;
   inMemoryDraftBaseId = null;
@@ -448,7 +452,7 @@ export function triggerDebouncedCloudDraftSync(): void {
   }
   notifySyncStatus('saving');
   autoSyncTimer = setTimeout(() => {
-    syncDraftToCloud().catch(() => {});
+    syncDraftToCloud().catch(() => { });
   }, AUTOSYNC_DEBOUNCE_MS);
 }
 
@@ -457,89 +461,102 @@ export function triggerDebouncedCloudDraftSync(): void {
  * Populates in-memory draft state from Supabase engine_drafts or live published baseline.
  * Zero writes of canvas documents to localStorage.
  */
-export async function initDraftSession(forceFresh: boolean = false): Promise<void> {
-  const unlockTime = getSessionUnlockTime();
-  const sessionActive = isSessionValid(unlockTime);
-  const draftExists = hasDraftKeys();
-
-  // If not forced fresh and session or draft active: retain existing in-memory draft
-  if (!forceFresh && (sessionActive || isDraftModeActive()) && draftExists && Object.keys(inMemoryDraftCanvases).length > 0) {
-    setDraftModeActive(true);
-    return;
+export function initDraftSession(forceFresh: boolean = false): Promise<void> {
+  if (activeInitDraftPromise && !forceFresh) {
+    return activeInitDraftPromise;
   }
 
-  const activePublishedId = getActivePublishedId();
-
-  // 1. Check for cloud draft in Supabase engine_drafts
-  if (!forceFresh) {
+  activeInitDraftPromise = (async () => {
     try {
-      const cloudDraft = await fetchActiveCloudDraft();
-      if (cloudDraft && Object.keys(cloudDraft.canvases).length > 0) {
-        let loadedValidCanvases = false;
-        for (const [nodeId, doc] of Object.entries(cloudDraft.canvases)) {
-          if (isValidCanvasDocument(doc, nodeId)) {
-            inMemoryDraftCanvases[nodeId] = doc;
-            loadedValidCanvases = true;
-          }
-        }
-        if (loadedValidCanvases) {
-          if (cloudDraft.contentOverrides && Object.keys(cloudDraft.contentOverrides).length > 0) {
-            setAllContentOverrides(cloudDraft.contentOverrides, true);
-          }
-          const resolvedBaseId = cloudDraft.baseSnapshotId || activePublishedId;
-          setDraftModeActive(true, resolvedBaseId);
-          dispatchDraftChange();
-          invalidateContentCache();
-          return;
-        }
-      }
-    } catch {
-      // Ignore network errors, fall through to local clone
-    }
+      const unlockTime = getSessionUnlockTime();
+      const sessionActive = isSessionValid(unlockTime);
+      const draftExists = hasDraftKeys();
 
-    // 1b. Check local persistent storage fallback if available
-    const storage = getStorage();
-    if (storage) {
-      try {
-        let hasSavedDraftInStorage = false;
-        for (const nodeId of NODE_IDS) {
-          const raw = storage.getItem(getDraftCanvasKey(nodeId));
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (isValidCanvasDocument(parsed, nodeId)) {
-              inMemoryDraftCanvases[nodeId] = parsed;
-              hasSavedDraftInStorage = true;
+      // If not forced fresh and session or draft active: retain existing in-memory draft
+      if (!forceFresh && (sessionActive || isDraftModeActive()) && draftExists && Object.keys(inMemoryDraftCanvases).length > 0) {
+        setDraftModeActive(true);
+        return;
+      }
+
+      const activePublishedId = getActivePublishedId();
+
+      // 1. Check for cloud draft in Supabase engine_drafts
+      if (!forceFresh) {
+        try {
+          const cloudDraft = await fetchActiveCloudDraft();
+          if (cloudDraft && Object.keys(cloudDraft.canvases).length > 0) {
+            let loadedValidCanvases = false;
+            for (const [nodeId, doc] of Object.entries(cloudDraft.canvases)) {
+              if (isValidCanvasDocument(doc, nodeId)) {
+                inMemoryDraftCanvases[nodeId] = doc;
+                loadedValidCanvases = true;
+              }
+            }
+            if (loadedValidCanvases) {
+              if (cloudDraft.contentOverrides && Object.keys(cloudDraft.contentOverrides).length > 0) {
+                setAllContentOverrides(cloudDraft.contentOverrides, true);
+              }
+              const resolvedBaseId = cloudDraft.baseSnapshotId || activePublishedId;
+              setDraftModeActive(true, resolvedBaseId);
+              dispatchDraftChange();
+              invalidateContentCache();
+              return;
             }
           }
+        } catch {
+          // Ignore network errors, fall through to local clone
         }
-        if (hasSavedDraftInStorage) {
-          setDraftModeActive(true, getDraftBaseId() || activePublishedId);
-          dispatchDraftChange();
-          invalidateContentCache();
-          return;
+
+        // 1b. Check local persistent storage fallback if available
+        const storage = getStorage();
+        if (storage) {
+          try {
+            let hasSavedDraftInStorage = false;
+            for (const nodeId of NODE_IDS) {
+              const raw = storage.getItem(getDraftCanvasKey(nodeId));
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                if (isValidCanvasDocument(parsed, nodeId)) {
+                  inMemoryDraftCanvases[nodeId] = parsed;
+                  hasSavedDraftInStorage = true;
+                }
+              }
+            }
+            if (hasSavedDraftInStorage) {
+              setDraftModeActive(true, getDraftBaseId() || activePublishedId);
+              dispatchDraftChange();
+              invalidateContentCache();
+              return;
+            }
+          } catch {
+            // Fall through to live clone
+          }
         }
-      } catch {
-        // Fall through to live clone
       }
+
+      // 2. Clone active published baseline into in-memory draft store
+      for (const nodeId of NODE_IDS) {
+        const liveDoc = getLiveNodeCanvas(nodeId);
+        inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(liveDoc));
+      }
+
+      setDraftModeActive(true, activePublishedId);
+      setDraftDirty(false);
+      dispatchDraftChange();
+      invalidateContentCache();
+    } finally {
+      activeInitDraftPromise = null;
     }
-  }
+  })();
 
-  // 2. Clone active published baseline into in-memory draft store
-  for (const nodeId of NODE_IDS) {
-    const liveDoc = getLiveNodeCanvas(nodeId);
-    inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(liveDoc));
-  }
-
-  setDraftModeActive(true, activePublishedId);
-  setDraftDirty(false);
-  dispatchDraftChange();
-  invalidateContentCache();
+  return activeInitDraftPromise;
 }
 
 /**
  * Discards all uncommitted draft changes and reverts the workspace to the active live published state.
  */
 export async function discardDraftSession(): Promise<void> {
+  clearDraftTombstones();
   clearDraftStorage();
 
   const config = getSupabaseConfig();
@@ -570,6 +587,7 @@ export function syncDraftWithPublished(
   _contentOverrides?: Record<string, string>,
   newBaseId?: string
 ): void {
+  clearDraftTombstones();
   const baseId = newBaseId || getActivePublishedId();
   for (const nodeId of NODE_IDS) {
     if (canvases[nodeId]) {

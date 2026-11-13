@@ -1,10 +1,8 @@
 ---
 name: terminology
 description: >-
-  Canonical product and ecosystem terminology for Folio Engine (@devcabs/folio-engine)
-  and applications built with it.
-trigger:
-  - "When writing documentation, UI copy, marketing content, or agent responses referencing apps built with folio-engine"
+  Canonical product and ecosystem terminology for Folio Engine (@devcabs/folio-engine) and applications built with it. Apply when writing documentation, UI copy, marketing content, or agent responses referencing apps built with folio-engine.
+trigger: model_decision
 ---
 
 # Rule: Canonical Terminology

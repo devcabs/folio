@@ -17,17 +17,26 @@ import type {
   DriveReconciliationStats,
   SyncState,
   UseDrivePhotoSyncResult,
+  DriveSyncOptions,
 } from '../types/source';
 import { syncFolderPhotos } from '../services/drivePhotoSyncService';
 import { useSourcePoint } from './useSourcePoint';
-import { STORAGE_KEY_SOURCE_CACHE, getSourceSourceSync } from '../services/sourceService';
+import {
+  STORAGE_KEY_SOURCE_CACHE,
+  getSourceSourceSync,
+  EVENT_SOURCE_SYNC_STATUS,
+  type SourceSyncStatusDetail,
+} from '../services/sourceService';
 import { normalizePointId } from '../utils/source';
 
 export function useDrivePhotoSync(nodeId: string): UseDrivePhotoSyncResult {
   const { source, folderUrl } = useSourcePoint(nodeId);
   const [isPending, startTransition] = useTransition();
   const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [backgroundError, setBackgroundError] = useState<string | null>(null);
+  const [cloudSynced, setCloudSynced] = useState<boolean | undefined>(undefined);
   const [lastStats, setLastStats] = useState<DriveReconciliationStats | null>(null);
   const [crossTabPhotos, setCrossTabPhotos] = useState<SyncedSourceItem[] | null>(null);
 
@@ -52,6 +61,28 @@ export function useDrivePhotoSync(nodeId: string): UseDrivePhotoSyncResult {
     };
   }, [normalizedKey]);
 
+  // Cloud sync observability status listener
+  useEffect(() => {
+    if (typeof window === 'undefined' || !normalizedKey) return;
+
+    const handleSyncStatus = (e: Event) => {
+      const detail = (e as CustomEvent<SourceSyncStatusDetail>).detail;
+      if (detail && normalizePointId(detail.pointId) === normalizedKey) {
+        setCloudSynced(detail.cloudSynced);
+        if (!detail.cloudSynced && detail.error) {
+          if (detail.isBackground) {
+            setBackgroundError(detail.error);
+          }
+        }
+      }
+    };
+
+    window.addEventListener(EVENT_SOURCE_SYNC_STATUS, handleSyncStatus);
+    return () => {
+      window.removeEventListener(EVENT_SOURCE_SYNC_STATUS, handleSyncStatus);
+    };
+  }, [normalizedKey]);
+
   // Reset cross-tab override whenever canonical source updates
   useEffect(() => {
     setCrossTabPhotos(null);
@@ -67,39 +98,83 @@ export function useDrivePhotoSync(nodeId: string): UseDrivePhotoSyncResult {
     return syncedPhotos.length > 0 ? 'synced_success' : 'synced_empty';
   }, [isManualSyncing, isPending, error, hasEverSynced, syncedPhotos.length]);
 
-  const syncPhotos = useCallback(async (): Promise<DriveReconciliationStats | null> => {
-    if (!folderUrl) {
-      setError('No Google Drive folder linked to this node.');
-      return null;
-    }
+  const syncPhotos = useCallback(
+    async (options?: boolean | DriveSyncOptions): Promise<DriveReconciliationStats | null> => {
+      const isBackground = typeof options === 'boolean' ? options : Boolean(options?.isBackground);
+      const authToken = typeof options === 'object' ? options?.authToken : undefined;
 
-    setIsManualSyncing(true);
-    setError(null);
+      if (!folderUrl) {
+        const msg = 'No Google Drive folder linked to this node.';
+        if (!isBackground) {
+          setError(msg);
+          throw new Error(msg);
+        } else {
+          setBackgroundError(msg);
+          return null;
+        }
+      }
 
-    try {
-      const result = await syncFolderPhotos(nodeId, folderUrl, syncedPhotos);
+      if (isBackground) {
+        setIsBackgroundSyncing(true);
+      } else {
+        setIsManualSyncing(true);
+        setError(null);
+      }
 
-      startTransition(() => {
-        setLastStats(result.stats);
-      });
+      try {
+        const result = await syncFolderPhotos(
+          nodeId,
+          folderUrl,
+          syncedPhotos,
+          authToken,
+          { isBackground, authToken }
+        );
 
-      return result.stats;
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to sync photos from Google Drive.';
-      setError(message);
-      throw err;
-    } finally {
-      setIsManualSyncing(false);
-    }
-  }, [nodeId, folderUrl, syncedPhotos]);
+        startTransition(() => {
+          setLastStats(result.stats);
+          if (result.cloudSynced !== undefined) {
+            setCloudSynced(result.cloudSynced);
+          }
+        });
+
+        if (result.cloudSynced === false && result.cloudError) {
+          if (isBackground) {
+            setBackgroundError(result.cloudError);
+          }
+        }
+
+        return result.stats;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Failed to sync photos from Google Drive.';
+        if (isBackground) {
+          setBackgroundError(message);
+          return null;
+        } else {
+          setError(message);
+          throw err;
+        }
+      } finally {
+        if (isBackground) {
+          setIsBackgroundSyncing(false);
+        } else {
+          setIsManualSyncing(false);
+        }
+      }
+    },
+    [nodeId, folderUrl, syncedPhotos]
+  );
 
   return {
     syncedPhotos,
     syncState,
     hasSynced: hasEverSynced,
-    isSyncing: isManualSyncing || isPending,
+    isSyncing: isManualSyncing || isBackgroundSyncing || isPending,
+    isManualSyncing,
+    isBackgroundSyncing,
     error,
+    backgroundError,
+    cloudSynced,
     lastStats,
     syncPhotos,
   };

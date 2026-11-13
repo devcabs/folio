@@ -55,7 +55,7 @@ export function getSourceSource(pointId: string): SourceSource | null {
  * - https://drive.google.com/open?id={folderId}
  */
 export const GOOGLE_DRIVE_FOLDER_REGEX =
-  /^https:\/\/(?:drive\.google\.com\/(?:drive\/(?:u\/\d+\/)?folders\/|open\?id=))([a-zA-Z0-9_-]{15,})/;
+  /^https:\/\/(?:drive\.google\.com\/(?:drive\/(?:u\/\d+\/)?folders\/|open\?id=))([a-zA-Z0-9_-]+)/;
 
 /**
  * Validates whether a given URL string is a valid Google Drive folder URL.

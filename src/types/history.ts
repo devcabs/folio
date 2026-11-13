@@ -99,3 +99,15 @@ export interface PublishedSnapshot {
   };
 }
 
+export interface PublishSnapshotResult {
+  success: boolean;
+  snapshot: PublishedSnapshot;
+  localSaved: boolean;
+  cloudSynced: boolean;
+  edgeDeployed: boolean;
+  cloudError?: string;
+  edgeError?: string;
+  error?: string;
+}
+
+

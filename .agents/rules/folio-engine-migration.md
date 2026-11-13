@@ -1,10 +1,8 @@
 ---
 name: folio-engine-migration
 description: >-
-  Mandatory pre-upgrade and post-upgrade migration check for consumer applications
-  using @devcabs/folio-engine. Copy or import into consumer `.agents/rules/`.
-trigger:
-  - "When upgrading @devcabs/folio-engine or modifying EngineConfig/content schemas"
+  Mandatory pre-upgrade and post-upgrade migration check for consumer applications using @devcabs/folio-engine. Apply when upgrading @devcabs/folio-engine or modifying EngineConfig/content schemas. Copy or import into consumer `.agents/rules/`.
+trigger: model_decision
 ---
 
 # Rule: `@devcabs/folio-engine` Migration Verification

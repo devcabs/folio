@@ -1,9 +1,8 @@
 ---
 name: ux-psychology
 description: >-
-  Consolidated UX psychology principles: goal gradient, cognitive momentum, trust & transparency, evaluative ease, and competence feedback.
-trigger:
-  - "When designing user flows, navigation, progression maps, or conversion points"
+  Consolidated UX psychology principles: goal gradient, cognitive momentum, trust & transparency, evaluative ease, and competence feedback. Apply when designing user flows, navigation, progression maps, or conversion points.
+trigger: model_decision
 ---
 
 # UX Psychology & Interaction Guidelines

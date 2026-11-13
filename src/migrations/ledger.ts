@@ -121,6 +121,29 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.1.6',
+    releaseDate: '2026-11-13',
+    title: 'Data Layer Integrity, Edge KV Await & Observability Pipeline',
+    summary:
+      'Hardened dual-channel storage with tombstone resets, Drive photo pagination loop & link variants, Sheets empty-data guards, IndexedDB quota alerts, 3-tier Edge KV await with retry, and cold-boot skeleton wireframes.',
+    breakingChanges: [
+      'No breaking API removals; additive observability events, tombstone isolation in content overrides, and 3-tier publishing status contracts.',
+    ],
+    codeActions: [],
+    contentChanges: [
+      {
+        id: 'data-layer-integrity-0.1.6',
+        title: 'Data Layer Integrity & Observability Upgrades',
+        required: false,
+        description:
+          'Consumer apps receive improved Drive sync resilience, instant single-photo preview variants, and zero-flash cold boot wireframes.',
+        affectedEntities: ['DocumentCanvas', 'DevPublishModal', 'mediaUrl'],
+        migrationPrompt:
+          'Review consumer app publishing flows to take advantage of 3-tier publishing status and ensure DocumentCanvas leverages the new zero-flash wireframe state during cold boot.',
+      },
+    ],
+  },
 ];
 
 /**

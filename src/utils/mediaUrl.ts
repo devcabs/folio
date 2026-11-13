@@ -39,35 +39,83 @@ export function normalizeEdgeWidth(rawWidth: number): EdgeWidth {
   return closest;
 }
 
+export interface ResolvedSinglePhoto {
+  fileId: string;
+  displayUrl: string;
+  thumbnailUrl: string;
+  rawUrl: string;
+}
+
 /**
- * Extracts a Google Drive alphanumeric file ID from a raw ID or standard Drive URL formats:
+ * Extracts a Google Drive alphanumeric file ID specifically for SINGLE PHOTOS.
+ * Strictly ignores and rejects folder URLs (/folders/).
+ *
+ * Supported single-photo variants:
  * - Direct ID: 1ABCxyz0123456789_-
- * - Thumbnail URL: https://drive.google.com/thumbnail?id=1ABC...&sz=w1600
- * - File View URL: https://drive.google.com/file/d/1ABC.../view
+ * - View URL: https://drive.google.com/file/d/1ABC.../view
+ * - Preview URL: https://drive.google.com/file/d/1ABC.../preview
+ * - Bare path: https://drive.google.com/file/d/1ABC...
  * - Open URL: https://drive.google.com/open?id=1ABC...
+ * - Direct UC: https://drive.google.com/uc?id=1ABC...&export=download
+ * - Thumbnail URL: https://drive.google.com/thumbnail?id=1ABC...&sz=w1600
+ * - User Content CDN: https://lh3.googleusercontent.com/d/1ABC... or drive-viewer/1ABC...
+ * - Multi-account: https://drive.google.com/u/1/file/d/1ABC.../view
+ * - Angle-bracketed / quoted URLs: <https://...> or "https://..."
  */
 export function extractDriveFileId(input: string): string | null {
   if (!input || typeof input !== 'string') return null;
-  const trimmed = input.trim();
 
-  // 1. Direct alphanumeric ID check
+  // 1. Sanitize input (strip surrounding whitespace, angle brackets, and quotes)
+  const trimmed = input.trim().replace(/^[<"']+|[>"']+$/g, '').trim();
+  if (!trimmed) return null;
+
+  // 2. Reject folder links explicitly (Single Photos ONLY)
+  if (trimmed.includes('/folders/') || trimmed.includes('/folders')) {
+    return null;
+  }
+
+  // 3. Direct alphanumeric file ID
   if (DRIVE_ID_REGEX.test(trimmed)) {
     return trimmed;
   }
 
-  // 2. Query param ?id=... or &id=...
+  // 4. Query param ?id=... or &id=... (covers /open?id=, /uc?id=, /thumbnail?id=)
   const queryMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]{10,64})/);
   if (queryMatch?.[1] && DRIVE_ID_REGEX.test(queryMatch[1])) {
     return queryMatch[1];
   }
 
-  // 3. Path /d/ID or /folders/ID
-  const pathMatch = trimmed.match(/\/(?:d|folders)\/([a-zA-Z0-9_-]{10,64})/);
-  if (pathMatch?.[1] && DRIVE_ID_REGEX.test(pathMatch[1])) {
-    return pathMatch[1];
+  // 5. Google User Content CDN: lh3.googleusercontent.com/d/FILE_ID or drive-viewer/FILE_ID
+  const lhMatch = trimmed.match(/googleusercontent\.com\/(?:d|drive-viewer)\/([a-zA-Z0-9_-]{10,64})/);
+  if (lhMatch?.[1] && DRIVE_ID_REGEX.test(lhMatch[1])) {
+    return lhMatch[1];
+  }
+
+  // 6. Direct file view path: /file/d/FILE_ID or standard /d/FILE_ID
+  // Handles multi-account prefixes like /u/0/file/d/..., /u/1/d/...
+  const dPathMatch = trimmed.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{10,64})/);
+  if (dPathMatch?.[1] && DRIVE_ID_REGEX.test(dPathMatch[1])) {
+    return dPathMatch[1];
   }
 
   return null;
+}
+
+/**
+ * Resolves any valid Google Drive single-photo link variant into permanent,
+ * renderable image URLs suitable for <img> tags and canvas AST persistence.
+ * Returns null if the URL is invalid or is a folder URL.
+ */
+export function resolveSingleDrivePhotoUrl(input: string): ResolvedSinglePhoto | null {
+  const fileId = extractDriveFileId(input);
+  if (!fileId) return null;
+
+  return {
+    fileId,
+    displayUrl: `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`,
+    thumbnailUrl: `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w320`,
+    rawUrl: input.trim(),
+  };
 }
 
 export interface EdgeMediaUrlOptions {

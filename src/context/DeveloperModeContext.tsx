@@ -53,6 +53,7 @@ import type { CloudDraftSyncStatus } from '../types/draft';
 import { Toast } from '../components/feedback/Toast';
 import { handleBeforeUnloadGuard } from '../services/unsavedChangesService';
 import { useMigrationContext } from './MigrationContext';
+import { EVENT_INDEXEDDB_ERROR } from '../services/historyStorage';
 
 export interface ToastState {
   message: string;
@@ -825,6 +826,20 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     },
     []
   );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleStorageError = () => {
+      showToast(
+        'Browser storage limit reached — full snapshot backup could not be saved locally. Export a JSON backup to protect your work.',
+        'error'
+      );
+    };
+
+    window.addEventListener(EVENT_INDEXEDDB_ERROR, handleStorageError);
+    return () => window.removeEventListener(EVENT_INDEXEDDB_ERROR, handleStorageError);
+  }, [showToast]);
 
   const value: DeveloperModeContextType = {
     isDevMode,

@@ -1,10 +1,8 @@
 ---
 name: ui-standards
 description: >-
-  Consolidated UI standards enforcing the 4-state interactive matrix, typography hierarchy, fluid clamp scaling, 4px/8px geometry scale, and elevation depth.
-trigger:
-  - "When building or styling interactive components (buttons, links, form inputs, cards, roadmap nodes)"
-  - "When configuring typography, spacing, or elevation"
+  Consolidated UI standards enforcing the 4-state interactive matrix, typography hierarchy, fluid clamp scaling, 4px/8px geometry scale, and elevation depth. Apply when building or styling interactive components (buttons, links, form inputs, cards, roadmap nodes) or configuring typography, spacing, or elevation.
+trigger: model_decision
 ---
 
 # UI Standards & Component Guidelines

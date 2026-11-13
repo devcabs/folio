@@ -17,6 +17,7 @@ import type {
   SyncedSourceItem,
   DriveReconciliationResult,
   SyncFolderPhotosResult,
+  DriveSyncOptions,
 } from '../types/source';
 import {
   upsertLiveSourceSource,
@@ -231,6 +232,12 @@ export function reconcileDrivePhotos(
 }
 
 /**
+ * Maximum number of pages to fetch when syncing a Drive folder (safety limit).
+ * 100 items per page * 5 pages = up to 500 images per folder.
+ */
+export const MAX_SYNC_PAGES = 5;
+
+/**
  * Queries Google Drive REST API v3 to list image files within a public folder root.
  * Supports public shared drives, resource keys, subfolder scanning, and Google Workspace links.
  */
@@ -256,55 +263,71 @@ export async function fetchDriveFolderImages(folderUrlOrId: string): Promise<Dri
   }
 
   const query = `'${folderId}' in parents and trashed = false`;
-  const fields = 'files(id,name,mimeType,thumbnailLink,createdTime,modifiedTime)';
-  const endpoint = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
-    query
-  )}&fields=${encodeURIComponent(
-    fields
-  )}&pageSize=100&supportsAllDrives=true&includeItemsFromAllDrives=true&key=${encodeURIComponent(
-    apiKey
-  )}`;
+  const fields = 'nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,modifiedTime)';
 
-  const response = await fetch(endpoint, {
-    method: 'GET',
-    headers,
-  });
+  let pageToken: string | undefined = undefined;
+  let pageCount = 0;
+  const allFiles: DrivePhotoFile[] = [];
 
-  if (!response.ok) {
-    const errJson = (await response.json().catch(() => null)) as {
-      error?: {
-        code?: number;
-        message?: string;
-        status?: string;
-        errors?: Array<{ reason?: string; message?: string }>;
-      };
-    } | null;
+  do {
+    let endpoint = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
+      query
+    )}&fields=${encodeURIComponent(
+      fields
+    )}&pageSize=100&supportsAllDrives=true&includeItemsFromAllDrives=true&key=${encodeURIComponent(
+      apiKey
+    )}`;
 
-    const errorReason = errJson?.error?.errors?.[0]?.reason || errJson?.error?.status || '';
-    const errorMsg = errJson?.error?.message || response.statusText || '';
-
-    if (response.status === 404) {
-      throw new Error(`Google Drive folder not found [HTTP 404: ${errorMsg || 'Folder does not exist or has been deleted'}].`);
+    if (pageToken) {
+      endpoint += `&pageToken=${encodeURIComponent(pageToken)}`;
     }
-    if (response.status === 403) {
-      if (
-        errorReason === 'API_KEY_HTTP_REFERRER_BLOCKED' ||
-        errorReason === 'ipRefererBlocked' ||
-        errorMsg.toLowerCase().includes('referrer')
-      ) {
+
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errJson = (await response.json().catch(() => null)) as {
+        error?: {
+          code?: number;
+          message?: string;
+          status?: string;
+          errors?: Array<{ reason?: string; message?: string }>;
+        };
+      } | null;
+
+      const errorReason = errJson?.error?.errors?.[0]?.reason || errJson?.error?.status || '';
+      const errorMsg = errJson?.error?.message || response.statusText || '';
+
+      if (response.status === 404) {
+        throw new Error(`Google Drive folder not found [HTTP 404: ${errorMsg || 'Folder does not exist or has been deleted'}].`);
+      }
+      if (response.status === 403) {
+        if (
+          errorReason === 'API_KEY_HTTP_REFERRER_BLOCKED' ||
+          errorReason === 'ipRefererBlocked' ||
+          errorMsg.toLowerCase().includes('referrer')
+        ) {
+          throw new Error(
+            `Google Cloud API Key Referrer Block [HTTP 403: ${errorMsg}]. Add your deployment domain to allowed HTTP referrers in Google Cloud Console.`
+          );
+        }
         throw new Error(
-          `Google Cloud API Key Referrer Block [HTTP 403: ${errorMsg}]. Add your deployment domain to allowed HTTP referrers in Google Cloud Console.`
+          `Access denied [HTTP 403: ${errorMsg || 'Forbidden'}]. Ensure folder General Access is set to "Anyone with the link can view".`
         );
       }
-      throw new Error(
-        `Access denied [HTTP 403: ${errorMsg || 'Forbidden'}]. Ensure folder General Access is set to "Anyone with the link can view".`
-      );
+      throw new Error(`Google Drive API error [HTTP ${response.status}]: ${errorMsg}`);
     }
-    throw new Error(`Google Drive API error [HTTP ${response.status}]: ${errorMsg}`);
-  }
 
-  const data = (await response.json()) as { files?: DrivePhotoFile[] };
-  const allFiles = data.files ?? [];
+    const data = (await response.json()) as { files?: DrivePhotoFile[]; nextPageToken?: string };
+    if (Array.isArray(data.files)) {
+      allFiles.push(...data.files);
+    }
+
+    pageToken = data.nextPageToken;
+    pageCount++;
+  } while (pageToken && pageCount < MAX_SYNC_PAGES);
 
   const isImageFile = (f: DrivePhotoFile) =>
     Boolean(
@@ -342,8 +365,11 @@ export async function fetchDriveFolderImages(folderUrlOrId: string): Promise<Dri
       for (const subImages of subfolderResults) {
         directImages.push(...subImages);
       }
-    } catch {
-      // Subfolder probe non-blocking
+    } catch (subfolderErr) {
+      console.warn(
+        '[drivePhotoSyncService] Subfolder image scan encountered an error; direct images retained:',
+        subfolderErr
+      );
     }
   }
 
@@ -363,7 +389,8 @@ export async function syncFolderPhotos(
   pointId: string,
   folderUrl: string,
   existingPhotos: SyncedSourceItem[] = [],
-  authToken?: string
+  authToken?: string,
+  options?: DriveSyncOptions
 ): Promise<SyncFolderPhotosResult> {
   if (!pointId || typeof pointId !== 'string' || !pointId.trim()) {
     throw new Error('Invalid pointId: must be a non-empty string.');
@@ -398,12 +425,15 @@ export async function syncFolderPhotos(
       syncedPhotos: reconciliation.items,
       updatedBy: 'Drive Sync Engine',
     },
-    authToken
+    authToken || options?.authToken,
+    { isBackground: options?.isBackground }
   );
 
   return {
     items: reconciliation.items,
     stats: reconciliation.stats,
     source: updatedSource,
+    cloudSynced: updatedSource.cloudSynced,
+    cloudError: updatedSource.cloudError,
   };
 }

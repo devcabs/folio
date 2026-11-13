@@ -61,6 +61,13 @@ export interface SyncFolderPhotosResult {
   items: SyncedSourceItem[];
   stats: DriveReconciliationStats;
   source: LiveSourceSource;
+  cloudSynced?: boolean;
+  cloudError?: string;
+}
+
+export interface DriveSyncOptions {
+  isBackground?: boolean;
+  authToken?: string;
 }
 
 export interface UseDrivePhotoSyncResult {
@@ -68,9 +75,13 @@ export interface UseDrivePhotoSyncResult {
   syncState: SyncState;
   hasSynced: boolean;
   isSyncing: boolean;
+  isManualSyncing?: boolean;
+  isBackgroundSyncing?: boolean;
   error: string | null;
+  backgroundError?: string | null;
+  cloudSynced?: boolean;
   lastStats: DriveReconciliationStats | null;
-  syncPhotos: () => Promise<DriveReconciliationStats | null>;
+  syncPhotos: (options?: boolean | DriveSyncOptions) => Promise<DriveReconciliationStats | null>;
 }
 
 export interface LiveSourceSource {
@@ -82,6 +93,8 @@ export interface LiveSourceSource {
   lastVerified: string;
   createdAt: string;
   syncedPhotos?: SyncedSourceItem[];
+  cloudSynced?: boolean;
+  cloudError?: string;
 }
 
 export type LiveSourceRegistry = Record<string, LiveSourceSource>;

@@ -21,6 +21,9 @@
    /* Crisp pure white for cards & bento boxes */
    --bg-surface-muted: #f7f5f2;
    /* Subtle secondary card & neutral pill background */
+   --folio-bg-canvas: var(--bg-canvas);
+   --folio-bg-surface: var(--bg-surface);
+   --folio-border: var(--border-subtle);
    --bg-surface-glass: rgba(255, 255, 255, 0.92);
    /* Floating glass capsule navbar & pill bar */
    --overlay-scrim: rgba(15, 23, 42, 0.45);

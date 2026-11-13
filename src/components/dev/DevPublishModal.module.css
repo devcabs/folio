@@ -139,5 +139,70 @@
   background-color: var(--brand-primary-dark) !important;
 }
 
+.statusContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.checkItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-surface-muted);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+}
+
+.itemTitle {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.statusPill {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusSuccess {
+  color: var(--color-node-4);
+  background-color: var(--color-node-4-tint);
+}
+
+.statusWarning {
+  color: var(--color-node-3);
+  background-color: var(--color-node-3-tint);
+}
+
+.statusError {
+  color: var(--folio-primary);
+  background-color: var(--brand-primary-tint);
+}
+
+.statusPending {
+  color: var(--text-secondary);
+  background-color: var(--bg-surface);
+}
+
+
 
 

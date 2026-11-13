@@ -18,6 +18,7 @@ import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { useUnsavedChangesPrompt } from '../../hooks/useUnsavedChangesPrompt';
 import { getContent, setContent, resetContent } from '../../utils/contentDb';
 import { uploadMediaAsset } from '../../services/mediaService';
+import { resolveSingleDrivePhotoUrl } from '../../utils/mediaUrl';
 import styles from './UniversalEditModal.module.css';
 
 export interface UniversalEditModalProps {
@@ -231,16 +232,17 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   // Canvas Draft State
   const [canvasDraft, setCanvasDraft] = useState<CanvasElementFormData>(() => {
     if (initialData) {
+      const resolved = initialData.src ? resolveSingleDrivePhotoUrl(initialData.src) : null;
       return {
         title: initialData.title || '',
         isNumbered: initialData.isNumbered !== false,
         content: stripInstructionalPlaceholder(initialData.content),
         as: initialData.as || 'p',
-        src: initialData.src || '',
+        src: resolved ? resolved.displayUrl : (initialData.src || ''),
         alt: stripInstructionalPlaceholder(initialData.alt),
         caption: stripInstructionalPlaceholder(initialData.caption),
         showCaption: Boolean(initialData.showCaption || (initialData.caption && initialData.caption.trim().length > 0)),
-        driveUrl: initialData.driveUrl || '',
+        driveUrl: initialData.driveUrl || (resolved ? initialData.src || '' : ''),
       };
     }
     return {
@@ -276,12 +278,10 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   const isNumberedKey = pointId ? `${pointId}.isNumbered` : '';
   const [isNumberedDraft, setIsNumberedDraft] = useState<boolean>(true);
 
-  // Photo source mode toggle ('upload' | 'url')
-  const [photoSourceMode, setPhotoSourceMode] = useState<'upload' | 'url'>('upload');
+  // Upload status for document attachments
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const docFileInputRef = useRef<HTMLInputElement>(null);
   const initialFocusRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
@@ -297,31 +297,28 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
     if (!isOpen) return;
 
     if (isCanvasDomain) {
+      const resolved = initialData?.src ? resolveSingleDrivePhotoUrl(initialData.src) : null;
       const draftVal: CanvasElementFormData = {
         title: initialData?.title || '',
         isNumbered: initialData?.isNumbered !== false,
         content: stripInstructionalPlaceholder(initialData?.content),
         as: initialData?.as || 'p',
-        src: initialData?.src || '',
+        src: resolved ? resolved.displayUrl : (initialData?.src || ''),
         alt: stripInstructionalPlaceholder(initialData?.alt),
         caption: stripInstructionalPlaceholder(initialData?.caption),
         showCaption: Boolean(
           initialData?.showCaption ||
           (initialData?.caption && initialData.caption.trim().length > 0)
         ),
-        driveUrl: initialData?.driveUrl || '',
+        driveUrl: initialData?.driveUrl || (resolved ? initialData?.src || '' : ''),
       };
       setCanvasDraft(draftVal);
-      const isUrl = Boolean(draftVal.src && !draftVal.src.startsWith('data:'));
-      setPhotoSourceMode(isUrl ? 'url' : 'upload');
     } else {
       const parsed = parseGenericValues(currentValue);
       setTextDraft(parsed.text);
       setLinkDraft(parsed.link);
       setImageDraft(parsed.image);
       setFileDraft(parsed.file);
-      const isUrl = Boolean(parsed.image.src && !parsed.image.src.startsWith('data:'));
-      setPhotoSourceMode(isUrl ? 'url' : 'upload');
 
       if (isSectionItem && isNumberedKey) {
         const storedNumbered = getContent(isNumberedKey, '', isDevMode);
@@ -357,12 +354,13 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   const isFormDirty = useMemo(() => {
     if (!isOpen) return false;
     if (isCanvasDomain) {
+      const initResolved = initialData?.src ? resolveSingleDrivePhotoUrl(initialData.src) : null;
       const initTitle = initialData?.title || '';
       const initContent = stripInstructionalPlaceholder(initialData?.content);
-      const initSrc = initialData?.src || '';
+      const initSrc = initResolved ? initResolved.displayUrl : (initialData?.src || '');
       const initAlt = stripInstructionalPlaceholder(initialData?.alt);
       const initCaption = stripInstructionalPlaceholder(initialData?.caption);
-      const initDriveUrl = initialData?.driveUrl || '';
+      const initDriveUrl = initialData?.driveUrl || (initResolved ? initialData?.src || '' : '');
       const initIsNumbered = initialData?.isNumbered !== false;
 
       return (
@@ -402,37 +400,23 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   // Prevent accidental reload or navigation when active modal has unsaved entries
   useUnsavedChangesPrompt(isOpen && isFormDirty, pointId ? `universal-edit-${pointId}` : 'universal-edit-modal');
 
-  // File picker handler for source photo upload
-  const handlePhotoFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const autoAlt = file.name.replace(/\.[^/.]+$/, '');
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
-      const publicUrl = await uploadMediaAsset(file, 'photos');
-      if (isCanvasDomain) {
-        setCanvasDraft((prev) => ({
-          ...prev,
-          src: publicUrl,
-          alt: prev.alt || autoAlt,
-        }));
-      } else {
-        setImageDraft((prev) => ({
-          ...prev,
-          src: publicUrl,
-          alt: prev.alt || autoAlt,
-        }));
-      }
-    } catch (err: unknown) {
-      console.error('[UniversalEditModal] Photo upload failed:', err);
-      setUploadError(err instanceof Error ? err.message : 'Photo upload failed');
-    } finally {
-      setIsUploading(false);
+  // Single-photo URL change handler with automatic Drive resolution
+  const handlePhotoUrlChange = useCallback((val: string) => {
+    const resolved = resolveSingleDrivePhotoUrl(val);
+    if (resolved) {
+      setCanvasDraft((prev) => ({
+        ...prev,
+        src: resolved.displayUrl,
+        driveUrl: resolved.rawUrl,
+      }));
+    } else {
+      setCanvasDraft((prev) => ({
+        ...prev,
+        src: val,
+        driveUrl: '',
+      }));
     }
-  }, [isCanvasDomain]);
+  }, []);
 
   // File picker handler for generic document upload
   const handleDocumentFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -734,68 +718,20 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
         {isCanvasDomain && elementType === 'photo' && (
           <div className={styles.panel}>
             <div className={styles.formField}>
-              <label className={styles.fieldLabel}>Photo Source</label>
-              <div className={styles.segmentedControl} role="radiogroup" aria-label="Photo Source">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={photoSourceMode === 'upload'}
-                  className={`${styles.segmentButton} ${photoSourceMode === 'upload' ? styles.segmentButtonActive : ''}`}
-                  onClick={() => setPhotoSourceMode('upload')}
-                >
-                  Upload Photo
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={photoSourceMode === 'url'}
-                  className={`${styles.segmentButton} ${photoSourceMode === 'url' ? styles.segmentButtonActive : ''}`}
-                  onClick={() => setPhotoSourceMode('url')}
-                >
-                  Photo URL
-                </button>
-              </div>
+              <label className={styles.fieldLabel} htmlFor="canvas-photo-url">
+                Photo URL <span className={styles.requiredMark}>*</span>
+              </label>
+              <input
+                id="canvas-photo-url"
+                ref={(el) => { initialFocusRef.current = el; }}
+                type="text"
+                className={styles.input}
+                value={canvasDraft.driveUrl || canvasDraft.src || ''}
+                onChange={(e) => handlePhotoUrlChange(e.target.value)}
+                placeholder="Paste any Google Drive photo link (e.g. https://drive.google.com/file/d/.../view)"
+                aria-label="Photo URL"
+              />
             </div>
-
-            {photoSourceMode === 'upload' ? (
-              <div className={styles.fileRow}>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Upload Photo
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  className={styles.hiddenFileInput}
-                  onChange={handlePhotoFileSelect}
-                  aria-label="Upload photo file"
-                />
-                <span className={styles.fileStatus}>
-                  {canvasDraft.src ? 'Photo selected' : 'No photo chosen'}
-                </span>
-              </div>
-            ) : (
-              <div className={styles.formField}>
-                <label className={styles.fieldLabel} htmlFor="canvas-photo-url">
-                  Photo URL <span className={styles.requiredMark}>*</span>
-                </label>
-                <input
-                  id="canvas-photo-url"
-                  ref={(el) => { initialFocusRef.current = el; }}
-                  type="text"
-                  className={styles.input}
-                  value={canvasDraft.src || ''}
-                  onChange={(e) => setCanvasDraft((prev) => ({ ...prev, src: e.target.value }))}
-                  placeholder="https://.../photo.webp"
-                  aria-label="Photo URL"
-                />
-              </div>
-            )}
 
             {canvasDraft.src ? (
               <div className={styles.imagePreviewWrapper}>
@@ -1000,70 +936,27 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
         {!isCanvasDomain && type === 'image' && (
           <div className={styles.panel}>
             <div className={styles.formField}>
-              <label className={styles.fieldLabel}>
-                Photo Source
+              <label className={styles.fieldLabel} htmlFor="dev-modal-image-url">
+                Photo URL <span className={styles.requiredMark}>*</span>
               </label>
-              <div className={styles.segmentedControl} role="radiogroup" aria-label="Photo Source">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={photoSourceMode === 'upload'}
-                  className={`${styles.segmentButton} ${photoSourceMode === 'upload' ? styles.segmentButtonActive : ''}`}
-                  onClick={() => setPhotoSourceMode('upload')}
-                >
-                  Upload Photo
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={photoSourceMode === 'url'}
-                  className={`${styles.segmentButton} ${photoSourceMode === 'url' ? styles.segmentButtonActive : ''}`}
-                  onClick={() => setPhotoSourceMode('url')}
-                >
-                  Photo URL
-                </button>
-              </div>
+              <input
+                id="dev-modal-image-url"
+                ref={(el) => { initialFocusRef.current = el; }}
+                type="text"
+                className={styles.input}
+                value={imageDraft.src}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const resolved = resolveSingleDrivePhotoUrl(val);
+                  setImageDraft((prev) => ({
+                    ...prev,
+                    src: resolved ? resolved.displayUrl : val,
+                  }));
+                }}
+                placeholder="Paste any Google Drive photo link (e.g. https://drive.google.com/file/d/.../view)"
+                aria-label="Photo URL"
+              />
             </div>
-
-            {photoSourceMode === 'upload' ? (
-              <div className={styles.fileRow}>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Upload Photo
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  className={styles.hiddenFileInput}
-                  onChange={handlePhotoFileSelect}
-                  aria-label="Upload photo file"
-                />
-                <span className={styles.fileStatus}>
-                  {imageDraft.src ? 'Photo selected' : 'No photo chosen'}
-                </span>
-              </div>
-            ) : (
-              <div className={styles.formField}>
-                <label className={styles.fieldLabel} htmlFor="dev-modal-image-url">
-                  Photo URL <span className={styles.requiredMark}>*</span>
-                </label>
-                <input
-                  id="dev-modal-image-url"
-                  ref={(el) => { initialFocusRef.current = el; }}
-                  type="text"
-                  className={styles.input}
-                  value={imageDraft.src}
-                  onChange={(e) => setImageDraft((prev) => ({ ...prev, src: e.target.value }))}
-                  placeholder="https://.../photo.webp"
-                  aria-label="Photo URL"
-                />
-              </div>
-            )}
 
             {imageDraft.src ? (
               <div className={styles.imagePreviewWrapper}>

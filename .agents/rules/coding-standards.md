@@ -1,11 +1,8 @@
 ---
 name: coding-standards
 description: >-
-  Enforces coding conventions, naming standards, CSS modules with design tokens, and the single-tasked modularity & anti-bloat principle for Folio Engine (@devcabs/folio-engine).
-trigger:
-  - "When creating or modifying React components, hooks, utilities, or types"
-  - "When naming files, functions, variables, or interfaces"
-  - "When writing component styling"
+  Enforces coding conventions, naming standards, CSS modules with design tokens, and the single-tasked modularity & anti-bloat principle for Folio Engine (@devcabs/folio-engine). Apply when creating or modifying React components, hooks, utilities, or types, naming files, functions, variables, or interfaces, or writing component styling.
+trigger: model_decision
 ---
 
 # Folio Engine Coding & Naming Standards

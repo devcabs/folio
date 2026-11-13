@@ -12,6 +12,28 @@ export const getHistoryDbName = (ns?: string) => (ns || getStorageNamespace()) +
 const DB_VERSION = 1;
 const STORE_NAME = 'history_store';
 
+export const EVENT_INDEXEDDB_ERROR = 'engine-indexeddb-storage-error';
+
+export interface IndexedDBErrorDetail {
+  action: 'save' | 'load';
+  error: string;
+  timestamp: string;
+}
+
+export function notifyIndexedDBError(action: 'save' | 'load', error: unknown): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    window.dispatchEvent(
+      new CustomEvent<IndexedDBErrorDetail>(EVENT_INDEXEDDB_ERROR, {
+        detail: { action, error: errorMsg, timestamp: new Date().toISOString() },
+      })
+    );
+  } catch {
+    // Non-browser context
+  }
+}
+
 function openDatabase(): Promise<IDBDatabase | null> {
   if (typeof window === 'undefined' || !window.indexedDB) {
     return Promise.resolve(null);
@@ -58,11 +80,18 @@ export async function saveToIndexedDB(key: string, value: unknown): Promise<bool
 
       req.onsuccess = () => resolve(true);
       req.onerror = () => {
-        console.warn('[historyStorage] Save to IndexedDB failed:', req.error);
+        const error = req.error;
+        const errName = error?.name || 'IndexedDBError';
+        const errMsg = error?.message || String(error);
+        console.warn(`[historyStorage] Save to IndexedDB failed: ${errName}: ${errMsg}`);
+        notifyIndexedDBError('save', error);
         resolve(false);
       };
     } catch (err) {
-      console.warn('[historyStorage] IndexedDB transaction error:', err);
+      const errName = err instanceof Error ? err.name : 'IndexedDBTransactionError';
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[historyStorage] IndexedDB transaction error: ${errName}: ${errMsg}`);
+      notifyIndexedDBError('save', err);
       resolve(false);
     }
   });
@@ -86,11 +115,18 @@ export async function loadFromIndexedDB<T>(key: string): Promise<T | null> {
       };
 
       req.onerror = () => {
-        console.warn('[historyStorage] Read from IndexedDB failed:', req.error);
+        const error = req.error;
+        const errName = error?.name || 'IndexedDBError';
+        const errMsg = error?.message || String(error);
+        console.warn(`[historyStorage] Read from IndexedDB failed: ${errName}: ${errMsg}`);
+        notifyIndexedDBError('load', error);
         resolve(null);
       };
     } catch (err) {
-      console.warn('[historyStorage] IndexedDB read error:', err);
+      const errName = err instanceof Error ? err.name : 'IndexedDBReadError';
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.warn(`[historyStorage] IndexedDB read error: ${errName}: ${errMsg}`);
+      notifyIndexedDBError('load', err);
       resolve(null);
     }
   });

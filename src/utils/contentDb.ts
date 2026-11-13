@@ -30,6 +30,7 @@ let cachedLiveNamespace: string | null = null;
 let cachedDraftNamespace: string | null = null;
 const inMemoryLiveStores = new Map<string, Record<string, string>>();
 const inMemoryDraftStores = new Map<string, Record<string, string>>();
+const draftTombstones = new Set<string>();
 
 function loadLiveCache(): Record<string, string> {
   const currentNs = getStorageNamespace();
@@ -61,6 +62,7 @@ function loadDraftCache(): Record<string, string> {
   const currentNs = getStorageNamespace();
   if (cachedDraftNamespace !== currentNs) {
     draftMemoryCache = null;
+    draftTombstones.clear();
     cachedDraftNamespace = currentNs;
   }
   if (draftMemoryCache !== null) return draftMemoryCache;
@@ -133,6 +135,9 @@ export function getContent(key: string, defaultValue: string, isDevMode = false)
   }
   // In dev mode, if not in draft, check live cache before falling back to default
   if (isDevMode) {
+    if (draftTombstones.has(key)) {
+      return defaultValue;
+    }
     const liveCache = loadLiveCache();
     if (Object.prototype.hasOwnProperty.call(liveCache, key) && typeof liveCache[key] === 'string') {
       return liveCache[key];
@@ -150,6 +155,9 @@ export function hasContentOverride(key: string, isDevMode = false): boolean {
     return true;
   }
   if (isDevMode) {
+    if (draftTombstones.has(key)) {
+      return false;
+    }
     const liveCache = loadLiveCache();
     return Object.prototype.hasOwnProperty.call(liveCache, key);
   }
@@ -161,6 +169,9 @@ export function hasContentOverride(key: string, isDevMode = false): boolean {
  */
 export function setContent(key: string, value: string, isDevMode = false): void {
   if (isDevMode) {
+    if (draftTombstones.has(key)) {
+      draftTombstones.delete(key);
+    }
     const cache = loadDraftCache();
     cache[key] = value;
     saveDraftCache();
@@ -228,11 +239,10 @@ export function setContentObject<T>(key: string, value: T, isDevMode = false): v
 export function resetContent(key: string, isDevMode = false): void {
   if (isDevMode) {
     const cache = loadDraftCache();
-    if (Object.prototype.hasOwnProperty.call(cache, key)) {
-      delete cache[key];
-      saveDraftCache();
-      notifySubscribers(key, null, true);
-    }
+    delete cache[key];
+    draftTombstones.add(key);
+    saveDraftCache();
+    notifySubscribers(key, null, true);
   } else {
     const cache = loadLiveCache();
     if (Object.prototype.hasOwnProperty.call(cache, key)) {
@@ -248,9 +258,33 @@ export function resetContent(key: string, isDevMode = false): void {
  */
 export function getAllContentOverrides(isDevMode = false): Record<string, string> {
   if (isDevMode) {
-    return { ...loadLiveCache(), ...loadDraftCache() };
+    const live = loadLiveCache();
+    const draft = loadDraftCache();
+    const merged: Record<string, string> = {};
+
+    // Copy live entries unless explicitly tombstoned in draft
+    for (const [key, value] of Object.entries(live)) {
+      if (!draftTombstones.has(key)) {
+        merged[key] = value;
+      }
+    }
+
+    // Layer active draft overrides
+    for (const [key, value] of Object.entries(draft)) {
+      merged[key] = value;
+    }
+
+    return merged;
   }
   return { ...loadLiveCache() };
+}
+
+/**
+ * Clears all in-memory draft tombstones.
+ * Called when drafts are discarded, reset, or synchronized with published state.
+ */
+export function clearDraftTombstones(): void {
+  draftTombstones.clear();
 }
 
 /**
@@ -259,6 +293,7 @@ export function getAllContentOverrides(isDevMode = false): Record<string, string
 export function resetAllContentOverrides(isDevMode = false): void {
   const storage = getStorage();
   if (isDevMode) {
+    draftTombstones.clear();
     inMemoryDraftStores.delete(getStorageNamespace());
     draftMemoryCache = {};
     if (storage) {
@@ -290,6 +325,7 @@ export function resetAllContentOverrides(isDevMode = false): void {
  */
 export function setAllContentOverrides(overrides: Record<string, string>, isDevMode = false): void {
   if (isDevMode) {
+    draftTombstones.clear();
     draftMemoryCache = { ...overrides };
     saveDraftCache();
     notifySubscribers('*', null, true);

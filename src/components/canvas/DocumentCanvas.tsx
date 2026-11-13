@@ -23,6 +23,7 @@ import { CanvasPhoto } from './CanvasPhoto';
 import { CanvasGallery } from './CanvasGallery';
 import { CanvasChart } from './CanvasChart';
 import { CanvasAddBar } from './CanvasAddBar';
+import { CanvasGhostWireframe } from './CanvasGhostWireframe';
 import { CanvasItemControls } from './CanvasItemControls';
 // CanvasElementModal unified canonically into UniversalEditModal
 import { UniversalEditModal } from '../dev/UniversalEditModal';
@@ -137,6 +138,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
 
   const {
     document,
+    isHydrating,
     addElement,
     restoreSection,
     restoreSubsection,
@@ -149,7 +151,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     clearSaveError,
   } = useDocumentCanvas(nodeId);
 
-  const sectionNumbers = useDynamicCanvasSectionNumbers(nodeId, document.sections);
+  const sectionNumbers = useDynamicCanvasSectionNumbers(nodeId, document?.sections || []);
 
   const [undoBackup, setUndoBackup] = useState<UndoBackupRecord | null>(null);
   const [showUndoToast, setShowUndoToast] = useState(false);
@@ -521,8 +523,13 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
   }, [relocateItem]);
 
 
-  // Empty state: In public mode render nothing
-  if (document.sections.length === 0 && !isAuthoringActive) {
+  // Subtask 2.8: Zero Flash-of-Baseline — render calm skeleton wireframe on cold public load
+  if (!isDevMode && isHydrating && (!document || document.sections.length === 0)) {
+    return <CanvasGhostWireframe nodeId={nodeId} className={className} />;
+  }
+
+  // Empty state: In public mode render nothing once hydrated
+  if ((!document || document.sections.length === 0) && !isAuthoringActive) {
     return null;
   }
 
@@ -557,191 +564,191 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
             />
           )}
 
-      {/* Dynamic Sections Loop */}
-      {document.sections.map((section, secIdx) => {
-        const canMoveSecUp = secIdx > 0;
-        const canMoveSecDown = secIdx < document.sections.length - 1;
-        const computedNumber = sectionNumbers[section.id];
+          {/* Dynamic Sections Loop */}
+          {document.sections.map((section, secIdx) => {
+            const canMoveSecUp = secIdx > 0;
+            const canMoveSecDown = secIdx < document.sections.length - 1;
+            const computedNumber = sectionNumbers[section.id];
 
-        return (
-          <React.Fragment key={section.id}>
-            <CanvasItemControls
-              itemId={section.id}
-              itemType="section"
-              canMoveUp={canMoveSecUp}
-              canMoveDown={canMoveSecDown}
-              onMoveUp={() => moveItem(section.id, 'up')}
-              onMoveDown={() => moveItem(section.id, 'down')}
-              onDelete={() => handleDeleteSection(section, secIdx)}
-              onEdit={() => handleEditSection(section)}
-              suppressHover={Boolean(activeAddBarId)}
-              sourceParentId={nodeId}
-              sourceIndex={secIdx}
-              hasChildren={section.elements.length > 0}
-              onDropItem={handleDropItem}
-            >
-              <CanvasSection
-                section={section}
-                nodeId={nodeId}
-                nodeTitle={nodeTitle}
-                accentColor={accentColor}
-                computedNumber={computedNumber}
-                onEdit={() => handleEditSection(section)}
-              >
-                {/* Section-Level Initial Insertion Dropzone: Only shown when section has no elements */}
-                {isAuthoringActive && (section.elements || []).length === 0 && (
-                  <CanvasAddBar
-                    barId={`sec-top-${section.id}`}
-                    activeBarId={activeAddBarId}
-                    onToggleActive={handleToggleAddBarActive}
-                    onAddElement={(type) => handleAddElement(type, section.id, 0)}
+            return (
+              <React.Fragment key={section.id}>
+                <CanvasItemControls
+                  itemId={section.id}
+                  itemType="section"
+                  canMoveUp={canMoveSecUp}
+                  canMoveDown={canMoveSecDown}
+                  onMoveUp={() => moveItem(section.id, 'up')}
+                  onMoveDown={() => moveItem(section.id, 'down')}
+                  onDelete={() => handleDeleteSection(section, secIdx)}
+                  onEdit={() => handleEditSection(section)}
+                  suppressHover={Boolean(activeAddBarId)}
+                  sourceParentId={nodeId}
+                  sourceIndex={secIdx}
+                  hasChildren={section.elements.length > 0}
+                  onDropItem={handleDropItem}
+                >
+                  <CanvasSection
+                    section={section}
+                    nodeId={nodeId}
+                    nodeTitle={nodeTitle}
                     accentColor={accentColor}
-                  />
-                )}
+                    computedNumber={computedNumber}
+                    onEdit={() => handleEditSection(section)}
+                  >
+                    {/* Section-Level Initial Insertion Dropzone: Only shown when section has no elements */}
+                    {isAuthoringActive && (section.elements || []).length === 0 && (
+                      <CanvasAddBar
+                        barId={`sec-top-${section.id}`}
+                        activeBarId={activeAddBarId}
+                        onToggleActive={handleToggleAddBarActive}
+                        onAddElement={(type) => handleAddElement(type, section.id, 0)}
+                        accentColor={accentColor}
+                      />
+                    )}
 
-                {/* Section Child Elements */}
-                {(section.elements || [])
-                  .filter((child): child is typeof child => Boolean(child && child.id && child.type))
-                  .map((child, childIdx, validChildren) => {
-                    const canMoveChildUp = !(secIdx === 0 && childIdx === 0);
-                    const canMoveChildDown = !(
-                       secIdx === document.sections.length - 1 &&
-                       childIdx === validChildren.length - 1
-                    );
+                    {/* Section Child Elements */}
+                    {(section.elements || [])
+                      .filter((child): child is typeof child => Boolean(child && child.id && child.type))
+                      .map((child, childIdx, validChildren) => {
+                        const canMoveChildUp = !(secIdx === 0 && childIdx === 0);
+                        const canMoveChildDown = !(
+                          secIdx === document.sections.length - 1 &&
+                          childIdx === validChildren.length - 1
+                        );
 
-                    if (child.type === 'subsection') {
-                      const validSubLeaves = (child.elements || []).filter(
-                        (subLeaf): subLeaf is typeof subLeaf => Boolean(subLeaf && subLeaf.id && subLeaf.type)
-                      );
-                      return (
-                        <React.Fragment key={child.id}>
-                          <CanvasItemControls
-                            itemId={child.id}
-                            itemType="subsection"
-                            canMoveUp={canMoveChildUp}
-                            canMoveDown={canMoveChildDown}
-                            onMoveUp={() => moveItem(child.id, 'up', section.id)}
-                            onMoveDown={() => moveItem(child.id, 'down', section.id)}
-                            onDelete={() => handleDeleteSubsection(section.id, child, childIdx)}
-                            onEdit={() => handleEditSubsection(child)}
-                            suppressHover={Boolean(activeAddBarId)}
-                            sourceParentId={section.id}
-                            sourceIndex={childIdx}
-                            hasChildren={validSubLeaves.length > 0}
-                            onDropItem={handleDropItem}
-                          >
-                            <CanvasSubsection
-                              subsection={child}
-                              nodeId={nodeId}
-                              accentColor={accentColor}
-                              onEdit={() => handleEditSubsection(child)}
-                            >
-                              {/* Subsection-Level Initial Insertion Dropzone: Only shown when subsection is empty */}
-                              {isAuthoringActive && validSubLeaves.length === 0 && (
+                        if (child.type === 'subsection') {
+                          const validSubLeaves = (child.elements || []).filter(
+                            (subLeaf): subLeaf is typeof subLeaf => Boolean(subLeaf && subLeaf.id && subLeaf.type)
+                          );
+                          return (
+                            <React.Fragment key={child.id}>
+                              <CanvasItemControls
+                                itemId={child.id}
+                                itemType="subsection"
+                                canMoveUp={canMoveChildUp}
+                                canMoveDown={canMoveChildDown}
+                                onMoveUp={() => moveItem(child.id, 'up', section.id)}
+                                onMoveDown={() => moveItem(child.id, 'down', section.id)}
+                                onDelete={() => handleDeleteSubsection(section.id, child, childIdx)}
+                                onEdit={() => handleEditSubsection(child)}
+                                suppressHover={Boolean(activeAddBarId)}
+                                sourceParentId={section.id}
+                                sourceIndex={childIdx}
+                                hasChildren={validSubLeaves.length > 0}
+                                onDropItem={handleDropItem}
+                              >
+                                <CanvasSubsection
+                                  subsection={child}
+                                  nodeId={nodeId}
+                                  accentColor={accentColor}
+                                  onEdit={() => handleEditSubsection(child)}
+                                >
+                                  {/* Subsection-Level Initial Insertion Dropzone: Only shown when subsection is empty */}
+                                  {isAuthoringActive && validSubLeaves.length === 0 && (
+                                    <CanvasAddBar
+                                      barId={`sub-top-${child.id}`}
+                                      activeBarId={activeAddBarId}
+                                      onToggleActive={handleToggleAddBarActive}
+                                      onAddElement={(type) => handleAddElement(type, section.id, 0, child.id)}
+                                      accentColor={accentColor}
+                                    />
+                                  )}
+
+                                  {/* Subsection Leaf Elements */}
+                                  {validSubLeaves.map((subLeaf, leafIdx) => {
+                                    const canMoveLeafUp = !(secIdx === 0 && childIdx === 0 && leafIdx === 0);
+                                    const canMoveLeafDown = !(
+                                      secIdx === document.sections.length - 1 &&
+                                      childIdx === validChildren.length - 1 &&
+                                      leafIdx === validSubLeaves.length - 1
+                                    );
+
+                                    return (
+                                      <React.Fragment key={subLeaf.id}>
+                                        <CanvasItemControls
+                                          itemId={subLeaf.id}
+                                          itemType={subLeaf.type}
+                                          canMoveUp={canMoveLeafUp}
+                                          canMoveDown={canMoveLeafDown}
+                                          onMoveUp={() => moveItem(subLeaf.id, 'up', child.id)}
+                                          onMoveDown={() => moveItem(subLeaf.id, 'down', child.id)}
+                                          onDelete={() => handleDeleteLeaf(section.id, subLeaf, leafIdx, child.id)}
+                                          onEdit={() => handleEditLeaf(subLeaf)}
+                                          suppressHover={Boolean(activeAddBarId)}
+                                          sourceParentId={child.id}
+                                          sourceIndex={leafIdx}
+                                          onDropItem={handleDropItem}
+                                        >
+                                          {renderCanvasLeaf(subLeaf, nodeId, nodeTitle, accentColor, handleEditPhoto, handleEditLeaf)}
+                                        </CanvasItemControls>
+
+                                        {isAuthoringActive && (
+                                          <CanvasAddBar
+                                            barId={`leaf-${subLeaf.id}`}
+                                            activeBarId={activeAddBarId}
+                                            onToggleActive={handleToggleAddBarActive}
+                                            onAddElement={(type) =>
+                                              handleAddElement(type, section.id, leafIdx + 1, child.id)
+                                            }
+                                            accentColor={accentColor}
+                                          />
+                                        )}
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                </CanvasSubsection>
+                              </CanvasItemControls>
+
+                              {isAuthoringActive && (
                                 <CanvasAddBar
-                                  barId={`sub-top-${child.id}`}
+                                  barId={`sub-${child.id}`}
                                   activeBarId={activeAddBarId}
                                   onToggleActive={handleToggleAddBarActive}
-                                  onAddElement={(type) => handleAddElement(type, section.id, 0, child.id)}
+                                  onAddElement={(type) => handleAddElement(type, section.id, childIdx + 1)}
                                   accentColor={accentColor}
                                 />
                               )}
+                            </React.Fragment>
+                          );
+                        }
 
-                              {/* Subsection Leaf Elements */}
-                              {validSubLeaves.map((subLeaf, leafIdx) => {
-                                const canMoveLeafUp = !(secIdx === 0 && childIdx === 0 && leafIdx === 0);
-                                const canMoveLeafDown = !(
-                                  secIdx === document.sections.length - 1 &&
-                                  childIdx === validChildren.length - 1 &&
-                                  leafIdx === validSubLeaves.length - 1
-                                );
+                        // Direct Section Leaf Elements
+                        return (
+                          <React.Fragment key={child.id}>
+                            <CanvasItemControls
+                              itemId={child.id}
+                              itemType={child.type}
+                              canMoveUp={canMoveChildUp}
+                              canMoveDown={canMoveChildDown}
+                              onMoveUp={() => moveItem(child.id, 'up', section.id)}
+                              onMoveDown={() => moveItem(child.id, 'down', section.id)}
+                              onDelete={() => handleDeleteLeaf(section.id, child, childIdx)}
+                              onEdit={() => handleEditLeaf(child)}
+                              suppressHover={Boolean(activeAddBarId)}
+                              sourceParentId={section.id}
+                              sourceIndex={childIdx}
+                              onDropItem={handleDropItem}
+                            >
+                              {renderCanvasLeaf(child, nodeId, nodeTitle, accentColor, handleEditPhoto, handleEditLeaf)}
+                            </CanvasItemControls>
 
-                                return (
-                                  <React.Fragment key={subLeaf.id}>
-                                    <CanvasItemControls
-                                      itemId={subLeaf.id}
-                                      itemType={subLeaf.type}
-                                      canMoveUp={canMoveLeafUp}
-                                      canMoveDown={canMoveLeafDown}
-                                      onMoveUp={() => moveItem(subLeaf.id, 'up', child.id)}
-                                      onMoveDown={() => moveItem(subLeaf.id, 'down', child.id)}
-                                      onDelete={() => handleDeleteLeaf(section.id, subLeaf, leafIdx, child.id)}
-                                      onEdit={() => handleEditLeaf(subLeaf)}
-                                      suppressHover={Boolean(activeAddBarId)}
-                                      sourceParentId={child.id}
-                                      sourceIndex={leafIdx}
-                                      onDropItem={handleDropItem}
-                                    >
-                                      {renderCanvasLeaf(subLeaf, nodeId, nodeTitle, accentColor, handleEditPhoto, handleEditLeaf)}
-                                    </CanvasItemControls>
-
-                                    {isAuthoringActive && (
-                                      <CanvasAddBar
-                                        barId={`leaf-${subLeaf.id}`}
-                                        activeBarId={activeAddBarId}
-                                        onToggleActive={handleToggleAddBarActive}
-                                        onAddElement={(type) =>
-                                          handleAddElement(type, section.id, leafIdx + 1, child.id)
-                                        }
-                                        accentColor={accentColor}
-                                      />
-                                    )}
-                                  </React.Fragment>
-                                );
-                              })}
-                            </CanvasSubsection>
-                          </CanvasItemControls>
-
-                          {isAuthoringActive && (
-                            <CanvasAddBar
-                              barId={`sub-${child.id}`}
-                              activeBarId={activeAddBarId}
-                              onToggleActive={handleToggleAddBarActive}
-                              onAddElement={(type) => handleAddElement(type, section.id, childIdx + 1)}
-                              accentColor={accentColor}
-                            />
-                          )}
-                        </React.Fragment>
-                      );
-                    }
-
-                    // Direct Section Leaf Elements
-                    return (
-                      <React.Fragment key={child.id}>
-                        <CanvasItemControls
-                          itemId={child.id}
-                          itemType={child.type}
-                          canMoveUp={canMoveChildUp}
-                          canMoveDown={canMoveChildDown}
-                          onMoveUp={() => moveItem(child.id, 'up', section.id)}
-                          onMoveDown={() => moveItem(child.id, 'down', section.id)}
-                          onDelete={() => handleDeleteLeaf(section.id, child, childIdx)}
-                          onEdit={() => handleEditLeaf(child)}
-                          suppressHover={Boolean(activeAddBarId)}
-                          sourceParentId={section.id}
-                          sourceIndex={childIdx}
-                          onDropItem={handleDropItem}
-                        >
-                          {renderCanvasLeaf(child, nodeId, nodeTitle, accentColor, handleEditPhoto, handleEditLeaf)}
-                        </CanvasItemControls>
-
-                        {isAuthoringActive && (
-                          <CanvasAddBar
-                            barId={`direct-leaf-${child.id}`}
-                            activeBarId={activeAddBarId}
-                            onToggleActive={handleToggleAddBarActive}
-                            onAddElement={(type) => handleAddElement(type, section.id, childIdx + 1)}
-                            accentColor={accentColor}
-                          />
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-              </CanvasSection>
-            </CanvasItemControls>
-          </React.Fragment>
-        );
-      })}
+                            {isAuthoringActive && (
+                              <CanvasAddBar
+                                barId={`direct-leaf-${child.id}`}
+                                activeBarId={activeAddBarId}
+                                onToggleActive={handleToggleAddBarActive}
+                                onAddElement={(type) => handleAddElement(type, section.id, childIdx + 1)}
+                                accentColor={accentColor}
+                              />
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                  </CanvasSection>
+                </CanvasItemControls>
+              </React.Fragment>
+            );
+          })}
         </>
       )}
 

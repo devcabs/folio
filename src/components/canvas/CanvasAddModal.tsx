@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import type { CanvasElementType } from '../../types/canvas';
-import { uploadMediaAsset } from '../../services/mediaService';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUnsavedChangesPrompt } from '../../hooks/useUnsavedChangesPrompt';
+import { resolveSingleDrivePhotoUrl } from '../../utils/mediaUrl';
 import styles from './CanvasAddModal.module.css';
 
 export type AddModalElementType = CanvasElementType | 'gallery';
@@ -72,11 +72,7 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
   const [showCaption, setShowCaption] = useState(false);
   const [driveUrl, setDriveUrl] = useState('');
   const [subtitle, setSubtitle] = useState('');
-  const [photoSourceMode, setPhotoSourceMode] = useState<'upload' | 'url'>('upload');
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const imageInputRef = useRef<HTMLInputElement>(null);
   const initialFocusRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
   // Reset drafts whenever modal opens or element type changes
@@ -92,7 +88,6 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
       setShowCaption(false);
       setDriveUrl('');
       setSubtitle('');
-      setPhotoSourceMode('upload');
 
       const timer = setTimeout(() => {
         initialFocusRef.current?.focus();
@@ -158,28 +153,6 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
       break;
   }
 
-  const handleImageFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const autoAlt = file.name.replace(/\.[^/.]+$/, '');
-    if (!imageAlt) {
-      setImageAlt(autoAlt);
-    }
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
-      const publicUrl = await uploadMediaAsset(file, 'photos');
-      setImageSrc(publicUrl);
-    } catch (err: unknown) {
-      console.error('[CanvasAddModal] Photo upload failed:', err);
-      setUploadError(err instanceof Error ? err.message : 'Photo upload failed');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!canSubmit) return;
@@ -206,7 +179,7 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      onConfirm={canSubmit && !isUploading ? handleSubmit : undefined}
+      onConfirm={canSubmit ? handleSubmit : undefined}
       title={modalTitle}
       maxWidth="500px"
       ariaLabel={modalTitle}
@@ -340,79 +313,28 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
             )}
 
             <div className={styles.formField}>
-              <span className={styles.fieldLabel}>Photo Source</span>
-              <div
-                className={styles.segmentedControl}
-                role="radiogroup"
-                aria-label="Photo Source"
-              >
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={photoSourceMode === 'upload'}
-                  className={`${styles.segmentButton} ${
-                    photoSourceMode === 'upload' ? styles.segmentButtonActive : ''
-                  }`}
-                  onClick={() => setPhotoSourceMode('upload')}
-                >
-                  Upload Photo
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={photoSourceMode === 'url'}
-                  className={`${styles.segmentButton} ${
-                    photoSourceMode === 'url' ? styles.segmentButtonActive : ''
-                  }`}
-                  onClick={() => setPhotoSourceMode('url')}
-                >
-                  Photo URL
-                </button>
-              </div>
+              <label className={styles.fieldLabel} htmlFor="add-photo-url">
+                Photo URL <span className={styles.requiredMark}>*</span>
+              </label>
+              <input
+                id="add-photo-url"
+                type="text"
+                className={styles.input}
+                value={imageSrc.startsWith('data:') ? '' : (driveUrl || imageSrc)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const resolved = resolveSingleDrivePhotoUrl(val);
+                  if (resolved) {
+                    setImageSrc(resolved.displayUrl);
+                    setDriveUrl(resolved.rawUrl);
+                  } else {
+                    setImageSrc(val);
+                    setDriveUrl('');
+                  }
+                }}
+                placeholder="https://drive.google.com/file/d/.../view"
+              />
             </div>
-
-            {photoSourceMode === 'upload' ? (
-              <div className={styles.formField}>
-                <span className={styles.fieldLabel}>
-                  Select Photo File <span className={styles.requiredMark}>*</span>
-                </span>
-                <div className={styles.fileRow}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => imageInputRef.current?.click()}
-                  >
-                    Upload Photo
-                  </Button>
-                  <input
-                    ref={imageInputRef}
-                    type="file"
-                    accept="image/*"
-                    className={styles.hiddenFileInput}
-                    onChange={handleImageFileSelect}
-                    aria-label="Upload photo file"
-                  />
-                  <span className={styles.fieldLabel}>
-                    {imageSrc ? 'Photo selected' : 'No photo chosen'}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className={styles.formField}>
-                <label className={styles.fieldLabel} htmlFor="add-photo-url">
-                  Photo URL <span className={styles.requiredMark}>*</span>
-                </label>
-                <input
-                  id="add-photo-url"
-                  type="text"
-                  className={styles.input}
-                  value={imageSrc.startsWith('data:') ? '' : imageSrc}
-                  onChange={(e) => setImageSrc(e.target.value)}
-                  placeholder="https://... or /images/..."
-                />
-              </div>
-            )}
 
             <div className={styles.formField}>
               <label className={styles.fieldLabel} htmlFor="add-photo-alt">
@@ -530,25 +452,19 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
 
         {/* Action Controls */}
         <div className={styles.actions}>
-          {uploadError && (
-            <span style={{ fontSize: '0.8125rem', color: 'var(--color-danger, #e11d48)', marginRight: 'auto' }}>
-              {uploadError}
-            </span>
-          )}
           <Button
             type="button"
             variant="ghost"
             onClick={onClose}
-            disabled={isUploading}
           >
             Cancel
           </Button>
           <Button
             type="submit"
             variant="primary"
-            disabled={!canSubmit || isUploading}
+            disabled={!canSubmit}
           >
-            {isUploading ? 'Uploading...' : submitLabel}
+            {submitLabel}
           </Button>
         </div>
       </form>

@@ -17,10 +17,11 @@ import type {
   HistoryManifest,
   SnapshotType,
   PublishedSnapshot,
+  PublishSnapshotResult,
 } from '../types/history';
 import type { NodeCanvasDocument, SubsectionElement } from '../types/canvas';
 import { createDefaultCanvasDocument } from '../utils/canvasDefaults';
-import { saveToIndexedDB, loadFromIndexedDB } from './historyStorage';
+import { saveToIndexedDB, loadFromIndexedDB, notifyIndexedDBError } from './historyStorage';
 import {
   getNodeCanvas,
   saveNodeCanvas,
@@ -28,6 +29,7 @@ import {
   renumberSections,
   dispatchAggregateCanvasChange,
   migrateCanvasOverridesIntoAst,
+  EVENT_LIVE_CANVAS_CHANGE,
   EVENT_DRAFT_CANVAS_CHANGE,
   NODE_IDS,
   type CanvasChangeEventDetail,
@@ -306,7 +308,15 @@ export function saveHistoryManifest(manifest: HistoryManifest): void {
   inMemoryManifest = updated;
 
   // 2. High-capacity IndexedDB persistent update (persists full payload with zero quota drop)
-  saveToIndexedDB(STORAGE_KEY_HISTORY_MANIFEST, updated).catch(() => {});
+  saveToIndexedDB(STORAGE_KEY_HISTORY_MANIFEST, updated).then((success) => {
+    if (!success) {
+      console.warn('[historyService] Persistent IndexedDB backup failed. Local recovery snapshot may not persist across sessions.');
+      notifyIndexedDBError('save', new Error('IndexedDB save returned false'));
+    }
+  }).catch((err) => {
+    console.warn('[historyService] IndexedDB save exception:', err);
+    notifyIndexedDBError('save', err);
+  });
 
   // 3. Strip heavy payloads to create lightweight metadata manifest for localStorage
   const storage = getStorage();
@@ -507,6 +517,19 @@ export async function restoreUnifiedSnapshot(
   manifest.snapshots = [safetyBackup, ...manifest.snapshots];
   setActivePublishedId(target.id);
   saveHistoryManifest(manifest);
+
+  // 6. Dispatch Canvas Change Notifications so UI updates reactively
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    for (const nodeId of getActiveNodeIds()) {
+      const doc = getNodeCanvas(nodeId, false);
+      const detail: CanvasChangeEventDetail = {
+        nodeId,
+        document: doc,
+      };
+      window.dispatchEvent(new CustomEvent(EVENT_LIVE_CANVAS_CHANGE, { detail }));
+    }
+    dispatchAggregateCanvasChange(false);
+  }
 
   return {
     success: true,
@@ -956,19 +979,16 @@ export async function publishNewSnapshot(
   title = 'Published Revision',
   sessionId?: string,
   options?: { forcePublish?: boolean } | boolean
-): Promise<{
-  success: boolean;
-  snapshot: PublishedSnapshot;
-  cloudSynced: boolean;
-  error?: string;
-}> {
+): Promise<PublishSnapshotResult> {
   const isForce = typeof options === 'boolean' ? options : Boolean(options?.forcePublish);
   const staleness = checkDraftStaleness();
   if (staleness.isStale && !isForce) {
     return {
       success: false,
       snapshot: null as unknown as PublishedSnapshot,
+      localSaved: false,
       cloudSynced: false,
+      edgeDeployed: false,
       error: `Draft is stale. Active published snapshot is ${staleness.currentActiveId}, but draft was created from ${staleness.baseId || 'baseline'}. Force publish required.`,
     };
   }
@@ -980,7 +1000,9 @@ export async function publishNewSnapshot(
     return {
       success: false,
       snapshot: null as unknown as PublishedSnapshot,
+      localSaved: false,
       cloudSynced: false,
+      edgeDeployed: false,
       error: 'Changelog description must be at least 4 characters long.',
     };
   }
@@ -990,7 +1012,9 @@ export async function publishNewSnapshot(
     return {
       success: false,
       snapshot: null as unknown as PublishedSnapshot,
+      localSaved: false,
       cloudSynced: false,
+      edgeDeployed: false,
       error: 'Session expired. Please unlock Developer Mode again.',
     };
   }
@@ -1108,7 +1132,7 @@ export async function publishNewSnapshot(
         markTableAvailable('engine_history');
         // Step B: Now that new active snapshot is safely persisted, demote previous active snapshots
         try {
-          await fetch(
+          const patchRes = await fetch(
             `${config.url}/rest/v1/engine_history?is_active=eq.true&id=neq.${snapshot.id}`,
             {
               method: 'PATCH',
@@ -1121,6 +1145,9 @@ export async function publishNewSnapshot(
               body: JSON.stringify({ is_active: false }),
             }
           );
+          if (!patchRes.ok) {
+            console.warn(`[historyService] Demoting previous active snapshots returned HTTP ${patchRes.status}`);
+          }
         } catch (patchErr) {
           console.warn('[historyService] Failed to demote previous active snapshots in Supabase:', patchErr);
         }
@@ -1132,20 +1159,32 @@ export async function publishNewSnapshot(
     }
   }
 
-  // Step 6: Trigger Edge Pre-Bake & KV Synchronization (Task 15.3, non-blocking)
+  // Step 6: Await Edge Pre-Bake & KV Synchronization
+  let edgeDeployed = false;
+  let edgeError: string | undefined;
+
   try {
-    compileAndDeployToEdgeKV(snapshot).catch((edgeErr) => {
-      console.warn('[historyService] Non-blocking Edge KV pre-bake warning:', edgeErr);
-    });
-  } catch (edgeDispatchErr) {
-    console.warn('[historyService] Edge KV pre-bake dispatch error:', edgeDispatchErr);
+    const edgeResult = await compileAndDeployToEdgeKV(snapshot);
+    edgeDeployed = edgeResult.success;
+    if (!edgeResult.success) {
+      edgeError = edgeResult.deployResult?.error || 'Edge KV deployment was rejected';
+    }
+  } catch (edgeDispatchErr: unknown) {
+    edgeError = edgeDispatchErr instanceof Error ? edgeDispatchErr.message : 'Edge KV deployment network error';
+    console.warn('[historyService] Edge KV pre-bake dispatch error:', edgeError);
   }
 
+  // Primary success requires localSaved = true. If cloud or edge failed, success is still true
+  // for the snapshot creation, but the partial failure is surfaced in the result contract.
   return {
     success: true,
     snapshot,
+    localSaved: true,
     cloudSynced,
-    error: cloudError,
+    edgeDeployed,
+    cloudError,
+    edgeError,
+    error: cloudError || edgeError,
   };
 }
 
@@ -1267,7 +1306,7 @@ export function getHydrationState(): HydrationState {
   const storage = getStorage();
   const storedId = storage
     ? storage.getItem(getLiveActivePublishedIdKey()) ||
-      storage.getItem(LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID)
+    storage.getItem(LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID)
     : null;
 
   return {

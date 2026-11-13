@@ -103,10 +103,7 @@ export function useSheetChartData({
     // 1. Check if cached liveMatrix exists in localStorage for instant real-world paint
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        let raw = window.localStorage.getItem(getMatrixCacheKey(chartId));
-        if (!raw) {
-          raw = window.localStorage.getItem('folio_chart_matrix_' + chartId);
-        }
+        const raw = window.localStorage.getItem(getMatrixCacheKey(chartId));
         if (raw) {
           const parsedMatrix = JSON.parse(raw);
           if (Array.isArray(parsedMatrix) && parsedMatrix.length > 0) {
@@ -169,6 +166,7 @@ export function useSheetChartData({
   });
 
   const isMountedRef = useRef(true);
+  const inFlightSyncRef = useRef<Promise<(string | number | null)[][] | null> | null>(null);
 
   // Background SWR fetch from Supabase (Zero GViz calls on load)
   const loadCloudConfig = useCallback(async () => {
@@ -232,28 +230,40 @@ export function useSheetChartData({
   }, [chartId, nodeId]);
 
   // Explicit manual sync from Google Sheet (ONLY on user click)
-  const syncLiveSheet = useCallback(async (): Promise<(string | number | null)[][] | null> => {
-    if (!chartId) return null;
+  const syncLiveSheet = useCallback((): Promise<(string | number | null)[][] | null> => {
+    if (!chartId) return Promise.resolve(null);
+    if (inFlightSyncRef.current) {
+      return inFlightSyncRef.current;
+    }
+
     const activeConfig = config || cachedConfig;
     if (!activeConfig?.sheetUrl) {
-      throw new Error('No Google Sheet linked to this chart.');
+      return Promise.reject(new Error('No Google Sheet linked to this chart.'));
     }
 
     setStatus('syncing');
     setErrorMessage(undefined);
 
-    try {
-      const liveMatrix = await fetchLiveSheetMatrix({
-        sheetUrl: activeConfig.sheetUrl,
-        tabName: activeConfig.tabName,
-        sheetGid: activeConfig.sheetGid,
-        range: activeConfig.range,
-        timeoutMs: 8000,
-      });
+    const syncPromise = (async () => {
+      try {
+        const liveMatrix = await fetchLiveSheetMatrix({
+          sheetUrl: activeConfig.sheetUrl,
+          tabName: activeConfig.tabName,
+          sheetGid: activeConfig.sheetGid,
+          range: activeConfig.range,
+          timeoutMs: 8000,
+        });
 
-      if (!isMountedRef.current) return null;
+        if (!isMountedRef.current) return null;
 
-      if (liveMatrix && liveMatrix.length > 0) {
+        // Defensive Guard: Reject empty or 0-row results
+        if (!liveMatrix || liveMatrix.length === 0) {
+          const emptyMsg = 'Google Sheet returned 0 valid data rows. Previous chart data preserved.';
+          setStatus('error');
+          setErrorMessage(emptyMsg);
+          throw new Error(emptyMsg);
+        }
+
         try {
           if (typeof window !== 'undefined' && window.localStorage) {
             window.localStorage.setItem(
@@ -291,17 +301,19 @@ export function useSheetChartData({
         setLastSyncedAt(updatedConfig.updatedAt);
         setStatus('success');
         return liveMatrix;
-      } else {
-        setStatus('success');
-        return [];
+      } catch (err: unknown) {
+        if (!isMountedRef.current) return null;
+        const msg = err instanceof Error ? err.message : 'Failed to sync live sheet data';
+        setErrorMessage(msg);
+        setStatus('error');
+        throw err;
+      } finally {
+        inFlightSyncRef.current = null;
       }
-    } catch (err: unknown) {
-      if (!isMountedRef.current) return null;
-      const msg = err instanceof Error ? err.message : 'Failed to sync live sheet data';
-      setErrorMessage(msg);
-      setStatus('error');
-      throw err;
-    }
+    })();
+
+    inFlightSyncRef.current = syncPromise;
+    return syncPromise;
   }, [chartId, config, cachedConfig, nodeId]);
 
   // Initial SWR mount effect & optional polling
@@ -345,6 +357,16 @@ export function useSheetChartData({
             setStatus('success');
             return;
           }
+
+          setDataset((prev) => {
+            if (!prev) {
+              const baked = bakedCharts.find((c) => c.chartId === chartId);
+              return baked ? applyConfigToDataset(baked, freshConfig) : null;
+            }
+            return applyConfigToDataset(prev, freshConfig);
+          });
+          setStatus('success');
+          return;
         }
         loadCloudConfig();
       }

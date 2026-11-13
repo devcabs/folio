@@ -52,6 +52,8 @@ export interface UseNodeCanvasReturn {
   document: NodeCanvasDocument;
   /** True when a canvas layout transition is pending */
   isPending: boolean;
+  /** True when edge KV canvas hydration is in flight for public visitors */
+  isHydrating: boolean;
   /** Add a new section container with automatic numbering */
   addSection: (targetIndex?: number) => void;
   /** Add a new subsection container inside a section */
@@ -93,6 +95,7 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
   const [document, setDocument] = useState<NodeCanvasDocument>(() => getNodeCanvas(nodeId, isDevMode));
   // Vercel Best Practice: rerender-transitions
   const [isPending, startTransition] = useTransition();
+  const [isHydrating, setIsHydrating] = useState<boolean>(() => !isDevMode && typeof window !== 'undefined');
 
   // Stable ref for checking latest updatedAt timestamp to prevent recursive event reflection
   const documentRef = useRef(document);
@@ -133,6 +136,7 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
   useEffect(() => {
     if (!isDevMode && nodeId) {
       let isCancelled = false;
+      setIsHydrating(true);
 
       fetch(`/api/public/node/${nodeId}`)
         .then((res) => (res.ok ? res.json() : null))
@@ -191,11 +195,18 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
         })
         .catch(() => {
           // Transparent fallback to local/Supabase baseline
+        })
+        .finally(() => {
+          if (!isCancelled) {
+            setIsHydrating(false);
+          }
         });
 
       return () => {
         isCancelled = true;
       };
+    } else {
+      setIsHydrating(false);
     }
   }, [nodeId, isDevMode]);
 
@@ -391,6 +402,7 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
   return {
     document,
     isPending,
+    isHydrating,
     addSection,
     addSubsection,
     addElement,

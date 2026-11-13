@@ -101,6 +101,8 @@ export const Modal: React.FC<ModalProps> = ({
         return;
       }
 
+      if (typeof modalRef.current?.querySelector !== 'function') return;
+
       const designatedAutoFocus = modalRef.current.querySelector<HTMLElement>('[data-autofocus], [autofocus]');
       if (designatedAutoFocus) {
         designatedAutoFocus.focus();

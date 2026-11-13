@@ -1,11 +1,8 @@
 ---
 name: deployment-pipeline
 description: >-
-  Enforces the unified deployment pipeline rule for Folio Engine (@devcabs/folio-engine): always use `npm run deploy` to validate token purity, typecheck, build library and app distribution, commit, push to GitHub, and deploy to Cloudflare Edge via Wrangler.
-trigger:
-  - "When deploying or releasing updates to the showcase app or package"
-  - "When pushing code changes intended for production"
-  - "When publishing content, design, or schema updates"
+  Enforces the unified deployment pipeline rule for Folio Engine (@devcabs/folio-engine): always use `npm run deploy` to validate token purity, typecheck, build library and app distribution, commit, push to GitHub, and deploy to Cloudflare Edge via Wrangler. Apply when deploying or releasing updates, pushing production changes, or publishing content, design, or schema updates.
+trigger: model_decision
 ---
 
 # Unified Deployment Pipeline Standard
