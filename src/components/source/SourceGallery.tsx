@@ -18,10 +18,20 @@ import styles from './SourceGallery.module.css';
 
 export interface SourceGalleryProps {
   nodeId: string;
-  sourceItems: SourceItem[];
+  sourceItems?: SourceItem[];
   accentColor?: string;
   className?: string;
   editTriggerId?: string;
+  /** Unique element or gallery identifier for element-level ownership */
+  pointId?: string;
+  /** Unique gallery ID (alias for pointId if pointId not provided) */
+  galleryId?: string;
+  /** Direct Google Drive folder URL configured on the gallery element */
+  driveUrl?: string;
+  /** Direct title configured on the gallery element */
+  title?: string;
+  /** Callback when gallery element properties (e.g. driveUrl, title) are updated */
+  onUpdateGallery?: (updates: { driveUrl?: string; title?: string }) => void;
 }
 
 /**
@@ -41,10 +51,15 @@ export interface SourceGalleryProps {
  */
 export const SourceGallery: React.FC<SourceGalleryProps> = ({
   nodeId,
-  sourceItems,
+  sourceItems = [],
   accentColor,
   className = '',
   editTriggerId,
+  pointId,
+  galleryId,
+  driveUrl,
+  title,
+  onUpdateGallery,
 }) => {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [activeLightboxIndex, setActiveLightboxIndex] = useState(0);
@@ -65,37 +80,56 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
     }
   }, [isDevActive, isSourceModalOpen, editingPhoto]);
 
-  // Retrieve official Google Drive repository metadata via reactive hook
-  const {
-    folderUrl,
-    folderTitle,
-    hasFolder,
-    updateFolder,
-  } = useSourcePoint(nodeId);
+  // Determine element-level ownership keys
+  const galleryKey = pointId || galleryId || '';
+  const effectivePointId = galleryKey || nodeId;
+  const isElementLevel = Boolean(galleryKey && galleryKey !== nodeId);
 
-  // Dynamic Google Drive Photo Sync Engine hook (Task 6.2 & Task 6.3)
+  // Retrieve official Google Drive repository metadata via reactive hook
+  const primarySourcePoint = useSourcePoint(effectivePointId);
+
+  // Dynamic Google Drive Photo Sync Engine hook strictly keyed to this gallery (no parent fallback)
   const {
     syncedPhotos,
     syncState,
     isSyncing,
     syncPhotos,
     error: syncError,
-  } = useDrivePhotoSync(nodeId);
+  } = useDrivePhotoSync(effectivePointId, {
+    folderUrl: driveUrl,
+    isElementLevel,
+  });
 
-  const defaultSource = useMemo(() => getSourceSource(nodeId), [nodeId]);
-  const sourcePointId = `source.${normalizePointId(nodeId)}.source`;
-  const currentFolderUrl = folderUrl || defaultSource?.folderUrl || '';
-  const currentFolderTitle = folderTitle || defaultSource?.folderTitle || 'Official Google Drive Folder';
-  const hasDriveLink = hasFolder || Boolean(currentFolderUrl && currentFolderUrl.trim().length > 0);
+  const defaultSource = useMemo(
+    () => (!isElementLevel ? getSourceSource(nodeId) : null),
+    [nodeId, isElementLevel]
+  );
+  const sourcePointId = `source.${normalizePointId(effectivePointId)}.source`;
+
+  const currentFolderUrl =
+    (driveUrl && driveUrl.trim()) ||
+    primarySourcePoint.folderUrl ||
+    (!isElementLevel ? defaultSource?.folderUrl || '' : '');
+
+  const currentFolderTitle =
+    title ||
+    primarySourcePoint.folderTitle ||
+    (!isElementLevel ? defaultSource?.folderTitle || 'Official Google Drive Folder' : 'Gallery Folder');
+
+  const hasDriveLink = Boolean(currentFolderUrl && currentFolderUrl.trim().length > 0);
 
   // Deterministic 5-State Coexistence Resolution (Task 6.3.1)
   const displayItems: SourceItem[] = useMemo(() => {
     if (syncState === 'synced_success' && syncedPhotos.length > 0) {
       return syncedPhotos;
     }
-    // never_synced, syncing (initial), or sync_error fallback to curated baseline
+    // Element-level gallery NEVER falls back to parent node's baseline photos!
+    if (isElementLevel) {
+      return [];
+    }
+    // Legacy node-level gallery (non-element): fallback to curated baseline
     return sourceItems;
-  }, [syncState, syncedPhotos, sourceItems]);
+  }, [syncState, syncedPhotos, isElementLevel, sourceItems]);
 
   const isConfirmedEmpty = syncState === 'synced_empty';
   const hasItems = !isConfirmedEmpty && displayItems.length > 0;
@@ -159,7 +193,7 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
         });
 
         await upsertLiveSourceSource({
-          pointId: nodeId,
+          pointId: effectivePointId,
           folderUrl: currentFolderUrl,
           folderTitle: currentFolderTitle,
           syncedPhotos: updatedPhotos,
@@ -175,7 +209,7 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
           const finalDate = (isTarget && newDate) ? newDate : ((item as SyncedSourceItem).date || item.dateStamp || '2026-10-09');
           return {
             id: item.id,
-            pointId: nodeId,
+            pointId: effectivePointId,
             driveFileId: (item as SyncedSourceItem).driveFileId || item.id,
             originalFileName: (item as SyncedSourceItem).originalFileName || `${item.id}.jpg`,
             title: finalTitle,
@@ -196,7 +230,7 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
         });
 
         await upsertLiveSourceSource({
-          pointId: nodeId,
+          pointId: effectivePointId,
           folderUrl: currentFolderUrl,
           folderTitle: currentFolderTitle,
           syncedPhotos: updatedPhotos,
@@ -207,7 +241,7 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
         setToastType('success');
       }
     },
-    [syncedPhotos, displayItems, nodeId, currentFolderUrl, currentFolderTitle]
+    [syncedPhotos, displayItems, effectivePointId, currentFolderUrl, currentFolderTitle]
   );
 
   // Stable event callbacks for lightbox orchestration
@@ -350,6 +384,18 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
                   : undefined
               }
             />
+          ) : syncState === 'sync_error' ? (
+            <EmptyState
+              variant="card"
+              title="Photo Sync Failed"
+              description={syncError || 'Photo synchronization failed for this gallery. Check Google Drive folder permissions or connectivity.'}
+            />
+          ) : !hasDriveLink && isElementLevel ? (
+            <EmptyState
+              variant="card"
+              title="No Google Drive Folder Linked"
+              description="This gallery element does not have a Google Drive folder linked. Attach an official Drive folder to sync and display photos."
+            />
           ) : (
             <EmptyState
               variant="card"
@@ -415,7 +461,9 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
         <div className={styles.footer}>
           <div className={styles.footerLeft}>
             <SourceFolderAttachment
-              pointId={nodeId}
+              pointId={effectivePointId}
+              label={currentFolderTitle}
+              folderUrl={currentFolderUrl}
               variant="compact"
               accentColor={accentColor}
             />
@@ -443,12 +491,13 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
       {sourcePointId && (
         <LinkFolderModal
           isOpen={isSourceModalOpen}
-          pointId={nodeId}
+          pointId={effectivePointId}
           initialTitle={currentFolderTitle}
           initialUrl={currentFolderUrl}
           onClose={() => setIsSourceModalOpen(false)}
           onSuccess={(newUrl, newTitle) => {
-            updateFolder(newUrl, newTitle);
+            primarySourcePoint.updateFolder(newUrl, newTitle);
+            onUpdateGallery?.({ driveUrl: newUrl, title: newTitle });
           }}
         />
       )}

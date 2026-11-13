@@ -179,10 +179,28 @@ function foldInChildElement(
       }
       consumedKeys.push(leafPointId);
     } else if (leaf.type === 'gallery') {
-      const val = overrides[leafPointId].trim();
-      if (val.length > 0) {
-        (leaf as GalleryElement).title = val;
-        modified = true;
+      const gal = leaf as GalleryElement;
+      const raw = overrides[leafPointId].trim();
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          if (typeof parsed.title === 'string' && parsed.title.trim().length > 0) {
+            gal.title = parsed.title.trim();
+            modified = true;
+          }
+          if (typeof parsed.driveUrl === 'string' && parsed.driveUrl.trim().length > 0) {
+            gal.driveUrl = parsed.driveUrl.trim();
+            modified = true;
+          }
+        } else if (raw.length > 0) {
+          gal.title = raw;
+          modified = true;
+        }
+      } catch {
+        if (raw.length > 0) {
+          gal.title = raw;
+          modified = true;
+        }
       }
       consumedKeys.push(leafPointId);
     }

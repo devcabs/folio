@@ -79,7 +79,8 @@ function renderCanvasLeaf(
   nodeTitle: string,
   accentColor?: string,
   onEditPhoto?: (photo: PhotoElement) => void,
-  onEditLeaf?: (leaf: CanvasLeafElement) => void
+  onEditLeaf?: (leaf: CanvasLeafElement) => void,
+  onUpdateGallery?: (leafId: string, updates: { driveUrl?: string; title?: string }) => void
 ): React.ReactNode {
   switch (leaf.type) {
     case 'text':
@@ -101,7 +102,18 @@ function renderCanvasLeaf(
         />
       );
     case 'gallery':
-      return <CanvasGallery element={leaf} nodeId={nodeId} accentColor={accentColor} />;
+      return (
+        <CanvasGallery
+          element={leaf}
+          nodeId={nodeId}
+          accentColor={accentColor}
+          onUpdateGallery={
+            onUpdateGallery
+              ? (updates) => onUpdateGallery(leaf.id, updates)
+              : undefined
+          }
+        />
+      );
     case 'chart':
       return (
         <CanvasChart
@@ -508,6 +520,17 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     setActiveModal(null);
   }, [activeModal, updateItem, handleExecuteAdd]);
 
+  // Gallery Element dynamic update handler
+  const handleUpdateGallery = useCallback(
+    (itemId: string, updates: { driveUrl?: string; title?: string }) => {
+      updateItem<GalleryElement>(itemId, {
+        driveUrl: updates.driveUrl?.trim() || undefined,
+        title: updates.title?.trim() || undefined,
+      });
+    },
+    [updateItem]
+  );
+
   // Reset to default handler for edit mode
   const handleResetModal = useCallback(() => {
     setActiveModal(null);
@@ -679,7 +702,15 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                                           sourceIndex={leafIdx}
                                           onDropItem={handleDropItem}
                                         >
-                                          {renderCanvasLeaf(subLeaf, nodeId, nodeTitle, accentColor, handleEditPhoto, handleEditLeaf)}
+                                          {renderCanvasLeaf(
+                                            subLeaf,
+                                            nodeId,
+                                            nodeTitle,
+                                            accentColor,
+                                            handleEditPhoto,
+                                            handleEditLeaf,
+                                            handleUpdateGallery
+                                          )}
                                         </CanvasItemControls>
 
                                         {isAuthoringActive && (
@@ -729,7 +760,15 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                               sourceIndex={childIdx}
                               onDropItem={handleDropItem}
                             >
-                              {renderCanvasLeaf(child, nodeId, nodeTitle, accentColor, handleEditPhoto, handleEditLeaf)}
+                              {renderCanvasLeaf(
+                                child,
+                                nodeId,
+                                nodeTitle,
+                                accentColor,
+                                handleEditPhoto,
+                                handleEditLeaf,
+                                handleUpdateGallery
+                              )}
                             </CanvasItemControls>
 
                             {isAuthoringActive && (

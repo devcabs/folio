@@ -167,6 +167,29 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.1.8',
+    releaseDate: '2026-11-13',
+    title: 'Decoupled Photo Gallery Architecture & Element-Level Ownership',
+    summary:
+      'Decoupled photo synchronization and Google Drive folder attachments from parent canvas nodes to individual gallery elements, strictly isolating gallery streams without parent fallback.',
+    breakingChanges: [
+      'Gallery elements now strictly require their own Google Drive folder attachment and do not silently fall back to parent node photo streams.',
+    ],
+    codeActions: [],
+    contentChanges: [
+      {
+        id: 'gallery-element-ownership-0.1.8',
+        title: 'Element-Level Photo Gallery Ownership & Isolation',
+        required: false,
+        description:
+          'Photo streams, Google Drive folder attachments, and sync states are now keyed by unique gallery IDs (pointId / element.id), allowing multiple independent galleries on a single canvas document.',
+        affectedEntities: ['CanvasGallery', 'SourceGallery', 'useDrivePhotoSync', 'SourceFolderAttachment'],
+        migrationPrompt:
+          'Ensure canvas gallery elements have a dedicated driveUrl configured. Galleries without a linked Drive folder will display an unlinked prompt and throw an error if sync is attempted.',
+      },
+    ],
+  },
 ];
 
 /**

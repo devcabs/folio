@@ -18,6 +18,7 @@ export interface CanvasGalleryProps {
   nodeId: string;
   accentColor?: string;
   className?: string;
+  onUpdateGallery?: (updates: { driveUrl?: string; title?: string }) => void;
 }
 
 /**
@@ -25,6 +26,8 @@ export interface CanvasGalleryProps {
  * Folio Engine — Task 8.9: Canvas Leaf Elements (Photo Gallery)
  *
  * Renders full multi-photo source showcase on the Dynamic Canvas:
+ * - Decoupled element-level photo synchronization and Google Drive attachment
+ * - Respects GalleryElement AST contract (driveUrl, pointId)
  * - Wraps canonical SourceGallery with responsive adaptive collage grid
  * - Integrated Google Drive photo synchronization and full-screen lightbox
  * - Memoized with React.memo for re-render efficiency
@@ -35,6 +38,7 @@ export const CanvasGallery: React.FC<CanvasGalleryProps> = memo(({
   nodeId,
   accentColor,
   className,
+  onUpdateGallery,
 }) => {
   const sourceItems: SourceItem[] = useMemo(() => {
     const matched = nodesList.find((p) => p.id === nodeId);
@@ -45,9 +49,14 @@ export const CanvasGallery: React.FC<CanvasGalleryProps> = memo(({
     <div className={`${styles.galleryWrapper || ''} ${className || ''}`.trim()}>
       <SourceGallery
         nodeId={nodeId}
+        pointId={element.pointId || element.id}
+        galleryId={element.id}
+        driveUrl={element.driveUrl}
+        title={element.title}
         sourceItems={sourceItems}
         accentColor={accentColor}
         editTriggerId={element.id}
+        onUpdateGallery={onUpdateGallery}
       />
     </div>
   );

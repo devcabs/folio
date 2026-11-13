@@ -18,6 +18,7 @@ import type {
   SyncState,
   UseDrivePhotoSyncResult,
   DriveSyncOptions,
+  UseDrivePhotoSyncOptions,
 } from '../types/source';
 import { syncFolderPhotos } from '../services/drivePhotoSyncService';
 import { useSourcePoint } from './useSourcePoint';
@@ -29,8 +30,13 @@ import {
 } from '../services/sourceService';
 import { normalizePointId } from '../utils/source';
 
-export function useDrivePhotoSync(nodeId: string): UseDrivePhotoSyncResult {
-  const { source, folderUrl } = useSourcePoint(nodeId);
+export function useDrivePhotoSync(
+  nodeId: string,
+  options?: UseDrivePhotoSyncOptions
+): UseDrivePhotoSyncResult {
+  const normalizedKey = normalizePointId(nodeId);
+  const { source, folderUrl: pointFolderUrl } = useSourcePoint(nodeId);
+
   const [isPending, startTransition] = useTransition();
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
@@ -39,8 +45,6 @@ export function useDrivePhotoSync(nodeId: string): UseDrivePhotoSyncResult {
   const [cloudSynced, setCloudSynced] = useState<boolean | undefined>(undefined);
   const [lastStats, setLastStats] = useState<DriveReconciliationStats | null>(null);
   const [crossTabPhotos, setCrossTabPhotos] = useState<SyncedSourceItem[] | null>(null);
-
-  const normalizedKey = normalizePointId(nodeId);
 
   // Cross-tab / multi-window storage event listener
   useEffect(() => {
@@ -67,7 +71,8 @@ export function useDrivePhotoSync(nodeId: string): UseDrivePhotoSyncResult {
 
     const handleSyncStatus = (e: Event) => {
       const detail = (e as CustomEvent<SourceSyncStatusDetail>).detail;
-      if (detail && normalizePointId(detail.pointId) === normalizedKey) {
+      if (!detail) return;
+      if (normalizePointId(detail.pointId) === normalizedKey) {
         setCloudSynced(detail.cloudSynced);
         if (!detail.cloudSynced && detail.error) {
           if (detail.isBackground) {
@@ -88,6 +93,7 @@ export function useDrivePhotoSync(nodeId: string): UseDrivePhotoSyncResult {
     setCrossTabPhotos(null);
   }, [source]);
 
+  const activeFolderUrl = (options?.folderUrl && options.folderUrl.trim()) || pointFolderUrl || '';
   const syncedPhotos = crossTabPhotos ?? source?.syncedPhotos ?? [];
   const hasEverSynced = crossTabPhotos !== null || source?.syncedPhotos !== undefined;
 
@@ -99,12 +105,16 @@ export function useDrivePhotoSync(nodeId: string): UseDrivePhotoSyncResult {
   }, [isManualSyncing, isPending, error, hasEverSynced, syncedPhotos.length]);
 
   const syncPhotos = useCallback(
-    async (options?: boolean | DriveSyncOptions): Promise<DriveReconciliationStats | null> => {
-      const isBackground = typeof options === 'boolean' ? options : Boolean(options?.isBackground);
-      const authToken = typeof options === 'object' ? options?.authToken : undefined;
+    async (syncOptions?: boolean | DriveSyncOptions): Promise<DriveReconciliationStats | null> => {
+      const isBackground =
+        typeof syncOptions === 'boolean' ? syncOptions : Boolean(syncOptions?.isBackground);
+      const authToken =
+        typeof syncOptions === 'object' ? syncOptions?.authToken : undefined;
 
-      if (!folderUrl) {
-        const msg = 'No Google Drive folder linked to this node.';
+      if (!activeFolderUrl) {
+        const msg = options?.isElementLevel
+          ? 'No Google Drive folder linked to this gallery. Attach a Drive folder before syncing.'
+          : 'No Google Drive folder linked to this node.';
         if (!isBackground) {
           setError(msg);
           throw new Error(msg);
@@ -124,7 +134,7 @@ export function useDrivePhotoSync(nodeId: string): UseDrivePhotoSyncResult {
       try {
         const result = await syncFolderPhotos(
           nodeId,
-          folderUrl,
+          activeFolderUrl,
           syncedPhotos,
           authToken,
           { isBackground, authToken }
@@ -162,7 +172,7 @@ export function useDrivePhotoSync(nodeId: string): UseDrivePhotoSyncResult {
         }
       }
     },
-    [nodeId, folderUrl, syncedPhotos]
+    [nodeId, activeFolderUrl, syncedPhotos, options?.isElementLevel]
   );
 
   return {
@@ -181,3 +191,4 @@ export function useDrivePhotoSync(nodeId: string): UseDrivePhotoSyncResult {
 }
 
 export default useDrivePhotoSync;
+export type { UseDrivePhotoSyncOptions };

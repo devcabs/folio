@@ -70,6 +70,13 @@ export interface DriveSyncOptions {
   authToken?: string;
 }
 
+export interface UseDrivePhotoSyncOptions {
+  /** Explicit Google Drive folder URL override (e.g. from AST element.driveUrl) */
+  folderUrl?: string;
+  /** Whether this sync hook is operating on an element-level gallery rather than node page */
+  isElementLevel?: boolean;
+}
+
 export interface UseDrivePhotoSyncResult {
   syncedPhotos: SyncedSourceItem[];
   syncState: SyncState;

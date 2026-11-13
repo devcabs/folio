@@ -19,6 +19,10 @@ export interface SourceFolderAttachmentProps {
   accentColor?: string;
   /** Optional container class name */
   className?: string;
+  /** Optional explicit Google Drive folder URL override (e.g. from AST element.driveUrl or resolved gallery folder) */
+  folderUrl?: string;
+  /** Optional explicit Google Drive folder title override */
+  folderTitle?: string;
 }
 
 /**
@@ -38,6 +42,8 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
   variant = 'compact',
   accentColor,
   className = '',
+  folderUrl: propFolderUrl,
+  folderTitle: propFolderTitle,
 }) => {
   const { isDevMode, isDesktop } = useDeveloperMode();
   const isDevActive = isDevMode && isDesktop;
@@ -51,23 +57,25 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
   }, [isDevActive, isLinkModalOpen]);
 
   const {
-    folderUrl,
-    folderTitle,
+    folderUrl: sourceFolderUrl,
+    folderTitle: sourceFolderTitle,
     description,
-    hasFolder,
     updateFolder,
   } = useSourcePoint(pointId);
 
-  const displayLabel = label || folderTitle || 'Official Google Drive Folder';
+  const activeFolderUrl = propFolderUrl || sourceFolderUrl || '';
+  const activeHasFolder = Boolean(activeFolderUrl && activeFolderUrl.trim().length > 0);
+  const displayLabel =
+    label || propFolderTitle || sourceFolderTitle || 'Official Google Drive Folder';
   const contentKey = `source.${normalizePointId(pointId)}.source`;
 
   const devLinkPayload: DevLinkData = useMemo(
     () => ({
-      url: folderUrl,
-      label: hasFolder ? displayLabel : '',
+      url: activeFolderUrl,
+      label: activeHasFolder ? displayLabel : '',
       openInNewTab: true,
     }),
-    [folderUrl, displayLabel, hasFolder]
+    [activeFolderUrl, displayLabel, activeHasFolder]
   );
 
   const handleDevSave = useCallback(
@@ -80,7 +88,7 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
   );
 
   // If no folder is linked and Developer Mode is NOT active, render nothing (calm minimalism)
-  if (!hasFolder && !isDevActive) {
+  if (!activeHasFolder && !isDevActive) {
     return null;
   }
 
@@ -96,7 +104,7 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
   );
 
   const renderAnchorContent = () => {
-    if (!hasFolder && isDevActive) {
+    if (!activeHasFolder && isDevActive) {
       return (
         <StatusPill
           variant="neutral"
@@ -112,7 +120,7 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
       const inlineStyle = accentColor ? ({ '--accent': accentColor } as React.CSSProperties) : undefined;
       return (
         <a
-          href={folderUrl}
+          href={activeFolderUrl}
           target="_blank"
           rel="noopener noreferrer"
           className={styles.editorial}
@@ -139,7 +147,7 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
       <StatusPill
         variant="link"
         size="sm"
-        href={folderUrl}
+        href={activeFolderUrl}
         icon={driveIconSvg}
         label={displayLabel}
         ariaLabel={`Official Google Drive Folder: ${displayLabel}`}
@@ -163,8 +171,8 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
       <LinkFolderModal
         isOpen={isLinkModalOpen}
         pointId={pointId}
-        initialTitle={hasFolder ? folderTitle : ''}
-        initialUrl={folderUrl}
+        initialTitle={activeHasFolder ? (propFolderTitle || sourceFolderTitle) : ''}
+        initialUrl={activeFolderUrl}
         onClose={() => setIsLinkModalOpen(false)}
         onSuccess={(newUrl, newTitle) => {
           updateFolder(newUrl, newTitle);
