@@ -114,3 +114,7 @@ export function useMigrationContext(): MigrationContextType {
   }
   return context;
 }
+
+export function useOptionalMigrationContext(): MigrationContextType | null {
+  return useContext(MigrationContext);
+}

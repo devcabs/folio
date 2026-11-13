@@ -211,6 +211,14 @@
   user-select: none;
 }
 
+.versionTag {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+  letter-spacing: 0.01em;
+}
+
 .bottomLink {
   color: var(--text-muted);
   text-decoration: none;

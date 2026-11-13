@@ -144,6 +144,29 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.1.7',
+    releaseDate: '2026-11-13',
+    title: 'TOC Container Isolation & Minimal Footer Version Tag',
+    summary:
+      'Eliminated duplicate TOC numbering by skipping wrapper containers and scoping section queries; added minimal typographic version control tag in AppFooter.',
+    breakingChanges: [
+      'No breaking API removals; additive container wrapper filtering in useAutoTableOfContents and version prop on AppFooter.',
+    ],
+    codeActions: [],
+    contentChanges: [
+      {
+        id: 'toc-and-footer-version-0.1.7',
+        title: 'TOC Wrapper Filtering & Footer Version Tag',
+        required: false,
+        description:
+          'Table of Contents automatically excludes outer canvas containers, and AppFooter cleanly displays the active engine version.',
+        affectedEntities: ['AppFooter', 'useAutoTableOfContents', 'App.tsx'],
+        migrationPrompt:
+          'No action required; consumer applications automatically receive improved TOC sidebar hierarchy and clean footer version branding.',
+      },
+    ],
+  },
 ];
 
 /**
@@ -166,4 +189,12 @@ export function validateMigrationLedger(rawLedger: unknown): MigrationEntry[] {
  */
 export const FOLIO_MIGRATION_LEDGER: MigrationEntry[] =
   validateMigrationLedger(_RAW_LEDGER);
+
+/**
+ * Current published engine semver dynamically resolved from the migration ledger.
+ */
+export const CURRENT_ENGINE_VERSION: string =
+  FOLIO_MIGRATION_LEDGER.length > 0
+    ? FOLIO_MIGRATION_LEDGER[FOLIO_MIGRATION_LEDGER.length - 1].version
+    : '0.1.6';
 

@@ -43,6 +43,24 @@ export function extractNavItemsFromContainer(
   for (const el of elements) {
     const id = el.id?.trim();
     if (!id || seenIds.has(id)) continue;
+
+    // Explicit opt-out for wrapper elements or hidden sections
+    if (
+      el.getAttribute('data-toc') === 'false' ||
+      el.getAttribute('data-toc-ignore') === 'true'
+    ) {
+      continue;
+    }
+
+    // If an element contains child sections that are themselves matched sections in the TOC,
+    // this element is a wrapper container, NOT an individual leaf section
+    const hasChildSections = elements.some(
+      (other) => other !== el && el.contains(other)
+    );
+    if (hasChildSections) {
+      continue;
+    }
+
     seenIds.add(id);
 
     // 1. Title Extraction:
@@ -52,7 +70,11 @@ export function extractNavItemsFromContainer(
     const headingEl = el.querySelector<HTMLElement>(
       'h1, h2, h3, [class*="sectionTitle"], [class*="SectionTitle"]'
     );
-    const headingText = headingEl?.textContent?.trim();
+    const validHeadingEl =
+      headingEl && (!headingEl.closest(sectionSelector) || headingEl.closest(sectionSelector) === el)
+        ? headingEl
+        : null;
+    const headingText = validHeadingEl?.textContent?.trim();
 
     const label = dataTitle || ariaLabel || headingText || formatTitle(id);
 
@@ -73,7 +95,11 @@ export function extractNavItemsFromContainer(
       const numberEl = el.querySelector<HTMLElement>(
         '[class*="sectionNumber"], [class*="SectionNumber"]'
       );
-      const numberText = numberEl?.textContent?.replace(/^Section\s*/i, '').trim();
+      const validNumberEl =
+        numberEl && (!numberEl.closest(sectionSelector) || numberEl.closest(sectionSelector) === el)
+          ? numberEl
+          : null;
+      const numberText = validNumberEl?.textContent?.replace(/^Section\s*/i, '').trim();
 
       number = (dataNumber && dataNumber !== 'false') ? dataNumber : numberText || undefined;
     }

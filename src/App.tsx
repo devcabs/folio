@@ -37,7 +37,6 @@ const sampleNodes = rawNodes as NodeItem[];
 
 const DEFAULT_NODE_SECTIONS: NavItem[] = [
   { id: 'node-overview', label: 'Overview', href: '#node-overview' },
-  { id: 'node-canvas', label: 'Document Canvas', number: '01', href: '#node-canvas' },
 ];
 
 const AppContent: React.FC = () => {
@@ -284,13 +283,13 @@ const AppContent: React.FC = () => {
               </section>
 
               {/* Dynamic Document Canvas */}
-              <section id="node-canvas" aria-label="Dynamic Document Canvas">
+              <div id="node-canvas" data-toc="false">
                 <DocumentCanvas
                   nodeId={currentNode.id}
                   nodeTitle={currentNode.title}
                   accentColor={currentNode.accentColor}
                 />
-              </section>
+              </div>
             </main>
           </div>
 

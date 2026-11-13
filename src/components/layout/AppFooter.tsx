@@ -1,10 +1,12 @@
 import React from 'react';
 import { ParametricShape } from '../ui/ParametricShape';
 import type { NodeCode } from '../../types/node';
+import { CURRENT_ENGINE_VERSION } from '../../migrations/ledger';
 import styles from './AppFooter.module.css';
 
 export interface AppFooterProps {
   orgName?: string;
+  version?: string;
   onRoadmapClick?: (e?: React.MouseEvent) => void;
   onOverviewClick?: (e?: React.MouseEvent) => void;
   onNodeClick?: (nodeCode: NodeCode, e?: React.MouseEvent) => void;
@@ -20,10 +22,14 @@ const NODE_ITEMS: { code: NodeCode; label: string; href: string }[] = [
 
 export const AppFooter: React.FC<AppFooterProps> = ({
   orgName = 'the host application',
+  version,
   onRoadmapClick,
   onOverviewClick,
   onNodeClick,
 }) => {
+  const cleanVersion = (version || CURRENT_ENGINE_VERSION || '0.1.6').replace(/^v/i, '');
+  const versionText = `Folio V${cleanVersion}`;
+
   const handleBrandClick = (e: React.MouseEvent) => {
     if (onOverviewClick) {
       e.preventDefault();
@@ -135,6 +141,14 @@ export const AppFooter: React.FC<AppFooterProps> = ({
             <p className={styles.copyright}>
               © {new Date().getFullYear()} {orgName}
             </p>
+
+            <span className={styles.legalSeparator} aria-hidden="true">
+              ·
+            </span>
+
+            <span className={styles.versionTag}>
+              {versionText}
+            </span>
 
             <span className={styles.legalSeparator} aria-hidden="true">
               ·
