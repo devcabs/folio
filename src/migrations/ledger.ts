@@ -196,7 +196,9 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
     title: 'Single-Source Data Architecture & Pure AST Revision Rollback',
     summary:
       'Streamlined Folio Engine single-source data architecture: eliminated phantom content override diffs, enforced pure Canvas AST revision rollback, added resilient image and chart fallbacks, and optimized history manifests strictly under 5 KB.',
-    breakingChanges: [],
+    breakingChanges: [
+      'No breaking API removals; historical snapshots now restore pure Canvas ASTs without flat content override re-hydration, and changelog diffs calculate purely from AST text elements.',
+    ],
     codeActions: [],
     contentChanges: [
       {
