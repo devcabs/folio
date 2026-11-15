@@ -176,12 +176,22 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
     breakingChanges: [
       'Gallery elements now strictly require their own Google Drive folder attachment and do not silently fall back to parent node photo streams.',
     ],
-    codeActions: [],
+    codeActions: [
+      {
+        description:
+          'Bind individual Google Drive folder URLs directly to gallery elements instead of relying on parent node photo sync fallback.',
+        affectedFiles: ['sample-nodes.json', 'src/components/source/SourceGallery.tsx'],
+        exampleBefore:
+          '<SourceGallery nodeId={nodeId} />',
+        exampleAfter:
+          '<SourceGallery nodeId={nodeId} pointId={element.id} driveUrl={element.driveUrl} />',
+      },
+    ],
     contentChanges: [
       {
         id: 'gallery-element-ownership-0.1.8',
         title: 'Element-Level Photo Gallery Ownership & Isolation',
-        required: false,
+        required: true,
         description:
           'Photo streams, Google Drive folder attachments, and sync states are now keyed by unique gallery IDs (pointId / element.id), allowing multiple independent galleries on a single canvas document.',
         affectedEntities: ['CanvasGallery', 'SourceGallery', 'useDrivePhotoSync', 'SourceFolderAttachment'],
@@ -199,17 +209,108 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
     breakingChanges: [
       'No breaking API removals; historical snapshots now restore pure Canvas ASTs without flat content override re-hydration, and changelog diffs calculate purely from AST text elements.',
     ],
-    codeActions: [],
+    codeActions: [
+      {
+        description:
+          'Route public canvas reads through Cloudflare Edge KV (/api/public/node/:nodeId) and eliminate synchronous localStorage reads or writes on public page visits.',
+        affectedFiles: ['functions/api/public/node/[nodeId].ts', 'src/hooks/useDocumentCanvas.ts'],
+        exampleBefore:
+          'const cached = localStorage.getItem(`folio_live_canvas_${nodeId}`);',
+        exampleAfter:
+          'const { document, isHydrating } = useDocumentCanvas(nodeId);',
+      },
+      {
+        description:
+          'Restore historical snapshots into draft sandboxes using pure Canvas AST injection without legacy flat content override re-hydration.',
+        affectedFiles: ['src/services/historyService.ts'],
+        exampleBefore:
+          'restoreSnapshotToDraft(snapshot);\nmigrateCanvasOverridesIntoAst("draft");',
+        exampleAfter:
+          'restoreSnapshotToDraft(snapshot);',
+      },
+    ],
     contentChanges: [
       {
         id: 'pure-ast-rollback-0.1.9',
         title: 'Pure AST Snapshot Rollback & History Manifest Optimization',
-        required: false,
+        required: true,
         description:
           'Revision rollback now restores canvas AST trees directly into draft sandboxes without legacy content override re-hydration. History manifests in localStorage are strictly capped < 5 KB.',
         affectedEntities: ['historyService', 'restoreSnapshotToDraft', 'computeMetricsSummary', 'HistoryHubModal'],
         migrationPrompt:
-          'No action required; consumer applications automatically benefit from pure AST rollback, clean changelog diffing, and lighter localStorage footprint.',
+          'Verify Cloudflare Edge KV public endpoint is deployed. Historical snapshots will restore AST nodes cleanly without flat content override re-hydration.',
+      },
+    ],
+  },
+  {
+    version: '0.1.10',
+    releaseDate: '2026-11-15',
+    title: 'Consumer App Migration Action Suite & Watermark Sync (0.1.8 -> 0.1.10)',
+    summary:
+      'Actionable migration suite for consumer applications upgrading across versions 0.1.8 to 0.1.10: element-level gallery isolation, public Edge KV single-source pipeline, pure AST revision history, and EngineConfig watermark synchronization.',
+    breakingChanges: [
+      'Consumer applications upgrading from 0.1.8 must configure dedicated driveUrl properties on individual gallery elements (parent node fallback is eliminated).',
+      'Public canvas reading requires active Cloudflare Edge KV (/api/public/node/:nodeId) or pre-baked AST payloads; synchronous localStorage reading and public client caching are purged.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Bind explicit driveUrl and element id properties to all canvas gallery elements in consumer templates and sample data.',
+        affectedFiles: ['sample-nodes.json', 'src/components/source/SourceGallery.tsx'],
+        exampleBefore:
+          '{\n  "type": "gallery",\n  "title": "Field Photos"\n}',
+        exampleAfter:
+          '{\n  "type": "gallery",\n  "id": "gallery-elem-1",\n  "driveUrl": "https://drive.google.com/drive/folders/YOUR_FOLDER_ID",\n  "title": "Field Photos"\n}',
+      },
+      {
+        description:
+          'Verify Cloudflare Pages Functions /api/public/node/:nodeId is enabled to serve published AST documents to public visitors with zero localStorage dependency.',
+        affectedFiles: ['functions/api/public/node/[nodeId].ts', 'wrangler.toml'],
+        exampleBefore:
+          '// Relying on localStorage live canvas caching:\nlocalStorage.getItem(`folio_live_canvas_${nodeId}`);',
+        exampleAfter:
+          '// Unconditional Edge KV fetch with skeleton wireframe:\nfetch(`/api/public/node/${nodeId}`).then(res => res.json());',
+      },
+      {
+        description:
+          'Update contentVersion watermark to "0.1.10" in your EngineConfig setup to acknowledge migration completion and clear doctor alerts.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore:
+          'setEngineConfig({\n  contentVersion: "0.1.8",\n});',
+        exampleAfter:
+          'setEngineConfig({\n  contentVersion: "0.1.10",\n});',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'gallery-drive-url-check-0.1.10',
+        title: 'Verify Gallery Element Drive Attachments',
+        required: true,
+        description:
+          'Inspect all gallery canvas elements in sample-nodes.json or remote storage to ensure each gallery has its own driveUrl set. Galleries without a driveUrl will prompt to connect a folder.',
+        affectedEntities: ['CanvasGallery', 'SourceGallery', 'sample-nodes.json'],
+        migrationPrompt:
+          'Check sample-nodes.json or live canvas ASTs for gallery elements and verify that each element defines a valid `driveUrl` attribute.',
+      },
+      {
+        id: 'edge-kv-single-source-0.1.10',
+        title: 'Deploy Edge KV Public Endpoints',
+        required: true,
+        description:
+          'Ensure your Cloudflare Pages deployment includes the public node endpoint (/api/public/node/:nodeId) backed by Edge KV, supporting cold-boot skeleton wireframes.',
+        affectedEntities: ['functions/api/public/node/[nodeId].ts', 'wrangler.toml'],
+        migrationPrompt:
+          'Confirm that Cloudflare Pages Functions and Edge KV namespace bindings are deployed so public visitors can load published canvas AST documents.',
+      },
+      {
+        id: 'content-version-watermark-0.1.10',
+        title: 'Advance contentVersion Watermark to 0.1.10',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.1.10 to acknowledge all migration items and silence Dev Mode pending migration warnings.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.1.10"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
       },
     ],
   },

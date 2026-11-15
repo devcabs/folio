@@ -183,3 +183,14 @@ npm run doctor
 The diagnostic routine uses monorepo-safe resolution (`src/diagnostics/packageResolver.ts`) to locate the consumer's installed `@devcabs/folio-engine` package, consumer `package.json`, and local setup/content files (`sample-nodes.json`, `src/engine-setup.ts`, `engine-setup.ts`, `src/folio/engine-setup.ts`), compares versions against `FOLIO_MIGRATION_LEDGER`, and prints an actionable **Agent Prompt Block** when migrations are pending.
 
 For consumer AI workflows, copy or import `.agents/rules/folio-engine-migration.md` into your consumer application so AI assistants automatically run `npx folio-engine doctor` after every `@devcabs/folio-engine` upgrade.
+
+### Consumer App Migration Checklist (0.1.8 → 0.1.10)
+
+1. **Element-Level Photo Gallery Ownership (0.1.8)**:
+   - Provide explicit `driveUrl` and `id` on each canvas gallery element (parent node photo sync fallback is eliminated).
+2. **Edge KV Single-Source Architecture (0.1.9)**:
+   - Route public visitor reads through Cloudflare Edge KV (`/api/public/node/:nodeId`) with zero synchronous localStorage reading or writing.
+3. **Pure AST Revision Rollback (0.1.9)**:
+   - Revision rollback restores pure Canvas ASTs without re-hydrating flat `_draft_content_overrides`.
+4. **EngineConfig Watermark Sync (0.1.10)**:
+   - Set `contentVersion: '0.1.10'` in `EngineConfig` to clear doctor and Dev Mode migration notices.
