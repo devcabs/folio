@@ -107,6 +107,11 @@
       "name": "ios-safari-debug",
       "path": "skills/ios-safari-debug/SKILL.md",
       "description": "Debug iOS Safari pages via ios-webkit-debug-proxy."
+    },
+    {
+      "name": "version-doctor",
+      "path": "skills/version-doctor/SKILL.md",
+      "description": "Enforces strict Version Doctor and migration ledger compliance for Folio Engine (@devcabs/folio-engine), ensuring all breaking changes, code actions, and content migrations are synchronously logged before npm publishing."
     }
   ],
   "agents": []

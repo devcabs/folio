@@ -375,6 +375,9 @@ async function main() {
   run('npm run test:tokens', 'Design token alias & purity validation');
   console.log(`  ${colors.green}✓${colors.reset} Token verification passed.`);
 
+  run('npm run verify:migrations', 'Migration ledger and Version Doctor sync verification');
+  console.log(`  ${colors.green}✓${colors.reset} Migration sync verification passed.`);
+
   run('npm run build:lib', 'Library compilation & type generation');
   console.log(`  ${colors.green}✓${colors.reset} Library bundle and declaration files generated.`);
 

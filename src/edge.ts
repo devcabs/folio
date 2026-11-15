@@ -9,3 +9,29 @@
 export * from './types/edge';
 export * from './services/edgePreBakeService';
 export * from './utils/mediaUrl';
+export {
+  handleFolioEdgeRequest,
+  resolveKVNamespace,
+  handleCorsPreflight,
+  type FolioEdgeOptions,
+} from './edge/router';
+export {
+  handlePublishRoute,
+  type PublishRequestBody,
+  type PublishResponseBody,
+} from './edge/handlers/publishHandler';
+export {
+  handlePublicNodeRoute,
+  handlePublicManifestRoute,
+  handlePublicChartRoute,
+  createEdgeJsonResponse,
+  checkConditionalGet,
+  CACHE_CONTROL_EDGE,
+  CACHE_CONTROL_FALLBACK,
+} from './edge/handlers/publicHandler';
+export {
+  handleDriveMediaRoute,
+  renderPlaceholderSvg,
+  parseRequestedWidth,
+} from './edge/handlers/mediaHandler';
+

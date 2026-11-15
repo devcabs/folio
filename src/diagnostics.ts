@@ -7,6 +7,7 @@
  */
 
 export * from './diagnostics/verifyEngineSetup';
+export * from './diagnostics/edgeDelegation';
 export {
   PublicNodePayloadSchema,
   PublicPortalManifestPayloadSchema,

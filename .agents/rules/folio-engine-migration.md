@@ -5,9 +5,45 @@ description: >-
 trigger: model_decision
 ---
 
-# Rule: `@devcabs/folio-engine` Migration Verification
+# Rule: `@devcabs/folio-engine` Migration Verification & Edge Delegation
 
-Whenever `@devcabs/folio-engine` is upgraded, run `npx folio-engine doctor` first. Review all breaking changes and required pending content changes before making code modifications.
+Whenever `@devcabs/folio-engine` is upgraded, run `npx folio-engine doctor` first. Review all breaking changes, anti-duplication audits, and required pending content changes before making code modifications.
+
+---
+
+## 0. Mandatory Edge Route Delegation (Zero Duplication Policy)
+
+> **CRITICAL DIRECTIVE**: Consumer applications MUST NOT create or duplicate serverless route logic, `functions/api/*`, `src/utils/mediaUrl.ts`, `src/types/edge.ts`, or custom Cloudflare Worker routers.
+>
+> All Cloudflare Edge routing logic is fully managed and exported by `@devcabs/folio-engine/edge`.
+
+### Canonical 5-Line `worker.ts` Template
+In host applications (like `masid`), `worker.ts` MUST delegate directly:
+
+```ts
+import { handleFolioEdgeRequest } from '@devcabs/folio-engine/edge';
+
+export default {
+  fetch(request: Request, env: any, ctx: any) {
+    return handleFolioEdgeRequest(request, env, ctx);
+  },
+};
+```
+
+If the host application requires its own custom endpoints, handle them before delegating:
+```ts
+import { handleFolioEdgeRequest } from '@devcabs/folio-engine/edge';
+
+export default {
+  async fetch(request: Request, env: any, ctx: any) {
+    const url = new URL(request.url);
+    if (url.pathname === '/api/host-specific-route') {
+      return handleCustomHostRoute(request, env);
+    }
+    return handleFolioEdgeRequest(request, env, ctx);
+  },
+};
+```
 
 ---
 
@@ -23,10 +59,11 @@ Whenever `@devcabs/folio-engine` is upgraded, run `npx folio-engine doctor` firs
    ```
    If upgrading from a known prior release after `node_modules` has already been updated, pass `--from <previous-version>`:
    ```bash
-   npx folio-engine doctor --from 0.1.2
+   npx folio-engine doctor --from 0.1.10
    ```
 
-2. **Review All Reported Changes Before Editing Code**:
+2. **Review All Reported Changes & Audits Before Editing Code**:
+   - Inspect **Edge Delegation & Anti-Duplication Audits** (and purge any duplicate `functions/api/` files).
    - Inspect **Breaking Changes & Code Actions** (and apply any before/after code updates).
    - Inspect **Pending Content Changes** (`[REQUIRED]` and `[OPTIONAL]` entity updates).
    - Follow the **Agent Prompt Block** output by `npx folio-engine doctor` for step-by-step migration guidance.
@@ -37,26 +74,20 @@ Whenever `@devcabs/folio-engine` is upgraded, run `npx folio-engine doctor` firs
 
 ---
 
-## Consumer App Migration Checklist (v0.1.8 → v0.1.10)
+## Consumer App Migration Checklist (v0.1.10 → v0.1.11)
 
-When upgrading a consumer application from `0.1.8` to `0.1.10`, execute the following required migration to-dos:
+When upgrading a consumer application from `0.1.10` to `0.1.11`, execute the following required migration to-dos:
 
-1. **Element-Level Photo Gallery Ownership (0.1.8)**:
-   - [ ] Audit all canvas gallery elements in `sample-nodes.json` and AST documents.
-   - [ ] Ensure every gallery element specifies its own `driveUrl` attribute (e.g., `https://drive.google.com/drive/folders/YOUR_FOLDER_ID`) and unique `id`.
-   - [ ] Verify that consumer gallery components (`CanvasGallery`, `SourceGallery`) no longer rely on parent node photo sync fallback.
+1. **Universal Edge Router Extraction & Purge Duplicates (0.1.11)**:
+   - [ ] Delete any duplicate local edge routes or utilities:
+     ```bash
+     rm -rf functions/api src/utils/mediaUrl.ts src/types/edge.ts
+     ```
+   - [ ] Replace custom worker router with canonical delegation to `handleFolioEdgeRequest` from `@devcabs/folio-engine/edge`.
+   - [ ] Confirm KV bindings (`KV_ENGINE_PUBLIC` or `KV_MASID_PUBLIC`) are bound in `wrangler.toml`.
 
-2. **Cloudflare Edge KV Single-Source Pipeline (0.1.9)**:
-   - [ ] Ensure Cloudflare Pages Function `/api/public/node/:nodeId` is deployed with active Edge KV namespace bindings.
-   - [ ] Purge any direct consumer code reading `folio_live_canvas_[nodeId]` or `_draft_content_overrides` from `localStorage` during public page visits.
-   - [ ] Verify public pages render the ghost skeleton wireframe during cold hydration without layout shifts (CLS).
+2. **EngineConfig Watermark Synchronization (0.1.11)**:
+   - [ ] Update `contentVersion: '0.1.11'` in your `EngineConfig` setup (`src/engine-setup.ts` or `src/App.tsx`).
+   - [ ] Run `npx folio-engine doctor` to confirm zero duplicate files and verified compatibility.
 
-3. **Pure AST Revision Rollback & Fallback Cards (0.1.9)**:
-   - [ ] Verify that revision rollback restores pure Canvas ASTs into draft sandboxes without legacy flat content override re-hydration.
-   - [ ] Check that unconfigured Google Sheets charts display `DataPendingCard` rather than arbitrary demo metrics.
-   - [ ] Confirm broken image URLs trigger resilient fallback cards rather than blank layout collapses.
-
-4. **EngineConfig Watermark Synchronization (0.1.10)**:
-   - [ ] Update `contentVersion: '0.1.10'` in your `EngineConfig` setup (`src/engine-setup.ts` or `src/App.tsx`).
-   - [ ] Run `npx folio-engine doctor` to confirm zero pending drift and verified compatibility.
 

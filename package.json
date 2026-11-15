@@ -68,7 +68,10 @@
     "deploy": "tsx scripts/deploy.ts",
     "doctor": "tsx src/diagnostics/migrationDoctor.ts",
     "changelog": "tsx scripts/generate-changelog.ts",
-    "changelog:verify": "tsx scripts/generate-changelog.ts --verify"
+    "changelog:verify": "tsx scripts/generate-changelog.ts --verify",
+    "verify:migrations": "tsx scripts/verify-migration-sync.ts",
+    "prepublishOnly": "npm run verify:migrations && npm run doctor",
+    "setup:hooks": "mkdir -p .git/hooks && cp scripts/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push"
   },
   "files": [
     "dist",

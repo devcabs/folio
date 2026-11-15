@@ -31,15 +31,19 @@ The automated pipeline script (`scripts/deploy.ts`) executes these critical step
 
 1. **Gate 1: Working Tree & Remote Verification**:
    - Ensures no unstaged changes remain and verifies local branch is synchronized with remote.
-2. **Gate 2: Quality & Token Audits**:
+2. **Gate 2: Quality, Token & Migration Audits**:
    - `npm run test:tokens` (100% token purity and alias verification).
+   - `npm run verify:migrations` (strict Version Doctor and ledger synchronization).
    - `npm test` (unit and purity test suites).
 3. **Gate 3: Static Typecheck & Bundling**:
    - `npm run build` & `npm run build:lib` ensuring zero TypeScript errors and optimized dual-mode bundles (app and library) in `dist/`.
-4. **Gate 4: Automated Version Bump & Git Commit**:
+4. **Gate 4: Pre-Flight Ledger Gate & Changelog Compilation**:
+   - Verifies target release entry in `src/migrations/ledger.ts`.
+   - Compiles and verifies `CHANGELOG.md` via `npm run changelog` and `npm run changelog:verify`.
+5. **Gate 5: Automated Version Bump & Git Commit**:
    - Increments `package.json` semver cleanly and creates a signed Git release commit with matching Git tag (`vX.Y.Z`).
-5. **Gate 5: Git Push & Direct Cloudflare Edge Deployment**:
-   - Pushes commit and tags to `origin main`, then runs `wrangler pages deploy` to push `dist/` directly to Cloudflare's global edge network in seconds.
+6. **Gate 6: NPM Publishing & Direct Cloudflare Edge Deployment**:
+   - Publishes to npm (locked down by `prepublishOnly`), pushes commit and tags to `origin main`, then runs `wrangler pages deploy` to push `dist/` directly to Cloudflare's global edge network in seconds.
 
 ---
 

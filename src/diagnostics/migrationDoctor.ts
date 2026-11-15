@@ -18,6 +18,7 @@ import {
   type InstalledEngineInfo,
   type ConsumerPackageInfo,
 } from './packageResolver';
+import { verifyEdgeDelegation, type EdgeDelegationResult } from './edgeDelegation';
 import { FOLIO_MIGRATION_LEDGER, compareSemver } from '../migrations/ledger';
 import { isValidSemver } from '../utils/semver-utils';
 import { generateAiMigrationPrompt } from '../utils/migrationPromptFormatter';
@@ -79,6 +80,7 @@ export interface MigrationDoctorReport {
   contentChanges: VersionedContentChanges[];
   pendingMigrationReport: PendingMigrationReport | null;
   agentPrompt: string | null;
+  edgeDelegation?: EdgeDelegationResult;
   warnings: string[];
 }
 
@@ -258,11 +260,25 @@ function buildDoctorAgentPrompt(
   targetVersion: string,
   breakingChanges: VersionedBreakingChanges[],
   codeActions: VersionedCodeActions[],
-  pendingMigrationReport: PendingMigrationReport
+  pendingMigrationReport: PendingMigrationReport,
+  edgeDelegation?: EdgeDelegationResult
 ): string {
   const sections: string[] = [
     `Update this consumer application for @devcabs/folio-engine from v${baselineVersion} -> v${targetVersion}.`,
   ];
+
+  if (edgeDelegation && !edgeDelegation.ok) {
+    const edgeLines = ['### Edge Route Delegation & Anti-Duplication Required'];
+    if (edgeDelegation.duplicateFiles.length > 0) {
+      edgeLines.push(`- Remove duplicate local edge files: ${edgeDelegation.duplicateFiles.join(', ')}`);
+    }
+    if (!edgeDelegation.isDelegated) {
+      edgeLines.push(
+        '- Update worker.ts to delegate directly to `@devcabs/folio-engine/edge`:\n  ```ts\n  import { handleFolioEdgeRequest } from "@devcabs/folio-engine/edge";\n\n  export default {\n    fetch(request: Request, env: any, ctx: any) {\n      return handleFolioEdgeRequest(request, env, ctx);\n    },\n  };\n  ```'
+      );
+    }
+    sections.push(edgeLines.join('\n'));
+  }
 
   if (breakingChanges.length > 0) {
     const lines = ['### Breaking Changes to Address'];
@@ -344,6 +360,11 @@ export function buildMigrationDoctorReport(
   const consumerRoot = consumerInfo ? path.dirname(consumerInfo.path) : cwd;
   const detectedFiles = consumerInfo ? resolveContentFiles(consumerRoot) : [];
   const detectedContentVersion = detectConsumerContentVersion(consumerRoot, detectedFiles);
+  const edgeDelegation = verifyEdgeDelegation({ cwd: consumerRoot });
+
+  if (!edgeDelegation.ok) {
+    warnings.push(...edgeDelegation.errors);
+  }
 
   const latestEngineVersion = latestLedgerEntry?.version ?? engineInfo.version;
   const targetVersion =
@@ -415,7 +436,8 @@ export function buildMigrationDoctorReport(
         targetVersion,
         breakingChanges,
         codeActions,
-        pendingMigrationReport
+        pendingMigrationReport,
+        edgeDelegation
       )
     : null;
 
@@ -434,6 +456,7 @@ export function buildMigrationDoctorReport(
     contentChanges,
     pendingMigrationReport,
     agentPrompt,
+    edgeDelegation,
     warnings,
   };
 }
@@ -492,6 +515,37 @@ export function formatMigrationDoctorReport(
   }
   if (report.baselineVersion) {
     lines.push(`  Audit Baseline   : ${report.baselineVersion}`);
+  }
+
+  if (
+    report.edgeDelegation &&
+    (!report.edgeDelegation.ok || report.edgeDelegation.duplicateFiles.length > 0)
+  ) {
+    lines.push('');
+    lines.push(ansi.bold(ansi.red('🚨 Edge Delegation & Anti-Duplication')));
+    if (report.edgeDelegation.duplicateFiles.length > 0) {
+      lines.push(ansi.yellow('  Detected duplicate edge files in consumer repository:'));
+      for (const f of report.edgeDelegation.duplicateFiles) {
+        lines.push(`    • ${f}`);
+      }
+      lines.push(
+        ansi.dim(
+          '  Action: Delete local duplicate edge files and delegate to @devcabs/folio-engine/edge.'
+        )
+      );
+    }
+    if (!report.edgeDelegation.isDelegated && report.edgeDelegation.workerFound) {
+      lines.push(
+        ansi.yellow(
+          `  Worker "${report.edgeDelegation.workerFile}" does not delegate to handleFolioEdgeRequest.`
+        )
+      );
+      lines.push(
+        ansi.dim(
+          '  Action: Import and call handleFolioEdgeRequest from @devcabs/folio-engine/edge in worker.ts.'
+        )
+      );
+    }
   }
 
   if (report.status === 'up-to-date') {

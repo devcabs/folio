@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Git Pre-Push Hook: Strict Version Doctor & Migration Sync Enforcement
+# Ensures CHANGELOG.md, package.json, and src/migrations/ledger.ts are 100% in sync before push.
+
+set -e
+
+echo "🔍 [pre-push] Verifying Migration Ledger and Version Doctor synchronization..."
+
+if ! npm run verify:migrations; then
+  echo ""
+  echo "❌ Push blocked by Folio Engine Migration Compliance Gate!"
+  echo "All changes must be registered in src/migrations/ledger.ts and compiled to CHANGELOG.md."
+  echo "Run 'npm run changelog' to fix desynced changelogs."
+  exit 1
+fi
+
+echo "✅ [pre-push] Migration synchronization verified."
+exit 0

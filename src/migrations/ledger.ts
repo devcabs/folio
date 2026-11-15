@@ -314,6 +314,54 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.1.11',
+    releaseDate: '2026-11-15',
+    title: 'Universal Edge Router & Edge Duplication Safeguards',
+    summary:
+      'Extracted universal Cloudflare Edge router into @devcabs/folio-engine/edge with dynamic KV resolution, zero-duplication anti-drift checks, and 5-line worker delegation.',
+    breakingChanges: [
+      'No breaking API changes; additive features and edge consolidation only.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Replace custom 100-line worker.ts router with 5-line handleFolioEdgeRequest delegation and delete duplicate functions/api/ and mediaUrl.ts in consumer apps.',
+        affectedFiles: [
+          'worker.ts',
+          'functions/api/publish.ts',
+          'functions/api/public/node/[nodeId].ts',
+          'src/utils/mediaUrl.ts',
+        ],
+        exampleBefore:
+          '// Consumer-maintained custom edge routing\nexport default { fetch: (req, env) => { ... 100 lines ... } };',
+        exampleAfter:
+          'import { handleFolioEdgeRequest } from "@devcabs/folio-engine/edge";\n\nexport default {\n  fetch(request: Request, env: any, ctx: any) {\n    return handleFolioEdgeRequest(request, env, ctx);\n  },\n};',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'universal-edge-router-0.1.11',
+        title: 'Adopt Universal Edge Router Delegation',
+        required: true,
+        description:
+          'Consumer applications must delegate edge routing to handleFolioEdgeRequest from @devcabs/folio-engine/edge, removing duplicate route handlers.',
+        affectedEntities: ['worker.ts', 'functions/api/'],
+        migrationPrompt:
+          'Delete duplicate local `functions/api/` route files and update `worker.ts` to delegate to `handleFolioEdgeRequest` from `@devcabs/folio-engine/edge`.',
+      },
+      {
+        id: 'content-version-watermark-0.1.11',
+        title: 'Advance contentVersion Watermark to 0.1.11',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.1.11 to acknowledge the edge router migration and silence pending warnings.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.1.11"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**
