@@ -59,7 +59,7 @@ export default {
    ```
    If upgrading from a known prior release after `node_modules` has already been updated, pass `--from <previous-version>`:
    ```bash
-   npx folio-engine doctor --from 0.1.11
+   npx folio-engine doctor --from 0.1.12
    ```
 
 2. **Review All Reported Changes & Audits Before Editing Code**:
@@ -71,6 +71,20 @@ export default {
 3. **Update Your Watermark & Verify**:
    - Update `contentVersion` in your `EngineConfig` (e.g., `setEngineConfig({ contentVersion: '<target-version>' })`) once content migrations are complete.
    - Re-run `npx folio-engine doctor` and your application's test/build suite to confirm zero pending drift.
+
+---
+
+## Consumer App Migration Checklist (v0.1.12 → v0.1.13)
+
+When upgrading a consumer application from `0.1.12` to `0.1.13`, execute the following required migration to-dos:
+
+1. **Verify Public Canvas Edge Single-Source Isolation (0.1.13)**:
+   - [ ] Confirm public page refreshes no longer trigger redundant background Supabase calls.
+   - [ ] Verify that navigating or refreshing nodes renders Cloudflare Edge KV content without flashing or reverting to `"Access / Draft / This section is currently in draft."`.
+
+2. **EngineConfig Watermark Synchronization (0.1.13)**:
+   - [ ] Update `contentVersion: '0.1.13'` in your `EngineConfig` setup (`src/engine-setup.ts` or `src/App.tsx`).
+   - [ ] Run `npx folio-engine doctor` to confirm zero pending migrations.
 
 ---
 

@@ -184,6 +184,14 @@ The diagnostic routine uses monorepo-safe resolution (`src/diagnostics/packageRe
 
 For consumer AI workflows, copy or import `.agents/rules/folio-engine-migration.md` into your consumer application so AI assistants automatically run `npx folio-engine doctor` after every `@devcabs/folio-engine` upgrade.
 
+### Consumer App Migration Checklist (0.1.12 → 0.1.13)
+
+1. **Public Canvas Edge Single-Source Isolation (0.1.13)**:
+   - Public page refreshes no longer execute background Supabase cloud sync, eliminating cloud traffic on public visits.
+   - Public canvas event subscriptions ignore wildcard live events that carry no document payload, preserving Edge KV document integrity.
+2. **EngineConfig Watermark Sync (0.1.13)**:
+   - Set `contentVersion: '0.1.13'` in `EngineConfig` (`src/engine-setup.ts` or `src/App.tsx`) to clear doctor and Dev Mode migration notices.
+
 ### Consumer App Migration Checklist (0.1.11 → 0.1.12)
 
 1. **Apply Supabase Database Migration (0.1.12)**:

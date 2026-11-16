@@ -3,13 +3,39 @@ import { createRoot, Root } from 'react-dom/client';
 
 export { act };
 
+function createMockStyle() {
+  const store: Record<string, string> = {};
+  return new Proxy(store, {
+    get(target, prop: string | symbol) {
+      if (prop === 'setProperty') {
+        return (name: string, value: string) => {
+          target[name] = String(value);
+        };
+      }
+      if (prop === 'removeProperty') {
+        return (name: string) => {
+          delete target[name];
+        };
+      }
+      if (prop === 'getPropertyValue') {
+        return (name: string) => target[name] || '';
+      }
+      return target[prop as string];
+    },
+    set(target, prop: string | symbol, value: any) {
+      target[prop as string] = String(value);
+      return true;
+    },
+  });
+}
+
 export class MockElement {
   nodeType = 1;
   tagName = 'DIV';
   childNodes: any[] = [];
   parentNode: any = null;
   ownerDocument: any = null;
-  style: Record<string, string> = {};
+  style: any = createMockStyle();
   className = '';
   value: string = '';
   src: string = '';
@@ -308,6 +334,10 @@ export function ensureDomEnvironment() {
     HTMLTextAreaElement: MockHTMLTextAreaElement,
     Document: MockDocument,
     localStorage: mockLocalStorage,
+    setTimeout: (fn: any, ms?: number) => setTimeout(fn, ms),
+    clearTimeout: (id: any) => clearTimeout(id),
+    setInterval: (fn: any, ms?: number) => setInterval(fn, ms),
+    clearInterval: (id: any) => clearInterval(id),
     addEventListener(type: string, fn: any, options?: any) {
       const capture = typeof options === 'boolean' ? options : Boolean(options?.capture);
       if (!winListeners[type]) winListeners[type] = [];

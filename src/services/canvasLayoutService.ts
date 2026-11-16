@@ -1090,6 +1090,12 @@ export function subscribeToCanvasChange(
       customEvent.detail &&
       (customEvent.detail.nodeId === nodeId || customEvent.detail.nodeId === '*')
     ) {
+      // Public mode defense: Ignore wildcard aggregate events carrying no document payload,
+      // preventing getNodeCanvas(nodeId, false) from clobbering Edge KV state with empty defaults.
+      if (!isDevMode && customEvent.detail.nodeId === '*' && !customEvent.detail.document) {
+        return;
+      }
+
       const doc =
         customEvent.detail.nodeId === '*' || !customEvent.detail.document
           ? getNodeCanvas(nodeId, isDevMode)

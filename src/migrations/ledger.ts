@@ -433,6 +433,47 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.1.13',
+    releaseDate: '2026-11-16',
+    title: 'Public Canvas Hydration Isolation & Edge Single-Source Defense',
+    summary:
+      'Gated Supabase cloud hydration strictly to active Developer Mode sessions, preventing public visitors from executing redundant cloud fetches. Defended public canvas subscriptions against wildcard aggregate event wipeouts, guaranteeing Edge KV single-source integrity.',
+    breakingChanges: [
+      'No breaking API removals; internal event guard and public hydration lifecycle hardening.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.1.13 to acknowledge public canvas hydration isolation.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.1.12" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.1.13" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'public-hydration-isolation-0.1.13',
+        title: 'Public Canvas Edge Single-Source Isolation',
+        required: false,
+        description:
+          'Public visitors no longer execute background Supabase sync on startup, preserving Edge KV as the unconditional single source of truth.',
+        affectedEntities: ['DeveloperModeContext', 'useDocumentCanvas', 'DocumentCanvas'],
+        migrationPrompt:
+          'No code changes required. Verify that public node refresh renders Edge KV documents without flashing empty draft notices.',
+      },
+      {
+        id: 'content-version-watermark-0.1.13',
+        title: 'Advance contentVersion Watermark to 0.1.13',
+        required: true,
+        description:
+          'Update contentVersion watermark in EngineConfig to 0.1.13 to silence doctor drift warnings.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.1.13"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

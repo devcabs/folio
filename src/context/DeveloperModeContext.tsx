@@ -262,10 +262,12 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     return unsubscribe;
   }, []);
 
-  // Hydrate active published version from Supabase on startup
+  // Hydrate active published version from Supabase strictly when Developer Mode is engaged
   useEffect(() => {
-    hydrateActiveVersionFromCloud().catch(() => { });
-  }, []);
+    if (isDevMode) {
+      hydrateActiveVersionFromCloud().catch(() => { });
+    }
+  }, [isDevMode]);
 
   // Initialize draft session whenever Dev Mode is enabled or refreshed across F5/Cmd+R
   useEffect(() => {
