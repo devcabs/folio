@@ -32,6 +32,7 @@ function createMockStyle() {
 export class MockElement {
   nodeType = 1;
   tagName = 'DIV';
+  id = '';
   childNodes: any[] = [];
   parentNode: any = null;
   ownerDocument: any = null;
@@ -79,9 +80,16 @@ export class MockElement {
     return child;
   }
 
+  remove() {
+    if (this.parentNode) {
+      this.parentNode.removeChild(this);
+    }
+  }
+
   setAttribute(name: string, value: any) {
     const str = String(value);
     (this as any)[name] = str;
+    if (name === 'id') this.id = str;
     if (name === 'class') this.className = str;
     if (name === 'value') this.value = str;
     if (name === 'src') this.src = str;
@@ -214,6 +222,11 @@ export class MockElement {
     return false;
   }
 
+  querySelectorAll(selector: string): any[] {
+    const targetTag = selector.toUpperCase();
+    return traverse(this, (el) => el !== this && (el.tagName === targetTag || selector === '*'));
+  }
+
   get textContent(): string {
     return this.childNodes.map((c) => c.textContent || '').join('');
   }
@@ -244,6 +257,7 @@ export class MockDocument { }
 let globalDoc: any = null;
 let globalWin: any = null;
 const mountedContainers: any[] = [];
+const mountedRoots: Root[] = [];
 
 export function ensureDomEnvironment() {
   if (globalDoc) {
@@ -258,6 +272,10 @@ export function ensureDomEnvironment() {
     body: new MockElement(),
     activeElement: null,
     listeners: docListeners,
+    getElementById(id: string) {
+      const results = traverse(doc.body, (el) => el.getAttribute('id') === id || el.id === id);
+      return results[0] || null;
+    },
     createElement(tag: string) {
       let el: MockElement;
       const lower = tag.toLowerCase();
@@ -434,6 +452,7 @@ export function render(ui: React.ReactElement, options?: { container?: any }): R
   mountedContainers.push(container);
 
   const root = createRoot(container);
+  mountedRoots.push(root);
   act(() => {
     root.render(ui);
   });
@@ -460,6 +479,18 @@ export function render(ui: React.ReactElement, options?: { container?: any }): R
 }
 
 export function cleanup() {
+  while (mountedRoots.length > 0) {
+    const r = mountedRoots.pop();
+    if (r) {
+      try {
+        act(() => {
+          r.unmount();
+        });
+      } catch {
+        // Safe discard
+      }
+    }
+  }
   while (mountedContainers.length > 0) {
     const c = mountedContainers.pop();
     if (c && c.parentNode) {
@@ -483,6 +514,68 @@ export const screen = {
       );
     }
     return match;
+  },
+
+  getAllByRole(role: string, options?: { name?: string | RegExp }): any[] {
+    ensureDomEnvironment();
+    const matches = this.queryAllByRole(role, options);
+    if (!matches || matches.length === 0) {
+      throw new Error(
+        `Unable to find any elements with role "${role}"${options?.name ? ` and name matching ${options.name}` : ''
+        }`
+      );
+    }
+    return matches;
+  },
+
+  queryAllByRole(role: string, options?: { name?: string | RegExp }): any[] {
+    ensureDomEnvironment();
+    const targetRole = role.toLowerCase();
+    const searchRoots = mountedContainers.length > 0 ? [...mountedContainers, globalDoc.body] : [globalDoc.body];
+    const allMatches: any[] = [];
+
+    for (const root of searchRoots) {
+      const results = traverse(root, (el) => {
+        const explicitRole = (el.getAttribute('role') || '').toLowerCase();
+        let matchesRole = explicitRole === targetRole;
+
+        // Semantic implicit role mappings
+        if (!matchesRole) {
+          const tag = (el.tagName || '').toLowerCase();
+          if (targetRole === 'region') {
+            matchesRole =
+              tag === 'section' && (el.hasAttribute('aria-label') || el.hasAttribute('aria-labelledby'));
+          } else if (targetRole === 'button') {
+            matchesRole = tag === 'button';
+          } else if (targetRole === 'img') {
+            matchesRole = tag === 'img';
+          } else if (targetRole === 'heading') {
+            matchesRole = /^h[1-6]$/.test(tag);
+          }
+        }
+
+        if (!matchesRole) return false;
+
+        if (options?.name) {
+          const accessibleName =
+            el.getAttribute('aria-label') ||
+            el.getAttribute('title') ||
+            el.textContent ||
+            '';
+          return matchesTextOrPattern(accessibleName, options.name);
+        }
+
+        return true;
+      });
+
+      for (const res of results) {
+        if (!allMatches.includes(res)) {
+          allMatches.push(res);
+        }
+      }
+    }
+
+    return allMatches;
   },
 
   queryByRole(role: string, options?: { name?: string | RegExp }): any | null {

@@ -96,6 +96,7 @@ export interface PublicPortalManifestPayload {
   publishedAt: string;
   nodeIds: string[];
   schemaVersion: number;
+  contentOverrides?: Record<string, string>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,6 +108,7 @@ export const PublicPortalManifestPayloadSchema = z.object({
   publishedAt: z.string().min(1, 'publishedAt is required'),
   nodeIds: z.array(z.string()).min(1, 'nodeIds cannot be empty'),
   schemaVersion: z.number().int().positive(),
+  contentOverrides: z.record(z.string(), z.string()).optional(),
 });
 
 export const NodeCanvasDocumentSchema = z.object({

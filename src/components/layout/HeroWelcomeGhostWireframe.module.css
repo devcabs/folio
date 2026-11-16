@@ -1,0 +1,116 @@
+/**
+ * HeroWelcomeGhostWireframe Module Styles
+ * Folio Engine — Task 4.2: Zero-CLS Chrome Hydration Wireframe
+ * Strictly adheres to tokens.css and the Universal Zero Outline Policy.
+ */
+
+.heroSection {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-top: 104px;
+  padding-bottom: var(--space-flow-block);
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-canvas);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.heroBackgroundCard {
+  position: absolute;
+  top: var(--space-4);
+  bottom: var(--space-4);
+  left: 50%;
+  transform: translate3d(-50%, 0, 0);
+  -webkit-transform: translate3d(-50%, 0, 0);
+  width: min(calc(100% - 2 * var(--layout-gutter-desktop)), var(--layout-max-width));
+  max-width: var(--layout-max-width);
+  border-radius: var(--radius-card-hero);
+  background: var(--gradient-hero-card);
+  box-shadow: var(--shadow-hero-card);
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ambientMesh {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translate3d(-50%, 0, 0);
+  width: min(92vw, 1000px);
+  height: 360px;
+  background: radial-gradient(
+    ellipse at 50% 30%,
+    var(--ambient-glow-accent) 0%,
+    transparent 70%
+  );
+  filter: blur(50px);
+  pointer-events: none;
+}
+
+.heroContainer {
+  position: relative;
+  z-index: 1;
+  width: min(calc(100% - 2 * var(--layout-gutter-desktop)), var(--layout-max-width));
+  max-width: var(--layout-max-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--space-gap-wide);
+  padding-right: var(--space-gap-wide);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.kickerSkeleton {
+  height: 28px;
+  width: 240px;
+  background: var(--bg-surface-muted);
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-4);
+  animation: pulseSkeleton 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.titleSkeleton {
+  height: 56px;
+  width: min(85vw, 680px);
+  background: var(--bg-surface-muted);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  animation: pulseSkeleton 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation-delay: 150ms;
+}
+
+.subtitleSkeleton {
+  height: 24px;
+  width: min(70vw, 520px);
+  background: var(--bg-surface-muted);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-8);
+  animation: pulseSkeleton 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation-delay: 300ms;
+}
+
+.ctaPlaceholder {
+  height: 44px;
+  width: 180px;
+  background: var(--bg-surface-muted);
+  border-radius: var(--radius-full);
+  animation: pulseSkeleton 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation-delay: 450ms;
+}
+
+@keyframes pulseSkeleton {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}

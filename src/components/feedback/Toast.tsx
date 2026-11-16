@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './Toast.module.css';
 
 export interface ToastProps {
   message: string;
-  type?: 'success' | 'info' | 'error';
+  type?: 'success' | 'info' | 'warning' | 'error';
   durationMs?: number;
   onDismiss: () => void;
   actionLabel?: string;
@@ -13,10 +13,95 @@ export interface ToastProps {
 }
 
 /**
+ * Toast Registry: Coordinates multi-toast instances, prevents DOM stacking,
+ * and manages global dismiss-all actions.
+ */
+type ToastDismissHandler = () => void;
+
+class ToastRegistry {
+  private active = new Map<string, ToastDismissHandler>();
+  private listeners = new Set<() => void>();
+
+  register(id: string, dismiss: ToastDismissHandler): void {
+    this.active.set(id, dismiss);
+    this.notify();
+  }
+
+  unregister(id: string): void {
+    if (this.active.delete(id)) {
+      this.notify();
+    }
+  }
+
+  dismissAll(): void {
+    const callbacks = Array.from(this.active.values());
+    this.active.clear();
+    callbacks.forEach((dismiss) => {
+      try {
+        dismiss();
+      } catch {
+        // Safe discard on already unmounted instances
+      }
+    });
+    this.notify();
+  }
+
+  getCount(): number {
+    return this.active.size;
+  }
+
+  getFirstId(): string | null {
+    const keys = Array.from(this.active.keys());
+    return keys.length > 0 ? keys[0] : null;
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notify(): void {
+    this.listeners.forEach((fn) => fn());
+  }
+}
+
+export const toastRegistry = new ToastRegistry();
+
+const CONTAINER_ID = 'folio-toast-container';
+
+function getToastContainer(): HTMLElement | null {
+  if (typeof document === 'undefined' || !document.body) return null;
+  let container: HTMLElement | null = null;
+
+  if (typeof document.getElementById === 'function') {
+    container = document.getElementById(CONTAINER_ID);
+  } else if (document.body.childNodes) {
+    const found = Array.from(document.body.childNodes).find(
+      (c: any) => c.id === CONTAINER_ID || (c.getAttribute && c.getAttribute('id') === CONTAINER_ID)
+    );
+    if (found) container = found as HTMLElement;
+  }
+
+  if (!container) {
+    if (typeof document.createElement !== 'function') return null;
+    container = document.createElement('div');
+    container.id = CONTAINER_ID;
+    if (container.setAttribute) {
+      container.setAttribute('id', CONTAINER_ID);
+    }
+    container.className = styles.toastContainer;
+    document.body.appendChild(container);
+  }
+  return container;
+}
+
+/**
  * Synthesize subtle feedback audio using native Web Audio API.
  * Purely synthetic: zero external assets, zero network calls, zero latency.
  */
-function playToastAudio(type: 'success' | 'info' | 'error' = 'success'): void {
+function playToastAudio(type: 'success' | 'info' | 'warning' | 'error' = 'success'): void {
   try {
     const AudioContextClass =
       window.AudioContext ||
@@ -92,48 +177,16 @@ function playToastAudio(type: 'success' | 'info' | 'error' = 'success'): void {
   }
 }
 
-const CheckIcon = (
-  <svg className={styles.svgIcon} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-    <path
-      fillRule="evenodd"
-      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-
-const ExclamationIcon = (
-  <svg className={styles.svgIcon} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-    <path
-      fillRule="evenodd"
-      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-
-const InfoIcon = (
-  <svg className={styles.svgIcon} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-    <path
-      fillRule="evenodd"
-      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-
 /**
  * Toast Component
- * Folio Engine — Subtask 5.4: Link Folder Modal & URL Validation Pipeline
- *
- * Lightweight, accessible floating feedback capsule:
- * - Positioned at upper-left of viewport with responsive safe-area insets
- * - Native Web Audio API subtle chime feedback
- * - Dedicated color variants for success, error, and info
- * - Rendered in document.body via createPortal
+ * Folio Engine — Lightweight, accessible floating feedback capsule:
+ * - Rendered in a unified container (#folio-toast-container) to prevent stacking/overlapping
+ * - No left icon and no colored glow
+ * - Variant-specific token styling (success, error, info, warning)
+ * - Auto-dismisses reliably after defined duration without timer resetting on parent re-renders
+ * - Affords a "Close all" button whenever multiple toasts exist simultaneously
  * - ARIA role="status" and aria-live="polite"
- * - Auto-dismisses with timer teardown
- * - Adheres strictly to Universal Zero Outline Policy
+ * - Universal Zero Outline Policy adherence
  */
 export const Toast: React.FC<ToastProps> = ({
   message,
@@ -145,6 +198,13 @@ export const Toast: React.FC<ToastProps> = ({
   playAudio = true,
 }) => {
   const [isMounted, setIsMounted] = useState(false);
+  const idRef = useRef<string>(`toast-${Math.random().toString(36).slice(2, 9)}`);
+
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+
+  const [activeCount, setActiveCount] = useState(() => toastRegistry.getCount());
+  const [firstId, setFirstId] = useState(() => toastRegistry.getFirstId());
 
   useEffect(() => {
     setIsMounted(true);
@@ -154,66 +214,99 @@ export const Toast: React.FC<ToastProps> = ({
   }, [type, playAudio]);
 
   useEffect(() => {
+    const id = idRef.current;
+    toastRegistry.register(id, () => {
+      onDismissRef.current();
+    });
+
+    const unsubscribe = toastRegistry.subscribe(() => {
+      setActiveCount(toastRegistry.getCount());
+      setFirstId(toastRegistry.getFirstId());
+    });
+
+    return () => {
+      unsubscribe();
+      toastRegistry.unregister(id);
+    };
+  }, []);
+
+  // Reliable auto-close timer: does NOT reset when parent re-renders with new onDismiss reference
+  useEffect(() => {
     if (durationMs <= 0) return;
     const timer = setTimeout(() => {
-      onDismiss();
+      onDismissRef.current();
     }, durationMs);
 
     return () => clearTimeout(timer);
-  }, [durationMs, onDismiss]);
+  }, [durationMs]);
 
   if (!isMounted || typeof document === 'undefined') {
     return null;
   }
 
-  const iconMarkup =
-    type === 'success' ? (
-      <span className={`${styles.iconWrapper} ${styles.successIcon}`}>{CheckIcon}</span>
-    ) : type === 'error' ? (
-      <span className={`${styles.iconWrapper} ${styles.errorIcon}`}>{ExclamationIcon}</span>
-    ) : (
-      <span className={`${styles.iconWrapper} ${styles.infoIcon}`}>{InfoIcon}</span>
-    );
+  const container = getToastContainer();
+  if (!container) {
+    return null;
+  }
+
+  const isLeader = firstId === idRef.current;
+  const showCloseAll = isLeader && activeCount > 1;
 
   const variantClass =
     type === 'error'
       ? styles.toastError
-      : type === 'info'
-        ? styles.toastInfo
-        : styles.toastSuccess;
+      : type === 'warning'
+        ? styles.toastWarning
+        : type === 'info'
+          ? styles.toastInfo
+          : styles.toastSuccess;
 
   const toastContent = (
-    <div
-      role="status"
-      aria-live="polite"
-      className={`${styles.toastPortal} ${variantClass}`}
-    >
-      {iconMarkup}
-      <span className={styles.message}>{message}</span>
-      {actionLabel && onAction && (
+    <>
+      <div
+        role="status"
+        aria-live="polite"
+        className={`${styles.toastItem} ${variantClass}`}
+      >
+        <span className={styles.message}>{message}</span>
+        {actionLabel && onAction && (
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={() => {
+              onAction();
+              onDismissRef.current();
+            }}
+          >
+            {actionLabel}
+          </button>
+        )}
         <button
           type="button"
-          className={styles.actionButton}
-          onClick={() => {
-            onAction();
-            onDismiss();
-          }}
+          className={styles.dismissButton}
+          onClick={() => onDismissRef.current()}
+          aria-label="Dismiss notification"
         >
-          {actionLabel}
+          ✕
         </button>
+      </div>
+
+      {showCloseAll && (
+        <div className={styles.closeAllWrapper}>
+          <button
+            type="button"
+            className={styles.closeAllButton}
+            onClick={() => toastRegistry.dismissAll()}
+            aria-label="Close all notifications"
+          >
+            Close all
+          </button>
+        </div>
       )}
-      <button
-        type="button"
-        className={styles.dismissButton}
-        onClick={onDismiss}
-        aria-label="Dismiss notification"
-      >
-        ✕
-      </button>
-    </div>
+    </>
   );
 
-  return createPortal(toastContent, document.body);
+  return createPortal(toastContent, container);
 };
 
 export default Toast;

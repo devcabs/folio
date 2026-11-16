@@ -3,6 +3,8 @@ import { StatusPill } from './StatusPill';
 import { Button } from '../ui/Button';
 import { DevActionAffordance } from '../dev/DevActionAffordance';
 import { useContent } from '../../hooks/useContent';
+import { usePortalChromeHydration } from '../../hooks/usePortalChromeHydration';
+import { HeroWelcomeGhostWireframe } from './HeroWelcomeGhostWireframe';
 import { parseAccentedText } from '../../utils/accentTextParser';
 import styles from './HeroWelcome.module.css';
 
@@ -32,10 +34,15 @@ export const HeroWelcome: React.FC<HeroWelcomeProps> = ({
   const fallbackTitle = typeof title === 'string' ? title : DEFAULT_TITLE;
   const fallbackSubtitle = typeof subtitle === 'string' ? subtitle : DEFAULT_SUBTITLE;
 
+  const { isHydrating } = usePortalChromeHydration();
   const dynamicKicker = useContent('hero.kicker', fallbackKicker);
   const dynamicTitle = useContent('hero.title', fallbackTitle);
   const dynamicSubtitle = useContent('hero.subtitle', fallbackSubtitle);
   const dynamicCta = useContent('hero.cta', 'Start Journey');
+
+  if (isHydrating) {
+    return <HeroWelcomeGhostWireframe />;
+  }
 
   const effectiveKickerText = dynamicKicker.text || fallbackKicker;
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   setContent,
   getContent,
@@ -18,6 +18,8 @@ import { getStorage } from '../src/utils/storage';
 import { resetEngineConfig } from '../src/config/engine.config';
 
 describe('Subtask 2.1: Content Override "Reset to Default" Tombstone Isolation', () => {
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
     resetEngineConfig();
     const storage = getStorage();
@@ -27,6 +29,27 @@ describe('Subtask 2.1: Content Override "Reset to Default" Tombstone Isolation',
     resetAllContentOverrides(false);
     resetAllContentOverrides(true);
     clearDraftTombstones();
+
+    global.fetch = vi.fn().mockImplementation(async (url: string | URL | Request) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/api/publish')) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            snapshotId: 'pub-test-content-db',
+            cloudSynced: true,
+            edgeDeployed: true,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response('{}', { status: 200 });
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
   });
 
   describe('Tombstone Isolation in Developer Mode', () => {

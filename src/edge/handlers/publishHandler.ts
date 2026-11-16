@@ -100,7 +100,6 @@ export async function handlePublishRoute(
     let cloudSynced = false;
     let edgeDeployed = false;
     let cloudError: string | undefined;
-    let edgeError: string | undefined;
 
     // 1. Persist to Supabase if configured in env
     const supabaseUrl = env?.VITE_SUPABASE_URL || env?.SUPABASE_URL;
@@ -171,29 +170,58 @@ export async function handlePublishRoute(
     }
 
     // 2. Pre-bake directly into Cloudflare KV using edge binding
-    if (kv) {
-      try {
-        const targetNodes = Object.keys(snapshot.canvases);
-        for (const nodeId of targetNodes) {
-          const compiled = compilePublicNodePayload(nodeId, snapshot);
-          await kv.put(`node:${nodeId}`, JSON.stringify(compiled));
-
-          // Also register individual chart datasets in KV for fast chart endpoint hits
-          if (compiled.chartDatasets) {
-            for (const [chartId, chartDataset] of Object.entries(compiled.chartDatasets)) {
-              await kv.put(`chart:${chartId}`, JSON.stringify(chartDataset));
-            }
-          }
+    if (!kv) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'KV namespace binding not configured on edge runtime',
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+          },
         }
-
-        const manifestPayload = compilePortalManifest(snapshot, targetNodes);
-        await kv.put('portal:manifest', JSON.stringify(manifestPayload));
-        edgeDeployed = true;
-      } catch (err: unknown) {
-        edgeError = err instanceof Error ? err.message : 'Edge KV deployment error';
-      }
+      );
     }
 
+    try {
+      const targetNodes = Object.keys(snapshot.canvases);
+      for (const nodeId of targetNodes) {
+        const compiled = compilePublicNodePayload(nodeId, snapshot);
+        await kv.put(`node:${nodeId}`, JSON.stringify(compiled));
+
+        // Also register individual chart datasets in KV for fast chart endpoint hits
+        if (compiled.chartDatasets) {
+          for (const [chartId, chartDataset] of Object.entries(compiled.chartDatasets)) {
+            await kv.put(`chart:${chartId}`, JSON.stringify(chartDataset));
+          }
+        }
+      }
+
+      const manifestPayload = compilePortalManifest(snapshot, targetNodes);
+      await kv.put('portal:manifest', JSON.stringify(manifestPayload));
+      edgeDeployed = true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Edge KV deployment error';
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Cloudflare KV deployment failed: ${msg}`,
+          cloudSynced,
+        }),
+        {
+          status: 502,
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    // Success response strictly when KV deployment confirmed
     const responsePayload: PublishResponseBody = {
       success: true,
       snapshotId: snapshot.id,
@@ -201,7 +229,6 @@ export async function handlePublishRoute(
       cloudSynced,
       edgeDeployed,
       cloudError,
-      edgeError,
     };
 
     return new Response(JSON.stringify(responsePayload), {

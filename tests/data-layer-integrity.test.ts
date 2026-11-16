@@ -32,13 +32,10 @@ import {
   publishNewSnapshot,
   restoreUnifiedSnapshot,
   saveMilestone,
-  getHistoryManifest,
   getActiveNodeIds,
   initDraftSession,
 } from '../src/services/historyService';
 import { EVENT_LIVE_CANVAS_CHANGE } from '../src/services/canvasLayoutService';
-import * as edgePreBakeService from '../src/services/edgePreBakeService';
-import type { PreBakeResult } from '../src/services/edgePreBakeService';
 import {
   upsertLiveSourceSource,
   EVENT_SOURCE_SYNC_STATUS,
@@ -461,67 +458,32 @@ describe('Subtask 2.10: Data Layer Integration Testing & Quality Gates', () => {
   // -------------------------------------------------------------------------
   // Scenario 5: Publish Pipeline Edge Await & Retry
   // -------------------------------------------------------------------------
-  describe('5. Publish Pipeline Edge Await & Retry (Subtasks 2.6 & 2.7)', () => {
-    it('reports edgeDeployed: false with edgeError on failure, and retries edge deploy without duplicate milestones', async () => {
+  describe('5. Publish Pipeline Fail-Stop on Remote Errors', () => {
+    it('aborts publishing and preserves draft when edge returns rate limit error', async () => {
       process.env.VITE_SUPABASE_URL = 'https://test-sandbox.supabase.co';
       process.env.VITE_SUPABASE_ANON_KEY = 'test-anon-key-12345';
 
-      // Subtask 3.7: Unified Atomic Write Pipeline mocks /api/publish
       globalThis.fetch = vi.fn().mockImplementation(async (url: string | URL | Request) => {
         const urlStr = url.toString();
         if (urlStr.includes('/api/publish')) {
           return new Response(
             JSON.stringify({
-              success: true,
-              snapshotId: 'pub-test-id',
-              cloudSynced: true,
-              edgeDeployed: false,
-              edgeError: 'KV rate limited',
+              success: false,
+              error: 'KV rate limited',
             }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } }
+            { status: 502, headers: { 'Content-Type': 'application/json' } }
           );
         }
         return new Response('{}', { status: 200 });
       });
 
-      // 1. Mock edge retry spy
-      const edgeDeploySpy = vi.spyOn(edgePreBakeService, 'compileAndDeployToEdgeKV');
-
       const result = await publishNewSnapshot('Changelog test');
 
-      // Assert 3-tier status reporting
-      expect(result.success).toBe(true);
-      expect(result.localSaved).toBe(true);
-      expect(result.cloudSynced).toBe(true);
+      // Assert fail-stop reporting
+      expect(result.success).toBe(false);
+      expect(result.localSaved).toBe(false);
       expect(result.edgeDeployed).toBe(false);
-      expect(result.edgeError).toBe('KV rate limited');
       expect(result.error).toBe('KV rate limited');
-      expect(result.snapshot).toBeDefined();
-
-      const manifestAfterPublish = getHistoryManifest();
-      const milestoneCount = manifestAfterPublish.snapshots.length;
-      expect(milestoneCount).toBeGreaterThan(0);
-
-      // 2. Retry compileAndDeployToEdgeKV with mock success
-      edgeDeploySpy.mockResolvedValueOnce({
-        success: true,
-        snapshotId: result.snapshot.id,
-        transformedNodes: ['overview'],
-        totalKvKeys: 5,
-        deployResult: {
-          success: true,
-          deployedCount: 5,
-        },
-      } as PreBakeResult);
-
-      const retryResult = await edgePreBakeService.compileAndDeployToEdgeKV(result.snapshot);
-
-      // Assert retry succeeds without adding another milestone snapshot
-      expect(retryResult.success).toBe(true);
-      expect(retryResult.deployResult.deployedCount).toBe(5);
-
-      const manifestAfterRetry = getHistoryManifest();
-      expect(manifestAfterRetry.snapshots.length).toBe(milestoneCount);
     });
   });
 

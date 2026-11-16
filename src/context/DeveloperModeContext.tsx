@@ -57,6 +57,7 @@ import { useMigrationContext } from './MigrationContext';
 import { EVENT_INDEXEDDB_ERROR } from '../services/historyStorage';
 
 export interface ToastState {
+  id?: string;
   message: string;
   type: 'error' | 'success' | 'info';
   actionLabel?: string;
@@ -90,7 +91,7 @@ const MigrationToastWatcher: React.FC<MigrationToastWatcherProps> = ({
         hasFiredRef.current = true;
         const count = pendingReport.pendingContentChanges.length;
         setToastState({
-          message: `⚠️ Folio Engine updated to v${pendingReport.currentEngineVersion}: ${count} content migration(s) pending`,
+          message: `Folio Engine updated to v${pendingReport.currentEngineVersion}: ${count} content migration(s) pending`,
           type: 'info',
           actionLabel: 'Review',
           onAction: openMigrationModal,
@@ -151,7 +152,18 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     return getRemainingSessionMinutes(getSessionUnlockTime());
   });
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState<boolean>(() => isDraftDirty());
-  const [toastState, setToastState] = useState<ToastState | null>(null);
+  const [toasts, setToasts] = useState<ToastState[]>([]);
+  const setToastState = useCallback<React.Dispatch<React.SetStateAction<ToastState | null>>>(
+    (action) => {
+      setToasts((prev) => {
+        const next = typeof action === 'function' ? action(prev[0] || null) : action;
+        if (!next) return [];
+        const id = next.id || `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        return [...prev.filter((t) => t.id !== id), { ...next, id }];
+      });
+    },
+    []
+  );
 
   const sessionCheckIntervalRef = useRef<number | null>(null);
   const lockoutIntervalRef = useRef<number | null>(null);
@@ -855,7 +867,8 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
       onAction?: () => void,
       durationMs?: number
     ) => {
-      setToastState({ message, type, actionLabel, onAction, durationMs });
+      const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setToasts((prev) => [...prev, { id, message, type, actionLabel, onAction, durationMs }]);
     },
     []
   );
@@ -911,16 +924,19 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     <DeveloperModeContext.Provider value={value}>
       <MigrationToastWatcher isDevMode={isDevMode} setToastState={setToastState} />
       {children}
-      {toastState && (
+      {toasts.map((toast) => (
         <Toast
-          message={toastState.message}
-          type={toastState.type}
-          durationMs={toastState.durationMs}
-          actionLabel={toastState.actionLabel}
-          onAction={toastState.onAction}
-          onDismiss={() => setToastState(null)}
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          durationMs={toast.durationMs}
+          actionLabel={toast.actionLabel}
+          onAction={toast.onAction}
+          onDismiss={() => {
+            setToasts((prev) => prev.filter((t) => t.id !== toast.id));
+          }}
         />
-      )}
+      ))}
     </DeveloperModeContext.Provider>
   );
 };

@@ -328,14 +328,9 @@ export const DevModeBadge: React.FC = () => {
       <DevPublishModal
         isOpen={isPublishModalOpen}
         onClose={() => setIsPublishModalOpen(false)}
-        onPublished={(_snapshot, cloudSynced) => {
-          if (cloudSynced === false) {
-            setToastMessage('Published locally. Cloud sync pending reconnection.');
-            setToastType('info');
-          } else {
-            setToastMessage('Published changes live to portal.');
-            setToastType('success');
-          }
+        onPublished={(_snapshot, _cloudSynced) => {
+          setToastMessage('Published changes live to portal.');
+          setToastType('success');
         }}
       />
 

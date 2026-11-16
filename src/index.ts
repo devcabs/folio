@@ -56,6 +56,7 @@ export {
 export * from "./hooks/use-hash-route";
 export * from "./hooks/use-scroll";
 export * from "./hooks/use-scrollspy";
+export * from "./hooks/usePortalChromeHydration";
 export * from "./utils/smooth-scroll";
 
 // Dynamic Document Canvas Engine

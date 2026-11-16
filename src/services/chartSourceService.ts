@@ -236,6 +236,29 @@ export function setCachedChartConfig(
 }
 
 /**
+ * Retrieves all cached chart configurations from memory and local storage.
+ */
+export function getAllCachedChartConfigs(): Record<string, SheetChartConfig> {
+  const configs: Record<string, SheetChartConfig> = {};
+  for (const [id, cfg] of memoryCache.entries()) {
+    configs[id] = cfg;
+  }
+  try {
+    const rawList = getStorageItem(getChartSourcesManifestKey());
+    const idList: string[] = rawList ? JSON.parse(rawList) : [];
+    for (const id of idList) {
+      if (!configs[id]) {
+        const item = getCachedChartConfig(id);
+        if (item) configs[id] = item;
+      }
+    }
+  } catch {
+    // Ignore error
+  }
+  return configs;
+}
+
+/**
  * Asynchronously fetches a chart configuration from Supabase or local cache.
  */
 export async function fetchChartConfig(

@@ -353,12 +353,26 @@ export function getLiveContentOverrides(): Record<string, string> {
   return { ...loadLiveCache() };
 }
 
+export interface SetContentOverridesOptions {
+  memoryOnly?: boolean;
+}
+
 /**
  * Persists content overrides strictly to the canonical live/published channel.
+ * When options.memoryOnly is true, updates the in-memory cache and dispatches change events
+ * without writing to localStorage, ensuring read-only storage purity for public visitors.
  */
-export function setLiveContentOverrides(overrides: Record<string, string>): void {
+export function setLiveContentOverrides(
+  overrides: Record<string, string>,
+  options?: SetContentOverridesOptions
+): void {
+  const currentNs = getStorageNamespace();
+  cachedLiveNamespace = currentNs;
   liveMemoryCache = { ...overrides };
-  saveLiveCache();
+  inMemoryLiveStores.set(currentNs, { ...overrides });
+  if (!options?.memoryOnly) {
+    saveLiveCache();
+  }
   notifySubscribers('*', null, false);
 }
 
@@ -369,7 +383,7 @@ export function subscribeToContentChange(
   callback: (detail: { key: string; value: string | null }) => void,
   isDevMode = false
 ): () => void {
-  if (typeof window === 'undefined') return () => {};
+  if (typeof window === 'undefined') return () => { };
 
   const eventName = isDevMode ? EVENT_DRAFT_CONTENT_CHANGE : EVENT_LIVE_CONTENT_CHANGE;
 

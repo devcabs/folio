@@ -1,15 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   publishNewSnapshot,
-  getHistoryManifest,
-  getActivePublishedId,
   restoreUnifiedSnapshot,
   saveMilestone,
   getActiveNodeIds,
 } from '../src/services/historyService';
 import { EVENT_LIVE_CANVAS_CHANGE } from '../src/services/canvasLayoutService';
 import { resetEngineConfig } from '../src/config/engine.config';
-import { isDraftDirty, clearDraftStorage } from '../src/services/draftService';
+import { isDraftDirty, clearDraftStorage, setDraftDirty } from '../src/services/draftService';
 
 describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
   const originalFetch = global.fetch;
@@ -87,19 +85,18 @@ describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
       expect(result.snapshot.title).toBe('Published Revision');
     });
 
-    it('returns edgeDeployed: false with edgeError when server reports edge failure', async () => {
+    it('fails the transaction when /api/publish encounters edge failure', async () => {
+      setDraftDirty(true);
       global.fetch = vi.fn().mockImplementation(async (url: string | URL | Request) => {
         const urlStr = url.toString();
         if (urlStr.includes('/api/publish')) {
           return new Response(
             JSON.stringify({
-              success: true,
-              snapshotId: 'test-snap',
-              cloudSynced: true,
-              edgeDeployed: false,
+              success: false,
               edgeError: 'KV quota exceeded: 429 Too Many Requests',
+              error: 'KV quota exceeded: 429 Too Many Requests',
             }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } }
+            { status: 502, headers: { 'Content-Type': 'application/json' } }
           );
         }
         return new Response('{}', { status: 200 });
@@ -107,35 +104,27 @@ describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
 
       const result = await publishNewSnapshot('Release v1.0.1 with edge failure');
 
-      expect(result.success).toBe(true);
-      expect(result.localSaved).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.localSaved).toBe(false);
       expect(result.edgeDeployed).toBe(false);
-      expect(result.edgeError).toBe('KV quota exceeded: 429 Too Many Requests');
-      expect(result.error).toBe('KV quota exceeded: 429 Too Many Requests');
-
-      // Local snapshot must NOT be reverted or destroyed
-      const manifest = getHistoryManifest();
-      expect(manifest.activePublishedId).toBe(result.snapshot.id);
-      expect(getActivePublishedId()).toBe(result.snapshot.id);
-      expect(isDraftDirty()).toBe(false);
+      expect(result.error).toContain('KV quota exceeded');
+      expect(isDraftDirty()).toBe(true);
     });
 
-    it('catches thrown network exceptions during /api/publish and reports localSaved with error', async () => {
+    it('catches thrown network exceptions during /api/publish and preserves dirty draft', async () => {
+      setDraftDirty(true);
       global.fetch = vi.fn().mockRejectedValue(
         new Error('Network timeout contacting Cloudflare KV API')
       );
 
       const result = await publishNewSnapshot('Release v1.0.2 with edge timeout exception');
 
-      expect(result.success).toBe(true);
-      expect(result.localSaved).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.localSaved).toBe(false);
       expect(result.cloudSynced).toBe(false);
       expect(result.edgeDeployed).toBe(false);
-      expect(result.cloudError).toBe('Network timeout contacting Cloudflare KV API');
-      expect(result.error).toBe('Network timeout contacting Cloudflare KV API');
-
-      // Draft must remain clean and local snapshot intact
-      expect(getActivePublishedId()).toBe(result.snapshot.id);
+      expect(result.error).toContain('Network timeout');
+      expect(isDraftDirty()).toBe(true);
     });
 
     it('awaits /api/publish returning cloudSynced: true and edgeDeployed: true', async () => {
@@ -209,20 +198,19 @@ describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
       expect(result.error).toBe('Cloud sync failed with HTTP 500');
     });
 
-    it('surfaces both cloudError and edgeError when both remote tiers fail', async () => {
+    it('fails transaction when server returns 502 on remote failure', async () => {
+      setDraftDirty(true);
       global.fetch = vi.fn().mockImplementation(async (url: string | URL | Request) => {
         const urlStr = url.toString();
         if (urlStr.includes('/api/publish')) {
           return new Response(
             JSON.stringify({
-              success: true,
-              snapshotId: 'test-snap',
-              cloudSynced: false,
-              edgeDeployed: false,
+              success: false,
               cloudError: 'Supabase network unreachable',
               edgeError: 'Cloudflare KV unauthorized: Invalid token',
+              error: 'Cloudflare KV deployment failed: Invalid token',
             }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } }
+            { status: 502, headers: { 'Content-Type': 'application/json' } }
           );
         }
         return new Response('{}', { status: 200 });
@@ -230,13 +218,12 @@ describe('Subtask 2.6: Publish Pipeline Edge KV Await & 3-Tier Status', () => {
 
       const result = await publishNewSnapshot('Dual tier failure test');
 
-      expect(result.success).toBe(true);
-      expect(result.localSaved).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.localSaved).toBe(false);
       expect(result.cloudSynced).toBe(false);
-      expect(result.cloudError).toBe('Supabase network unreachable');
       expect(result.edgeDeployed).toBe(false);
-      expect(result.edgeError).toBe('Cloudflare KV unauthorized: Invalid token');
       expect(result.error).toBeDefined();
+      expect(isDraftDirty()).toBe(true);
     });
   });
 

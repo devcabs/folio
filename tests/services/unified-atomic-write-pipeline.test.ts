@@ -2,10 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   publishNewSnapshot,
   getHistoryManifest,
-  getActivePublishedId,
 } from '../../src/services/historyService';
 import { onRequestPost } from '../../functions/api/publish';
-import { isDraftDirty, clearDraftStorage } from '../../src/services/draftService';
+import { isDraftDirty, clearDraftStorage, setDraftDirty } from '../../src/services/draftService';
 import { resetEngineConfig } from '../../src/config/engine.config';
 import type { PublishedSnapshot } from '../../src/types/history';
 
@@ -145,7 +144,8 @@ describe('Subtask 3.7: Unified Atomic Write & Publish Pipeline', () => {
       expect(afterManifest.snapshots.length).toBe(initialCount);
     });
 
-    it('gracefully succeeds in local development when /api/publish is 404 (offline/dev fallback)', async () => {
+    it('aborts local commit when /api/publish returns 404 or 500', async () => {
+      setDraftDirty(true);
       global.fetch = vi.fn().mockImplementation(async (input: string | URL | Request) => {
         const urlStr = input.toString();
         if (urlStr.includes('/api/publish')) {
@@ -156,28 +156,26 @@ describe('Subtask 3.7: Unified Atomic Write & Publish Pipeline', () => {
 
       const result = await publishNewSnapshot('Local offline fallback publish');
 
-      expect(result.success).toBe(true);
-      expect(result.localSaved).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.localSaved).toBe(false);
       expect(result.cloudSynced).toBe(false);
       expect(result.edgeDeployed).toBe(false);
-      expect(result.snapshot).toBeDefined();
-
-      // Manifest updated with active published ID
-      expect(getActivePublishedId()).toBe(result.snapshot.id);
-      expect(isDraftDirty()).toBe(false);
+      expect(result.error).toContain('404');
+      expect(isDraftDirty()).toBe(true);
     });
 
-    it('gracefully succeeds locally when network fetch throws (network disconnection)', async () => {
+    it('aborts local commit when network fetch throws (network disconnection)', async () => {
+      setDraftDirty(true);
       global.fetch = vi.fn().mockRejectedValue(new Error('Failed to fetch'));
 
       const result = await publishNewSnapshot('Offline network test publish');
 
-      expect(result.success).toBe(true);
-      expect(result.localSaved).toBe(true);
+      expect(result.success).toBe(false);
+      expect(result.localSaved).toBe(false);
       expect(result.cloudSynced).toBe(false);
       expect(result.edgeDeployed).toBe(false);
-      expect(result.cloudError).toBe('Failed to fetch');
-      expect(getActivePublishedId()).toBe(result.snapshot.id);
+      expect(result.error).toContain('Failed to fetch');
+      expect(isDraftDirty()).toBe(true);
     });
   });
 

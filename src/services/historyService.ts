@@ -19,6 +19,8 @@ import type {
   PublishedSnapshot,
   PublishSnapshotResult,
 } from '../types/history';
+import type { SheetChartConfig } from '../types/chart';
+import type { SyncedSourceMetadata } from '../types/edge';
 import type { NodeCanvasDocument, SubsectionElement } from '../types/canvas';
 import { createDefaultCanvasDocument } from '../utils/canvasDefaults';
 import { saveToIndexedDB, loadFromIndexedDB, notifyIndexedDBError } from './historyStorage';
@@ -66,6 +68,8 @@ import {
   type DraftStalenessCheck,
 } from './draftService';
 import { getSessionUnlockTime, isSessionValid } from '../utils/devSecurity';
+import { getCachedChartConfig, getAllCachedChartConfigs } from './chartSourceService';
+import { getAllLiveSources } from './sourceService';
 
 export interface EngineSyncBroadcastMessage {
   type: 'MASID_PUBLISH_BROADCAST';
@@ -400,6 +404,73 @@ export function subscribeToHistoryChange(
 }
 
 /**
+ * Gathers active chart configurations referenced across canvases or stored in local chart cache.
+ */
+export function gatherSnapshotChartConfigs(
+  canvases: Record<string, NodeCanvasDocument>
+): Record<string, SheetChartConfig> {
+  const chartConfigs: Record<string, SheetChartConfig> = {};
+  try {
+    for (const doc of Object.values(canvases)) {
+      if (!doc?.sections) continue;
+      for (const sec of doc.sections) {
+        for (const el of sec.elements || []) {
+          if (el.type === 'chart' && 'chartId' in el && el.chartId) {
+            const cfg = getCachedChartConfig(el.chartId);
+            if (cfg) chartConfigs[el.chartId] = cfg;
+          } else if (el.type === 'subsection' && 'elements' in el) {
+            for (const leaf of el.elements || []) {
+              if (leaf.type === 'chart' && 'chartId' in leaf && leaf.chartId) {
+                const cfg = getCachedChartConfig(leaf.chartId);
+                if (cfg) chartConfigs[leaf.chartId] = cfg;
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    // Graceful fallback
+  }
+
+  // Also include any other cached chart configurations
+  try {
+    const allCached = getAllCachedChartConfigs();
+    for (const [id, cfg] of Object.entries(allCached)) {
+      if (!chartConfigs[id]) {
+        chartConfigs[id] = cfg;
+      }
+    }
+  } catch {
+    // Graceful fallback
+  }
+
+  return chartConfigs;
+}
+
+/**
+ * Gathers active linked evidence source metadata.
+ */
+export function gatherSnapshotSourceMetadata(): Record<string, SyncedSourceMetadata> {
+  const sourceMetadata: Record<string, SyncedSourceMetadata> = {};
+  try {
+    const liveSources = getAllLiveSources();
+    for (const [pointId, source] of Object.entries(liveSources)) {
+      sourceMetadata[pointId] = {
+        pointId,
+        folderUrl: source.folderUrl,
+        folderTitle: source.folderTitle,
+        description: source.description,
+        lastSyncedAt: source.lastVerified,
+      };
+    }
+  } catch {
+    // Graceful fallback
+  }
+  return sourceMetadata;
+}
+
+/**
  * Aggregates a complete full snapshot bundle across all 5 nodes and Content DB.
  */
 export function captureCurrentSnapshot(
@@ -416,6 +487,8 @@ export function captureCurrentSnapshot(
   const contentOverrides = getAllContentOverrides();
   const summary = computeMetricsSummary(canvases, contentOverrides);
   const resolvedSession = sessionId || getSessionId();
+  const chartConfigs = gatherSnapshotChartConfigs(canvases);
+  const sourceMetadata = gatherSnapshotSourceMetadata();
 
   const id = `snap-${Date.now()}-${type}-${Math.random().toString(36).substring(2, 7)}`;
 
@@ -429,6 +502,8 @@ export function captureCurrentSnapshot(
     authorSessionId: resolvedSession,
     canvases,
     contentOverrides,
+    chartConfigs,
+    sourceMetadata,
     summary,
   };
 }
@@ -1042,6 +1117,8 @@ export async function publishNewSnapshot(
   const id = `pub-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const cleanTitle = title.trim() || 'Published Revision';
   const createdAt = new Date().toISOString();
+  const chartConfigs = gatherSnapshotChartConfigs(canvases);
+  const sourceMetadata = gatherSnapshotSourceMetadata();
 
   const snapshot: PublishedSnapshot = {
     id,
@@ -1053,16 +1130,13 @@ export async function publishNewSnapshot(
     isActive: true,
     canvases,
     contentOverrides,
+    chartConfigs,
+    sourceMetadata,
     summary,
   };
 
   // Step 3: Atomic Server Edge Publish Dispatch (POST /api/publish)
-  let cloudSynced = false;
-  let edgeDeployed = false;
-  let cloudError: string | undefined;
-  let edgeError: string | undefined;
-  let serverRejected = false;
-  let serverErrorMessage: string | undefined;
+  let publishData: any = null;
 
   try {
     const endpoint =
@@ -1076,45 +1150,49 @@ export async function publishNewSnapshot(
       body: JSON.stringify({ snapshot }),
     });
 
-    if (publishRes.ok) {
-      const publishData = await publishRes.json().catch(() => ({}));
-      cloudSynced = Boolean(publishData.cloudSynced ?? publishData.success ?? false);
-      edgeDeployed = Boolean(publishData.edgeDeployed ?? publishData.success ?? false);
-      cloudError = publishData.cloudError;
-      edgeError = publishData.edgeError;
-    } else if (publishRes.status === 404) {
-      // Offline / Local development fallback when running without Cloudflare Pages Functions
-      cloudSynced = false;
-      edgeDeployed = false;
-    } else {
-      const errData = await publishRes.json().catch(() => ({ error: `HTTP ${publishRes.status}` }));
-      const msg = errData?.error || `Server publish returned HTTP ${publishRes.status}`;
-      if (publishRes.status === 400 || publishRes.status === 401 || publishRes.status === 403) {
-        serverRejected = true;
-        serverErrorMessage = msg;
-      } else {
-        cloudError = msg;
+    if (!publishRes.ok) {
+      let errorMsg = `Server publish failed with HTTP ${publishRes.status}`;
+      try {
+        const errJson = await publishRes.json();
+        if (errJson?.error) errorMsg = errJson.error;
+      } catch {
+        // Body not JSON
       }
+      return {
+        success: false,
+        snapshot: null as unknown as PublishedSnapshot,
+        localSaved: false,
+        cloudSynced: false,
+        edgeDeployed: false,
+        error: errorMsg,
+      };
     }
-  } catch (err: unknown) {
-    // Offline / Network error during fetch('/api/publish') - graceful local fallback
-    const msg = err instanceof Error ? err.message : 'Network error during publish';
-    cloudError = msg;
-  }
 
-  // If server explicitly rejected (e.g. malformed payload, invalid session), abort before committing to client storage
-  if (serverRejected) {
+    publishData = await publishRes.json();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Network error during publish';
     return {
       success: false,
       snapshot: null as unknown as PublishedSnapshot,
       localSaved: false,
       cloudSynced: false,
       edgeDeployed: false,
-      error: serverErrorMessage || 'Publish rejected by server',
+      error: `Unable to reach publish server: ${msg}`,
     };
   }
 
-  // Step 4: Record snapshot in client storage & IndexedDB only after server confirmation / local fallback
+  if (!publishData || publishData.success !== true) {
+    return {
+      success: false,
+      snapshot: null as unknown as PublishedSnapshot,
+      localSaved: false,
+      cloudSynced: false,
+      edgeDeployed: false,
+      error: publishData?.error || 'Server did not confirm publication',
+    };
+  }
+
+  // Step 4: Record snapshot in client storage & IndexedDB ONLY upon confirmed server success
   // Atomically save all 5 canvases to folio_live_canvas_[nodeId] silently
   for (const nodeId of getActiveNodeIds()) {
     saveLiveNodeCanvas(canvases[nodeId], { silent: true });
@@ -1136,6 +1214,8 @@ export async function publishNewSnapshot(
     authorSessionId: snapshot.authorSessionId,
     canvases: snapshot.canvases,
     contentOverrides: snapshot.contentOverrides,
+    chartConfigs: snapshot.chartConfigs,
+    sourceMetadata: snapshot.sourceMetadata,
     summary: snapshot.summary,
   };
   manifest.snapshots = [unifiedSnapshot, ...manifest.snapshots];
@@ -1158,17 +1238,15 @@ export async function publishNewSnapshot(
     activePublishedId: snapshot.id,
   });
 
-  // Primary success requires localSaved = true. If cloud or edge failed, success is still true
-  // for the snapshot creation, but the partial failure is surfaced in the result contract.
   return {
     success: true,
     snapshot,
     localSaved: true,
-    cloudSynced,
-    edgeDeployed,
-    cloudError,
-    edgeError,
-    error: cloudError || edgeError,
+    cloudSynced: publishData.cloudSynced === true,
+    edgeDeployed: publishData.edgeDeployed === true,
+    cloudError: publishData.cloudError,
+    edgeError: publishData.edgeError,
+    error: publishData.cloudError || publishData.edgeError,
   };
 }
 

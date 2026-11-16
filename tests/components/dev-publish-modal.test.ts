@@ -3,7 +3,6 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DevPublishModal } from '../../src/components/dev/DevPublishModal';
 import * as historyService from '../../src/services/historyService';
-import * as edgePreBakeService from '../../src/services/edgePreBakeService';
 import * as draftService from '../../src/services/draftService';
 import { DeveloperModeProvider } from '../../src/context/DeveloperModeContext';
 import type { PublishedSnapshot } from '../../src/types/history';
@@ -354,17 +353,17 @@ describe('Subtask 2.7: DevPublishModal 3-Tier Status & Retry Affordance', () => 
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('keeps modal open and displays 3-tier checklist with retry affordance when Edge deployment fails', async () => {
+  it('displays error message and provides Retry button on publication failure', async () => {
     const onClose = vi.fn();
     const onPublished = vi.fn();
 
     vi.spyOn(historyService, 'publishNewSnapshot').mockResolvedValue({
-      success: true,
-      snapshot: mockSnapshot,
-      localSaved: true,
-      cloudSynced: true,
+      success: false,
+      snapshot: null as any,
+      localSaved: false,
+      cloudSynced: false,
       edgeDeployed: false,
-      edgeError: 'Cloudflare KV bulk API returned HTTP 500: Internal error',
+      error: 'Cloudflare KV deployment failed: 502 Bad Gateway',
     });
 
     await act(async () => {
@@ -387,168 +386,117 @@ describe('Subtask 2.7: DevPublishModal 3-Tier Status & Retry Affordance', () => 
     await act(async () => {
       triggerChange(textareas[0], 'Updated node 3 assets');
     });
-
-    await act(async () => {
-      await triggerSubmit(forms[0]);
-    });
-
-    // Modal must NOT close!
-    expect(onClose).not.toHaveBeenCalled();
-
-    // Body must render the 3-tier checklist and error details
-    const bodyText = collectText((global as any).document.body);
-    expect(bodyText).toContain('Local Snapshot');
-    expect(bodyText).toContain('Saved');
-    expect(bodyText).toContain('Supabase Cloud');
-    expect(bodyText).toContain('Synced');
-    expect(bodyText).toContain('Cloudflare KV Edge');
-    expect(bodyText).toContain('Failed');
-    expect(bodyText).toContain('Cloudflare KV bulk API returned HTTP 500');
-
-    // Actions must contain "Retry Edge Deploy" and "Close Anyway"
-    expect(bodyText).toContain('Retry Edge Deploy');
-    expect(bodyText).toContain('Close Anyway');
-  });
-
-  it('re-deploys exact same snapshot on Retry Edge Deploy without re-publishing', async () => {
-    const onClose = vi.fn();
-    const onPublished = vi.fn();
-
-    vi.spyOn(historyService, 'publishNewSnapshot').mockResolvedValue({
-      success: true,
-      snapshot: mockSnapshot,
-      localSaved: true,
-      cloudSynced: true,
-      edgeDeployed: false,
-      edgeError: 'Network failure during KV upload',
-    });
-
-    const retrySpy = vi.spyOn(edgePreBakeService, 'compileAndDeployToEdgeKV').mockResolvedValue({
-      success: true,
-      snapshotId: mockSnapshot.id,
-      transformedNodes: ['node-1'],
-      totalKvKeys: 5,
-      deployResult: { success: true, deployedCount: 5 },
-    });
-
-    await act(async () => {
-      root.render(
-        React.createElement(
-          DeveloperModeProvider,
-          null,
-          React.createElement(DevPublishModal, {
-            isOpen: true,
-            onClose,
-            onPublished,
-          })
-        )
-      );
-    });
-
-    const textareas = findElements((global as any).document.body, (el) => el.tagName === 'TEXTAREA');
-    const forms = findElements((global as any).document.body, (el) => el.tagName === 'FORM');
-
-    await act(async () => {
-      triggerChange(textareas[0], 'Updated node 3 assets');
-    });
-
     await act(async () => {
       await triggerSubmit(forms[0]);
     });
 
     expect(historyService.publishNewSnapshot).toHaveBeenCalledTimes(1);
 
-    // Find "Retry Edge Deploy" button
+    // Modal remains open displaying the real error
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onPublished).not.toHaveBeenCalled();
+    const bodyText = collectText((global as any).document.body);
+    expect(bodyText).toContain('Cloudflare KV deployment failed: 502 Bad Gateway');
+    expect(bodyText).toContain('Retry');
+  });
+
+  it('re-submits on Retry and completes publication on subsequent success', async () => {
+    const onClose = vi.fn();
+    const onPublished = vi.fn();
+
+    const publishSpy = vi.spyOn(historyService, 'publishNewSnapshot')
+      .mockResolvedValueOnce({
+        success: false,
+        snapshot: null as any,
+        localSaved: false,
+        cloudSynced: false,
+        edgeDeployed: false,
+        error: 'Network timeout contacting server',
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        snapshot: mockSnapshot,
+        localSaved: true,
+        cloudSynced: true,
+        edgeDeployed: true,
+      });
+
+    await act(async () => {
+      root.render(
+        React.createElement(
+          DeveloperModeProvider,
+          null,
+          React.createElement(DevPublishModal, {
+            isOpen: true,
+            onClose,
+            onPublished,
+          })
+        )
+      );
+    });
+
+    const textareas = findElements((global as any).document.body, (el) => el.tagName === 'TEXTAREA');
+    const forms = findElements((global as any).document.body, (el) => el.tagName === 'FORM');
+
+    await act(async () => {
+      triggerChange(textareas[0], 'Updated node 3 assets');
+    });
+    await act(async () => {
+      await triggerSubmit(forms[0]);
+    });
+
+    expect(publishSpy).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Now submit again (Retry)
+    await act(async () => {
+      await triggerSubmit(forms[0]);
+    });
+
+    expect(publishSpy).toHaveBeenCalledTimes(2);
+    expect(onPublished).toHaveBeenCalledWith(mockSnapshot, true);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('closes modal on Cancel button click', async () => {
+    const onClose = vi.fn();
+
+    await act(async () => {
+      root.render(
+        React.createElement(
+          DeveloperModeProvider,
+          null,
+          React.createElement(DevPublishModal, {
+            isOpen: true,
+            onClose,
+          })
+        )
+      );
+    });
+
     const buttons = findElements(
       (global as any).document.body,
-      (el) => el.tagName === 'BUTTON' && collectText(el).includes('Retry Edge Deploy')
+      (el) => el.tagName === 'BUTTON' && collectText(el).includes('Cancel')
     );
-    expect(buttons.length).toBe(1);
+    expect(buttons.length).toBeGreaterThan(0);
 
-    // Click retry
     await act(async () => {
       await triggerClick(buttons[0]);
     });
 
-    // Verify compileAndDeployToEdgeKV called with exact same snapshot
-    expect(retrySpy).toHaveBeenCalledWith(mockSnapshot);
-    // Crucial: publishNewSnapshot must NOT have been called a second time
-    expect(historyService.publishNewSnapshot).toHaveBeenCalledTimes(1);
-
-    // Modal closes and calls onPublished
-    expect(onPublished).toHaveBeenCalledWith(mockSnapshot, true);
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('keeps modal open if retry fails again and displays the updated error', async () => {
+  it('confirms "Close Anyway" button does not exist in the DOM', async () => {
     const onClose = vi.fn();
 
     vi.spyOn(historyService, 'publishNewSnapshot').mockResolvedValue({
-      success: true,
-      snapshot: mockSnapshot,
-      localSaved: true,
-      cloudSynced: true,
-      edgeDeployed: false,
-      edgeError: 'Network failure',
-    });
-
-    const retrySpy = vi.spyOn(edgePreBakeService, 'compileAndDeployToEdgeKV').mockResolvedValue({
       success: false,
-      snapshotId: mockSnapshot.id,
-      transformedNodes: [],
-      totalKvKeys: 0,
-      deployResult: { success: false, deployedCount: 0, error: 'Rate limit exceeded on Edge KV' },
-    });
-
-    await act(async () => {
-      root.render(
-        React.createElement(
-          DeveloperModeProvider,
-          null,
-          React.createElement(DevPublishModal, {
-            isOpen: true,
-            onClose,
-          })
-        )
-      );
-    });
-
-    const textareas = findElements((global as any).document.body, (el) => el.tagName === 'TEXTAREA');
-    const forms = findElements((global as any).document.body, (el) => el.tagName === 'FORM');
-
-    await act(async () => {
-      triggerChange(textareas[0], 'Updated node 3 assets');
-    });
-    await act(async () => {
-      await triggerSubmit(forms[0]);
-    });
-
-    const retryBtn = findElements(
-      (global as any).document.body,
-      (el) => el.tagName === 'BUTTON' && collectText(el).includes('Retry Edge Deploy')
-    )[0];
-
-    await act(async () => {
-      await triggerClick(retryBtn);
-    });
-
-    expect(retrySpy).toHaveBeenCalledTimes(1);
-    expect(onClose).not.toHaveBeenCalled();
-    const bodyText = collectText((global as any).document.body);
-    expect(bodyText).toContain('Rate limit exceeded on Edge KV');
-  });
-
-  it('allows closing modal via Close Anyway after Edge deployment failure', async () => {
-    const onClose = vi.fn();
-    const onPublished = vi.fn();
-
-    vi.spyOn(historyService, 'publishNewSnapshot').mockResolvedValue({
-      success: true,
-      snapshot: mockSnapshot,
-      localSaved: true,
-      cloudSynced: true,
+      snapshot: null as any,
+      localSaved: false,
+      cloudSynced: false,
       edgeDeployed: false,
-      edgeError: 'Edge unavailable',
+      error: 'Edge KV deployment error',
     });
 
     await act(async () => {
@@ -559,7 +507,6 @@ describe('Subtask 2.7: DevPublishModal 3-Tier Status & Retry Affordance', () => 
           React.createElement(DevPublishModal, {
             isOpen: true,
             onClose,
-            onPublished,
           })
         )
       );
@@ -569,23 +516,19 @@ describe('Subtask 2.7: DevPublishModal 3-Tier Status & Retry Affordance', () => 
     const forms = findElements((global as any).document.body, (el) => el.tagName === 'FORM');
 
     await act(async () => {
-      triggerChange(textareas[0], 'Updated node 3 assets');
+      triggerChange(textareas[0], 'Attempting publish with error');
     });
     await act(async () => {
       await triggerSubmit(forms[0]);
     });
 
-    const closeAnywayBtn = findElements(
+    const bodyText = collectText((global as any).document.body);
+    expect(bodyText).not.toContain('Close Anyway');
+
+    const closeAnywayButtons = findElements(
       (global as any).document.body,
-      (el) => el.tagName === 'BUTTON' && collectText(el).includes('Close Anyway')
-    )[0];
-    expect(closeAnywayBtn).toBeDefined();
-
-    await act(async () => {
-      await triggerClick(closeAnywayBtn);
-    });
-
-    expect(onPublished).toHaveBeenCalledWith(mockSnapshot, true);
-    expect(onClose).toHaveBeenCalled();
+      (el) => el.tagName === 'BUTTON' && collectText(el).toLowerCase().includes('close anyway')
+    );
+    expect(closeAnywayButtons.length).toBe(0);
   });
 });

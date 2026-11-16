@@ -44,6 +44,7 @@ import { useUndoRedo } from './useUndoRedo';
 import { useDeveloperMode } from './useDeveloperMode';
 import { parseCsvToMatrix } from '../services/sheetsDataService';
 import { setCachedChartConfig } from '../services/chartSourceService';
+import { setCachedSourceMetadata } from '../services/sourceService';
 import type { NodeCode } from '../types/node';
 
 export interface UseNodeCanvasReturn {
@@ -219,7 +220,20 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
             }
           }
 
-          // 2. Hydrate canvas AST document
+          // 2. Hydrate prebaked source metadata into client source cache
+          if (edgeData.sourceMetadata && typeof edgeData.sourceMetadata === 'object') {
+            try {
+              for (const meta of Object.values(edgeData.sourceMetadata)) {
+                if (meta && typeof meta === 'object') {
+                  setCachedSourceMetadata(meta, { memoryOnly: true });
+                }
+              }
+            } catch {
+              // Non-blocking source cache warming
+            }
+          }
+
+          // 3. Hydrate canvas AST document
           if (edgeData.canvas && Array.isArray(edgeData.canvas.sections)) {
             if (
               edgeData.canvas.updatedAt !== documentRef.current.updatedAt ||

@@ -189,6 +189,90 @@ describe('Universal Cloudflare Edge Router (src/edge/router.ts)', () => {
       expect(mockKv.put).toHaveBeenCalledWith('node:access', expect.any(String));
       expect(mockKv.put).toHaveBeenCalledWith('portal:manifest', expect.any(String));
     });
+
+    it('returns 500 when KV namespace binding is missing', async () => {
+      const validSnapshot: PublishedSnapshot = {
+        id: 'snapshot-publish-no-kv',
+        schemaVersion: 1,
+        title: 'No KV test',
+        description: 'Publish without KV',
+        createdAt: '2026-11-15T12:00:00.000Z',
+        authorSessionId: 'author-session-xyz',
+        isActive: true,
+        canvases: {
+          access: {
+            nodeId: 'access',
+            version: 2,
+            sections: [],
+            updatedAt: '2026-11-15T12:00:00.000Z',
+          },
+        },
+        contentOverrides: {},
+        summary: {
+          totalSections: 0,
+          totalSubsections: 0,
+          totalLeafElements: 0,
+          totalTextOverrides: 0,
+        },
+      };
+
+      const req = new Request('https://domain.com/api/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snapshot: validSnapshot }),
+      });
+
+      // No KV binding in env
+      const res = await handleFolioEdgeRequest(req, {});
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error).toContain('KV namespace binding not configured');
+    });
+
+    it('returns 502 when Cloudflare KV put throws', async () => {
+      const failingKv = {
+        ...mockKv,
+        put: vi.fn().mockRejectedValue(new Error('Cloudflare KV 500 internal')),
+      };
+
+      const validSnapshot: PublishedSnapshot = {
+        id: 'snapshot-publish-fail-kv',
+        schemaVersion: 1,
+        title: 'KV Failure Test',
+        description: 'Publish with failing KV',
+        createdAt: '2026-11-15T12:00:00.000Z',
+        authorSessionId: 'author-session-xyz',
+        isActive: true,
+        canvases: {
+          access: {
+            nodeId: 'access',
+            version: 2,
+            sections: [],
+            updatedAt: '2026-11-15T12:00:00.000Z',
+          },
+        },
+        contentOverrides: {},
+        summary: {
+          totalSections: 0,
+          totalSubsections: 0,
+          totalLeafElements: 0,
+          totalTextOverrides: 0,
+        },
+      };
+
+      const req = new Request('https://domain.com/api/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snapshot: validSnapshot }),
+      });
+
+      const res = await handleFolioEdgeRequest(req, { KV_ENGINE_PUBLIC: failingKv });
+      expect(res.status).toBe(502);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error).toContain('Cloudflare KV deployment failed');
+    });
   });
 
   describe('GET /api/public/node/:nodeId and /api/public/pillar/:pillarId', () => {

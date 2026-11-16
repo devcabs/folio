@@ -49,6 +49,8 @@ export interface UndoRedoContextType extends UndoRedoState {
 }
 
 import type { NodeCanvasDocument } from './canvas';
+import type { SheetChartConfig } from './chart';
+import type { SyncedSourceMetadata } from './edge';
 
 export type SnapshotType = 'milestone' | 'autosave' | 'safety_backup';
 
@@ -74,6 +76,10 @@ export interface UnifiedPortalSnapshot {
   canvases: Record<string, NodeCanvasDocument>;
   /** Complete key-value registry of all Content DB text overrides */
   contentOverrides: Record<string, string>;
+  /** Bundled active chart configurations */
+  chartConfigs?: Record<string, SheetChartConfig>;
+  /** Bundled active linked evidence source metadata */
+  sourceMetadata?: Record<string, SyncedSourceMetadata>;
   /** Metrics summary for quick scannability in UI */
   summary: SnapshotMetricsSummary;
 }
@@ -96,6 +102,8 @@ export interface PublishedSnapshot {
   isActive: boolean;
   canvases: Record<string, NodeCanvasDocument>;
   contentOverrides: Record<string, string>;
+  chartConfigs?: Record<string, SheetChartConfig>;
+  sourceMetadata?: Record<string, SyncedSourceMetadata>;
   summary: SnapshotMetricsSummary;
 }
 

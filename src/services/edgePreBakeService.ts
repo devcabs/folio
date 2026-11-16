@@ -41,6 +41,7 @@ import bakedChartsData from '../data/baked-charts.json';
 import baselineSourcesRaw from '../data/source-sources.json';
 import type { ChartDataset } from '../types/chart';
 import type { SourceSourceRegistry } from '../types/source';
+import { parseTabularDataset } from './sheetsDataService';
 
 export const TRANSFORM_BREAKPOINTS = [400, 800, 1600] as const;
 export const DEFAULT_SIZES_ATTRIBUTE = '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px';
@@ -255,8 +256,39 @@ export function compilePublicNodePayload(
   };
 
   const transformedCanvas = transformCanvasAst(rawCanvas);
-  const chartDatasets = gatherIndicatorDatasets(nodeId, options?.chartDatasets);
-  const sourceMetadata = gatherSourceMetadata(nodeId, options?.sourceMetadata);
+
+  // Compile dynamic chart datasets from snapshot.chartConfigs
+  const dynamicCharts: Record<string, CachedIndicatorDataset> = {};
+  if (snapshot.chartConfigs) {
+    for (const [chartId, cfg] of Object.entries(snapshot.chartConfigs)) {
+      if (!cfg.nodeId || cfg.nodeId.toLowerCase() === nodeId.toLowerCase()) {
+        if (cfg.cachedDataset && cfg.cachedDataset.length > 0) {
+          dynamicCharts[chartId] = parseTabularDataset({
+            chartId,
+            title: cfg.titleOverride || '',
+            subtitle: cfg.subtitleOverride,
+            unit: cfg.unitOverride,
+            chartType: cfg.defaultType,
+            nodeId: cfg.nodeId,
+            visualConfig: cfg.visualConfig,
+            rawMatrix: cfg.cachedDataset.map((row) =>
+              Array.isArray(row) ? row.map((c) => (c === null || c === undefined ? '' : String(c))) : []
+            ),
+          });
+        }
+      }
+    }
+  }
+
+  const chartDatasets = gatherIndicatorDatasets(nodeId, {
+    ...dynamicCharts,
+    ...(options?.chartDatasets || {}),
+  });
+
+  const sourceMetadata = gatherSourceMetadata(
+    nodeId,
+    snapshot.sourceMetadata || options?.sourceMetadata
+  );
 
   const payload: PublicNodePayload = {
     nodeId,
@@ -292,6 +324,7 @@ export function compilePortalManifest(
     publishedAt: snapshot.createdAt,
     nodeIds: activeNodeIds,
     schemaVersion: snapshot.schemaVersion || 1,
+    contentOverrides: snapshot.contentOverrides || {},
   };
 
   // Validate contract schema

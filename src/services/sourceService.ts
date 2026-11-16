@@ -17,6 +17,7 @@ import type {
   UpsertSourcePayload,
   SyncedSourceItem,
 } from '../types/source';
+import type { SyncedSourceMetadata } from '../types/edge';
 import { normalizePointId } from '../utils/source';
 import { getStorage } from '../utils/storage';
 import { getSupabaseConfig } from '../utils/supabase-config';
@@ -350,6 +351,47 @@ export function getSourceSourceSync(pointId: string): LiveSourceSource | null {
 
   const baseline = getBaselineSnapshot();
   return baseline[normalizedKey] ?? null;
+}
+
+/**
+ * Retrieves the complete active registry of live evidence sources.
+ * Seamlessly merges in-memory cache, local storage snapshot, and baseline.
+ */
+export function getAllLiveSources(): LiveSourceRegistry {
+  if (inMemoryRegistry) return { ...inMemoryRegistry };
+  const stored = loadFromStorage();
+  const baseline = getBaselineSnapshot();
+  inMemoryRegistry = { ...baseline, ...(stored || {}) };
+  return { ...inMemoryRegistry };
+}
+
+/**
+ * Warms the in-memory cache with synced source metadata (e.g. from edge payload).
+ * When options.memoryOnly is true, skips localStorage writes to enforce storage purity for public visits.
+ */
+export function setCachedSourceMetadata(
+  metadata: SyncedSourceMetadata,
+  options?: { memoryOnly?: boolean }
+): void {
+  const normalizedKey = normalizePointId(metadata.pointId);
+  if (!normalizedKey) return;
+  if (!inMemoryRegistry) {
+    inMemoryRegistry = { ...getBaselineSnapshot(), ...(loadFromStorage() || {}) };
+  }
+  inMemoryRegistry[normalizedKey] = {
+    pointId: normalizedKey,
+    folderUrl: metadata.folderUrl || '',
+    folderTitle: metadata.folderTitle || '',
+    description: metadata.description,
+    lastVerified: metadata.lastSyncedAt || new Date().toISOString(),
+    updatedBy: 'edge-prebake',
+    createdAt: metadata.lastSyncedAt || new Date().toISOString(),
+    syncedPhotos: metadata.items,
+  };
+  if (!options?.memoryOnly) {
+    saveToStorage(inMemoryRegistry);
+  }
+  notifyChange(normalizedKey, inMemoryRegistry[normalizedKey]);
 }
 
 /**
