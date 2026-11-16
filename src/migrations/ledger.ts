@@ -362,6 +362,77 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.1.12',
+    releaseDate: '2026-11-16',
+    title: 'Canvas Fetch Error Resilience, Baseline Hydration & Chart Node Isolation',
+    summary:
+      'Added TopErrorBanner viewport error recovery with retry action, refined dignified public draft notice, edge baseline hydration for drafts, post-publish draft storage purge with remote draft cleanup, and reinforced chart source node_id database isolation.',
+    breakingChanges: [
+      'No breaking API removals; additive TopErrorBanner feedback component and extended useDocumentCanvas return contract (fetchError, retryFetch).',
+    ],
+    codeActions: [
+      {
+        description:
+          'Consume fetchError and retryFetch from useDocumentCanvas to handle edge fetch failures or render the canonical TopErrorBanner feedback component.',
+        affectedFiles: [
+          'src/components/canvas/DocumentCanvas.tsx',
+          'src/hooks/useDocumentCanvas.ts',
+          'src/App.tsx',
+        ],
+        exampleBefore:
+          'const { document, isHydrating, saveError, clearSaveError } = useDocumentCanvas(nodeId);',
+        exampleAfter:
+          'const { document, isHydrating, saveError, clearSaveError, fetchError, retryFetch } = useDocumentCanvas(nodeId);',
+      },
+      {
+        description:
+          'Execute Supabase SQL migration to ensure chart_sources table includes node_id column with index for per-node chart isolation.',
+        affectedFiles: [
+          'supabase/migrations/20261116000000_ensure_chart_sources_node_id.sql',
+        ],
+        exampleBefore:
+          '-- chart_sources table queried without node_id scoping',
+        exampleAfter:
+          'ALTER TABLE chart_sources ADD COLUMN IF NOT EXISTS node_id TEXT NOT NULL DEFAULT \'node-financial-model\';\nCREATE INDEX IF NOT EXISTS idx_chart_sources_node_id ON chart_sources(node_id);',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'chart-sources-node-id-0.1.12',
+        title: 'Apply chart_sources node_id Schema Migration',
+        required: true,
+        description:
+          'Ensure the chart_sources table in Supabase includes the node_id column to prevent multi-node chart collisions.',
+        affectedEntities: [
+          'chart_sources',
+          'supabase/migrations/20261116000000_ensure_chart_sources_node_id.sql',
+        ],
+        migrationPrompt:
+          'Run `supabase/migrations/20261116000000_ensure_chart_sources_node_id.sql` in your Supabase SQL editor to add the `node_id` column and index to `chart_sources`.',
+      },
+      {
+        id: 'canvas-fetch-error-handling-0.1.12',
+        title: 'Adopt Canvas TopErrorBanner & Error State Handling',
+        required: false,
+        description:
+          'Public mode DocumentCanvas now renders TopErrorBanner at top of viewport with a retry action upon edge fetch failure, suppressing false empty notices.',
+        affectedEntities: ['DocumentCanvas', 'TopErrorBanner', 'useDocumentCanvas'],
+        migrationPrompt:
+          'Import TopErrorBanner from @devcabs/folio-engine if constructing custom canvas error handling, or verify DocumentCanvas retryFetch recovery on network errors.',
+      },
+      {
+        id: 'content-version-watermark-0.1.12',
+        title: 'Advance contentVersion Watermark to 0.1.12',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.1.12 to acknowledge all migration items and silence Dev Mode pending migration warnings.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.1.12"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

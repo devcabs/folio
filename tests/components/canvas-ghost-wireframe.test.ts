@@ -110,6 +110,8 @@ describe('Subtask 2.8: Cold Boot Skeleton Wireframe (Zero Flash-of-Baseline)', (
         deployToCloud: vi.fn(),
         saveError: null,
         clearSaveError: vi.fn(),
+        fetchError: null,
+        retryFetch: vi.fn(),
       });
 
       const html = ReactDOMServer.renderToString(
@@ -150,6 +152,8 @@ describe('Subtask 2.8: Cold Boot Skeleton Wireframe (Zero Flash-of-Baseline)', (
         deployToCloud: vi.fn(),
         saveError: null,
         clearSaveError: vi.fn(),
+        fetchError: null,
+        retryFetch: vi.fn(),
       });
 
       const html = ReactDOMServer.renderToString(
@@ -189,6 +193,8 @@ describe('Subtask 2.8: Cold Boot Skeleton Wireframe (Zero Flash-of-Baseline)', (
         deployToCloud: vi.fn(),
         saveError: null,
         clearSaveError: vi.fn(),
+        fetchError: null,
+        retryFetch: vi.fn(),
       });
 
       const html = ReactDOMServer.renderToString(

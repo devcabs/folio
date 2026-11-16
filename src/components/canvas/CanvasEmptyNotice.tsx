@@ -16,7 +16,7 @@ export const CanvasEmptyNotice: React.FC<CanvasEmptyNoticeProps> = memo(({
   return (
     <section
       className={`${styles.container} ${className || ''}`.trim()}
-      aria-label={`${nodeTitle} Documentation Notice`}
+      aria-label={`${nodeTitle} Draft`}
       tabIndex={-1}
       data-testid="canvas-empty-notice"
     >
@@ -31,24 +31,16 @@ export const CanvasEmptyNotice: React.FC<CanvasEmptyNoticeProps> = memo(({
         </div>
 
         <div className={styles.kicker}>
-          {`${nodeTitle} Domain Documentation`}
+          {nodeTitle}
         </div>
 
         <h3 className={styles.title}>
-          Initiatives in Preparation
+          Draft
         </h3>
 
         <p className={styles.description}>
-          The designated institutional coordinators are actively curating verified milestones, 
-          operational narratives, and metric records for this domain. Published evidence and verified 
-          receipts will appear here as entries are ratified.
+          This section is currently in draft.
         </p>
-
-        <div className={styles.badgeRow}>
-          <span className={styles.statusBadge}>
-            Status: Drafting in Progress
-          </span>
-        </div>
       </div>
     </section>
   );

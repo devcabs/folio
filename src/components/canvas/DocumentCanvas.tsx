@@ -30,6 +30,7 @@ import { CanvasItemControls } from './CanvasItemControls';
 import { UniversalEditModal } from '../dev/UniversalEditModal';
 import { ChartConfigDrawer } from '../chart/ChartConfigDrawer';
 import { Toast } from '../feedback/Toast';
+import { TopErrorBanner } from '../feedback/TopErrorBanner';
 import { useDynamicCanvasSectionNumbers } from '../../hooks/use-dynamic-section-numbers';
 
 export interface NodeCanvasProps {
@@ -162,6 +163,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     updateItem,
     saveError,
     clearSaveError,
+    fetchError,
+    retryFetch,
   } = useDocumentCanvas(nodeId);
 
   const sectionNumbers = useDynamicCanvasSectionNumbers(nodeId, document?.sections || []);
@@ -552,8 +555,19 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     return <CanvasGhostWireframe nodeId={nodeId} className={className} />;
   }
 
-  // Subtask 3.4: Dignified Public Empty Canvas State — render dignified notice in public mode once hydrated
-  if ((!document || document.sections.length === 0) && !isAuthoringActive) {
+  // Edge fetch error state: mount red TopErrorBanner at top of viewport; suppress empty notice
+  if (!isDevMode && fetchError) {
+    return (
+      <TopErrorBanner
+        message={fetchError}
+        nodeTitle={nodeTitle}
+        onRetry={retryFetch}
+      />
+    );
+  }
+
+  // Subtask 3.4: Dignified Public Empty Canvas State — render dignified notice in public mode ONLY once hydrated without error
+  if (!fetchError && (!document || document.sections.length === 0) && !isAuthoringActive) {
     return <CanvasEmptyNotice nodeTitle={nodeTitle} accentColor={accentColor} className={className} />;
   }
 

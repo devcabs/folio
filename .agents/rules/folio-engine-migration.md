@@ -59,7 +59,7 @@ export default {
    ```
    If upgrading from a known prior release after `node_modules` has already been updated, pass `--from <previous-version>`:
    ```bash
-   npx folio-engine doctor --from 0.1.10
+   npx folio-engine doctor --from 0.1.11
    ```
 
 2. **Review All Reported Changes & Audits Before Editing Code**:
@@ -71,6 +71,33 @@ export default {
 3. **Update Your Watermark & Verify**:
    - Update `contentVersion` in your `EngineConfig` (e.g., `setEngineConfig({ contentVersion: '<target-version>' })`) once content migrations are complete.
    - Re-run `npx folio-engine doctor` and your application's test/build suite to confirm zero pending drift.
+
+---
+
+## Consumer App Migration Checklist (v0.1.11 → v0.1.12)
+
+When upgrading a consumer application from `0.1.11` to `0.1.12`, execute the following required migration to-dos:
+
+1. **Apply Supabase Database Migration (0.1.12)**:
+   - [ ] Run `supabase/migrations/20261116000000_ensure_chart_sources_node_id.sql` in your Supabase SQL editor:
+     ```sql
+     ALTER TABLE chart_sources ADD COLUMN IF NOT EXISTS node_id TEXT NOT NULL DEFAULT 'node-financial-model';
+     CREATE INDEX IF NOT EXISTS idx_chart_sources_node_id ON chart_sources(node_id);
+     ```
+   - [ ] Verify `chart_sources` queries and inserts correctly isolate charts per roadmap `node_id`.
+
+2. **Canvas Fetch Error Handling & Dignified Public Notice (0.1.12)**:
+   - [ ] Confirm `DocumentCanvas` mounts canonical `TopErrorBanner` on edge fetch failure in public mode with retry capability, rather than showing a false empty notice.
+   - [ ] Verify `CanvasEmptyNotice` displays minimal dignified draft notice ("This section is currently in draft") when no sections exist and no fetch errors occur.
+   - [ ] Optional: If implementing custom canvas chrome, consume `fetchError` and `retryFetch` from `useDocumentCanvas(nodeId)` or import `TopErrorBanner` from `@devcabs/folio-engine`.
+
+3. **Draft Baseline Hydration & Storage Cleanup (0.1.12)**:
+   - [ ] When starting a draft from an active published version, verify drafts pre-hydrate from Edge KV (`/api/public/node/:nodeId`) so local editing does not begin with empty or stale state.
+   - [ ] Verify publishing automatically purges local draft keys (`folio_draft_canvas_${nodeId}`) and deletes remote active draft in Supabase `engine_drafts`.
+
+4. **EngineConfig Watermark Synchronization (0.1.12)**:
+   - [ ] Update `contentVersion: '0.1.12'` in your `EngineConfig` setup (`src/engine-setup.ts` or `src/App.tsx`).
+   - [ ] Run `npx folio-engine doctor` to confirm zero pending migrations.
 
 ---
 

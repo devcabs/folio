@@ -184,6 +184,27 @@ The diagnostic routine uses monorepo-safe resolution (`src/diagnostics/packageRe
 
 For consumer AI workflows, copy or import `.agents/rules/folio-engine-migration.md` into your consumer application so AI assistants automatically run `npx folio-engine doctor` after every `@devcabs/folio-engine` upgrade.
 
+### Consumer App Migration Checklist (0.1.11 → 0.1.12)
+
+1. **Apply Supabase Database Migration (0.1.12)**:
+   - Run `supabase/migrations/20261116000000_ensure_chart_sources_node_id.sql` in your Supabase SQL editor to ensure `chart_sources` includes the `node_id` column and index.
+2. **Canvas Fetch Error Handling & Dignified Draft Notice (0.1.12)**:
+   - `DocumentCanvas` now mounts canonical `TopErrorBanner` on edge fetch failure in public mode with retry capability, rather than showing a false empty notice.
+   - `CanvasEmptyNotice` displays minimal dignified draft notice ("This section is currently in draft") when no sections exist and no fetch errors occur.
+3. **Draft Baseline Hydration & Storage Cleanup (0.1.12)**:
+   - Starting a draft from an active published version pre-hydrates from Edge KV (`/api/public/node/:nodeId`) so local editing does not begin with empty or stale state.
+   - Publishing automatically purges local draft storage keys (`folio_draft_canvas_${nodeId}`) and deletes remote active drafts in Supabase `engine_drafts`.
+4. **EngineConfig Watermark Sync (0.1.12)**:
+   - Set `contentVersion: '0.1.12'` in `EngineConfig` to clear doctor and Dev Mode migration notices.
+
+### Consumer App Migration Checklist (0.1.10 → 0.1.11)
+
+1. **Universal Edge Router Delegation (0.1.11)**:
+   - Delete duplicate `functions/api/`, `src/utils/mediaUrl.ts`, and `src/types/edge.ts` in host app.
+   - Update `worker.ts` to delegate directly to `handleFolioEdgeRequest` from `@devcabs/folio-engine/edge`.
+2. **EngineConfig Watermark Sync (0.1.11)**:
+   - Set `contentVersion: '0.1.11'` in `EngineConfig`.
+
 ### Consumer App Migration Checklist (0.1.8 → 0.1.10)
 
 1. **Element-Level Photo Gallery Ownership (0.1.8)**:

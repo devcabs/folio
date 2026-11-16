@@ -1,0 +1,165 @@
+/**
+ * TopErrorBanner.module.css
+ * High-visibility red alert banner anchored to the top of the viewport.
+ * Adheres strictly to Universal Zero Outline Policy and Folio Engine tokens.
+ */
+
+.banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: var(--z-topmost);
+  background-color: var(--color-danger);
+  color: var(--color-white);
+  box-shadow: var(--elevation-raised);
+  padding: var(--space-2) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  line-height: var(--leading-tight);
+  animation: slideDownBanner var(--duration-fast) var(--ease-out);
+  box-sizing: border-box;
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  .banner {
+    padding-top: max(var(--space-2), env(safe-area-inset-top));
+  }
+}
+
+@keyframes slideDownBanner {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.contentWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1200px;
+  gap: var(--space-3);
+}
+
+.messageGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.iconWrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-xs);
+  background-color: rgba(255, 255, 255, 0.2);
+  color: var(--color-white);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.nodeTitle {
+  font-weight: 600;
+  color: var(--color-white);
+}
+
+.message {
+  font-weight: 500;
+  color: var(--color-white);
+  word-break: break-word;
+}
+
+.details {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  opacity: 0.85;
+  color: var(--color-white);
+}
+
+.actionGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.retryButton {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--color-white);
+  border-radius: var(--radius-sm);
+  padding: 3px var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: background var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+}
+
+.retryButton:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.7);
+  outline: none;
+}
+
+.retryButton:active {
+  background: rgba(255, 255, 255, 0.35);
+  outline: none;
+}
+
+.retryButton:focus-visible {
+  border-color: var(--color-white);
+  outline: none;
+}
+
+.dismissButton {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-white);
+  font-size: 14px;
+  line-height: 1;
+  padding: var(--space-1);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  outline: none;
+  opacity: 0.8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.dismissButton:hover {
+  opacity: 1;
+  outline: none;
+}
+
+.dismissButton:focus-visible {
+  opacity: 1;
+  outline: none;
+}

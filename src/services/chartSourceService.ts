@@ -113,12 +113,14 @@ function removeStorageItem(key: string): void {
 export function mapDbRowToChartConfig(row: ChartSourceDbRow): SheetChartConfig {
   const rowVisualConfig = (row.visual_config as Record<string, unknown>) ?? {};
   const embeddedDataset = rowVisualConfig.__cached_dataset as (string | number | null)[][] | undefined;
+  const embeddedNodeId = rowVisualConfig.__node_id as NodeCode | undefined;
   const visualConfig = { ...rowVisualConfig };
   delete visualConfig.__cached_dataset;
+  delete visualConfig.__node_id;
 
   return {
     chartId: row.chart_id,
-    nodeId: (row.node_id || 'access') as NodeCode,
+    nodeId: (row.node_id || embeddedNodeId || 'access') as NodeCode,
     sheetUrl: row.sheet_url,
     tabName: row.tab_name ?? undefined,
     sheetGid: row.sheet_gid ?? undefined,
@@ -141,6 +143,7 @@ export function mapChartConfigToDbRow(config: SheetChartConfig): ChartSourceDbRo
   const visualConfig = {
     ...((config.visualConfig as Record<string, unknown>) ?? {}),
     ...(config.cachedDataset ? { __cached_dataset: config.cachedDataset } : {}),
+    ...(config.nodeId ? { __node_id: config.nodeId } : {}),
   };
   return {
     chart_id: config.chartId,
@@ -478,46 +481,75 @@ export async function saveChartConfigDetailed(
     const errorCode = errPayload?.code;
     const serverMessage = errPayload?.message || errRawText || response.statusText;
 
-    // Schema resilience: If remote Supabase schema cache does not yet have 'cached_dataset' column,
-    // automatically retry the write omitting 'cached_dataset'. The dataset remains safely preserved
-    // in visual_config.__cached_dataset and local storage until the database migration is applied.
+    // Schema resilience: If remote Supabase schema cache does not yet have certain columns
+    // (such as 'node_id' or 'cached_dataset'), automatically retry the write omitting the
+    // rejected column(s). The data remains safely preserved in visual_config (__node_id / __cached_dataset)
+    // and local storage until the database migration is applied.
     if (
       statusCode === 400 &&
-      dbRow.cached_dataset !== undefined &&
-      serverMessage.includes('cached_dataset') &&
-      serverMessage.includes('column')
+      serverMessage.includes('column') &&
+      serverMessage.includes('schema cache')
     ) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { cached_dataset: _omitted, ...rowWithoutCachedDataset } = dbRow;
-        const retryController = typeof AbortController !== 'undefined' ? new AbortController() : null;
-        const retryTimeoutId = retryController ? setTimeout(() => retryController.abort(), 8000) : null;
-        let retryResponse: Response;
-        try {
-          retryResponse = await fetch(`${sbConfig.url}/rest/v1/chart_sources`, {
-            method: 'POST',
-            headers: {
-              apikey: sbConfig.anonKey,
-              Authorization: `Bearer ${authToken}`,
-              'Content-Type': 'application/json',
-              Prefer: 'resolution=merge-duplicates,return=representation',
-            },
-            body: JSON.stringify(rowWithoutCachedDataset),
-            signal: retryController?.signal,
-          });
-        } finally {
-          if (retryTimeoutId) clearTimeout(retryTimeoutId);
+      const omittedColumns = new Set<string>();
+      let activeRow: Record<string, unknown> = { ...dbRow };
+      let lastServerMessage = serverMessage;
+
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const colMatch = lastServerMessage.match(/Could not find the '([^']+)' column/i);
+        const colToOmit = colMatch ? colMatch[1] : null;
+
+        // Never omit primary key or required url
+        if (
+          !colToOmit ||
+          colToOmit === 'chart_id' ||
+          colToOmit === 'sheet_url' ||
+          omittedColumns.has(colToOmit) ||
+          !(colToOmit in activeRow)
+        ) {
+          break;
         }
 
-        if (retryResponse.ok) {
-          return {
-            success: true,
-            savedLocally,
-            savedToCloud: true,
-          };
+        omittedColumns.add(colToOmit);
+        delete activeRow[colToOmit];
+
+        try {
+          const retryController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const retryTimeoutId = retryController ? setTimeout(() => retryController.abort(), 8000) : null;
+          let retryResponse: Response;
+          try {
+            retryResponse = await fetch(`${sbConfig.url}/rest/v1/chart_sources`, {
+              method: 'POST',
+              headers: {
+                apikey: sbConfig.anonKey,
+                Authorization: `Bearer ${authToken}`,
+                'Content-Type': 'application/json',
+                Prefer: 'resolution=merge-duplicates,return=representation',
+              },
+              body: JSON.stringify(activeRow),
+              signal: retryController?.signal,
+            });
+          } finally {
+            if (retryTimeoutId) clearTimeout(retryTimeoutId);
+          }
+
+          if (retryResponse.ok) {
+            return {
+              success: true,
+              savedLocally,
+              savedToCloud: true,
+            };
+          }
+
+          // If the retry also failed, capture message for possible second missing column
+          try {
+            const retryErrPayload = await retryResponse.json();
+            lastServerMessage = retryErrPayload?.message || retryResponse.statusText;
+          } catch {
+            lastServerMessage = await retryResponse.text().catch(() => retryResponse.statusText);
+          }
+        } catch {
+          break;
         }
-      } catch {
-        // Fall through to error reporting below
       }
     }
 

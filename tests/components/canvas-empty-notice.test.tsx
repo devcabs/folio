@@ -7,12 +7,12 @@ describe('3.4 Dignified Public Empty Canvas State', () => {
   it('renders dignified documentation notice with semantic region and title', () => {
     render(<CanvasEmptyNotice nodeTitle="Resiliency" />);
 
-    expect(screen.getByRole('region', { name: /Resiliency Documentation Notice/i })).toBeDefined();
-    expect(screen.getByText(/Initiatives in Preparation/i)).toBeDefined();
-    expect(screen.getByText(/Drafting in Progress/i)).toBeDefined();
+    expect(screen.getByRole('region', { name: /Resiliency Draft/i })).toBeDefined();
+    expect(screen.getByText(/^Draft$/i)).toBeDefined();
+    expect(screen.getByText(/This section is currently in draft/i)).toBeDefined();
   });
 
-  it('renders institutional kicker, descriptive copy, and status badge', () => {
+  it('renders generic kicker, descriptive copy, and handles custom className', () => {
     render(
       <CanvasEmptyNotice
         nodeTitle="Governance"
@@ -21,11 +21,10 @@ describe('3.4 Dignified Public Empty Canvas State', () => {
       />
     );
 
-    expect(screen.getByText(/Governance Domain Documentation/i)).toBeDefined();
+    expect(screen.getByText('Governance')).toBeDefined();
     expect(
-      screen.getByText(/designated institutional coordinators are actively curating/i)
+      screen.getByText(/This section is currently in draft/i)
     ).toBeDefined();
-    expect(screen.getByText(/Status: Drafting in Progress/i)).toBeDefined();
 
     const noticeEl = screen.getByTestId('canvas-empty-notice');
     expect(noticeEl.getAttribute('tabindex')).toBe('-1');

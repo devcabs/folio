@@ -890,43 +890,45 @@ export async function fetchActivePublishedVersionFromCloud(): Promise<PublishedS
   if (!config || !isTableAvailable('engine_history')) return null;
 
   try {
-    const res = await fetch(
-      `${config.url}/rest/v1/engine_history?is_active=eq.true&order=created_at.desc&limit=1&select=*`,
-      {
-        method: 'GET',
-        headers: {
-          apikey: config.anonKey,
-          Authorization: `Bearer ${config.anonKey}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const activeId = getActivePublishedId();
+    const primaryUrl =
+      activeId && activeId !== 'snap-system-baseline'
+        ? `${config.url}/rest/v1/engine_history?id=eq.${activeId}&select=*`
+        : `${config.url}/rest/v1/engine_history?is_active=eq.true&order=created_at.desc&limit=1&select=*`;
+
+    let res = await fetch(primaryUrl, {
+      method: 'GET',
+      headers: {
+        apikey: config.anonKey,
+        Authorization: `Bearer ${config.anonKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
     if (res.status === 404) {
       markTableMissing('engine_history');
       return null;
     }
 
-    if (!res.ok) return null;
-    const rows = (await res.json()) as Array<{
-      id: string;
-      schema_version?: number;
-      title?: string;
-      description?: string;
-      created_at?: string;
-      author_session_id?: string;
-      is_active?: boolean;
-      snapshot_data?: {
-        canvases?: Record<string, NodeCanvasDocument>;
-        contentOverrides?: Record<string, string>;
-      };
-      summary?: {
-        totalSections: number;
-        totalSubsections: number;
-        totalLeafElements: number;
-        totalTextOverrides: number;
-      };
-    }>;
+    let rows: any[] = res.ok ? await res.json() : [];
+
+    // If specific activeId query returned no row, fallback to currently active snapshot
+    if ((!Array.isArray(rows) || rows.length === 0) && activeId && activeId !== 'snap-system-baseline') {
+      const fallbackRes = await fetch(
+        `${config.url}/rest/v1/engine_history?is_active=eq.true&order=created_at.desc&limit=1&select=*`,
+        {
+          method: 'GET',
+          headers: {
+            apikey: config.anonKey,
+            Authorization: `Bearer ${config.anonKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      if (fallbackRes.ok) {
+        rows = await fallbackRes.json();
+      }
+    }
 
     if (!Array.isArray(rows) || rows.length === 0) return null;
 

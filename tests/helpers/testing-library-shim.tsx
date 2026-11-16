@@ -16,6 +16,10 @@ export class MockElement {
   alt: string = '';
   listeners: Record<string, Array<{ fn: any; capture: boolean }>> = {};
 
+  get children(): any[] {
+    return this.childNodes.filter((c: any) => c.nodeType === 1);
+  }
+
   appendChild(child: any) {
     if (child.parentNode) {
       child.parentNode.removeChild(child);
@@ -76,6 +80,21 @@ export class MockElement {
 
   hasAttribute(name: string) {
     return this.getAttribute(name) !== null;
+  }
+
+  getAttributeNames(): string[] {
+    return Object.keys(this).filter(
+      (k) =>
+        ![
+          'nodeType',
+          'tagName',
+          'childNodes',
+          'parentNode',
+          'ownerDocument',
+          'style',
+          'listeners',
+        ].includes(k)
+    );
   }
 
   addEventListener(type: string, fn: any, options?: any) {
@@ -417,6 +436,9 @@ export function cleanup() {
       c.parentNode.removeChild(c);
     }
   }
+  if (globalDoc?.body) {
+    globalDoc.body.childNodes = [];
+  }
 }
 
 export const screen = {
@@ -436,7 +458,7 @@ export const screen = {
   queryByRole(role: string, options?: { name?: string | RegExp }): any | null {
     ensureDomEnvironment();
     const targetRole = role.toLowerCase();
-    const searchRoots = mountedContainers.length > 0 ? mountedContainers : [globalDoc.body];
+    const searchRoots = mountedContainers.length > 0 ? [...mountedContainers, globalDoc.body] : [globalDoc.body];
 
     for (const root of searchRoots) {
       const results = traverse(root, (el) => {
@@ -488,7 +510,7 @@ export const screen = {
 
   queryByText(text: string | RegExp): any | null {
     ensureDomEnvironment();
-    const searchRoots = mountedContainers.length > 0 ? mountedContainers : [globalDoc.body];
+    const searchRoots = mountedContainers.length > 0 ? [...mountedContainers, globalDoc.body] : [globalDoc.body];
 
     for (const root of searchRoots) {
       const results = traverse(root, (el) => {
@@ -508,7 +530,7 @@ export const screen = {
 
   getByTestId(id: string | RegExp): any {
     ensureDomEnvironment();
-    const searchRoots = mountedContainers.length > 0 ? mountedContainers : [globalDoc.body];
+    const searchRoots = mountedContainers.length > 0 ? [...mountedContainers, globalDoc.body] : [globalDoc.body];
 
     for (const root of searchRoots) {
       const results = traverse(root, (el) => {

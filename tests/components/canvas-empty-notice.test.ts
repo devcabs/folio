@@ -23,11 +23,11 @@ describe('Subtask 3.4: Dignified Public Empty Canvas State', () => {
       );
 
       expect(html).toContain('data-testid="canvas-empty-notice"');
-      expect(html).toContain('aria-label="Resiliency Documentation Notice"');
+      expect(html).toContain('aria-label="Resiliency Draft"');
       expect(html).toContain('tabindex="-1"');
     });
 
-    it('renders editorial typography: kicker, title, narrative description, and status badge', () => {
+    it('renders editorial typography: kicker, title, and narrative description', () => {
       const html = ReactDOMServer.renderToString(
         React.createElement(CanvasEmptyNotice, {
           nodeTitle: 'Governance',
@@ -37,10 +37,9 @@ describe('Subtask 3.4: Dignified Public Empty Canvas State', () => {
       );
 
       expect(html).toContain('custom-notice-class');
-      expect(html).toContain('Governance Domain Documentation');
-      expect(html).toContain('Initiatives in Preparation');
-      expect(html).toContain('institutional coordinators are actively curating');
-      expect(html).toContain('Status: Drafting in Progress');
+      expect(html).toContain('Governance');
+      expect(html).toContain('Draft');
+      expect(html).toContain('This section is currently in draft');
     });
 
     it('renders ParametricShape with the passed accentColor or fallback', () => {
@@ -110,6 +109,8 @@ describe('Subtask 3.4: Dignified Public Empty Canvas State', () => {
         deployToCloud: vi.fn(),
         saveError: null,
         clearSaveError: vi.fn(),
+        fetchError: null,
+        retryFetch: vi.fn(),
       });
 
       const html = ReactDOMServer.renderToString(
@@ -122,8 +123,8 @@ describe('Subtask 3.4: Dignified Public Empty Canvas State', () => {
 
       // Verify CanvasEmptyNotice is rendered with nodeTitle & accentColor
       expect(html).toContain('data-testid="canvas-empty-notice"');
-      expect(html).toContain('Governance Domain Documentation');
-      expect(html).toContain('Initiatives in Preparation');
+      expect(html).toContain('Governance');
+      expect(html).toContain('Draft');
       expect(html).toContain('fill="var(--color-node-3)"');
 
       // Verify no edit controls or starter bar are rendered to the public
@@ -161,6 +162,8 @@ describe('Subtask 3.4: Dignified Public Empty Canvas State', () => {
         deployToCloud: vi.fn(),
         saveError: null,
         clearSaveError: vi.fn(),
+        fetchError: null,
+        retryFetch: vi.fn(),
       });
 
       const html = ReactDOMServer.renderToString(
@@ -202,6 +205,8 @@ describe('Subtask 3.4: Dignified Public Empty Canvas State', () => {
         deployToCloud: vi.fn(),
         saveError: null,
         clearSaveError: vi.fn(),
+        fetchError: null,
+        retryFetch: vi.fn(),
       });
 
       const html = ReactDOMServer.renderToString(
@@ -243,6 +248,8 @@ describe('Subtask 3.4: Dignified Public Empty Canvas State', () => {
         deployToCloud: vi.fn(),
         saveError: null,
         clearSaveError: vi.fn(),
+        fetchError: null,
+        retryFetch: vi.fn(),
       });
 
       const html = ReactDOMServer.renderToString(

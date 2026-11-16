@@ -14,6 +14,7 @@
 
 import {
   getLiveNodeCanvas,
+  saveLiveNodeCanvas,
   NODE_IDS,
 } from './canvasLayoutService';
 import type { NodeCanvasDocument } from '../types/canvas';
@@ -32,7 +33,7 @@ import {
 import { getSessionUnlockTime, isSessionValid } from '../utils/devSecurity';
 import { getStorage } from '../utils/storage';
 import { getStorageNamespace } from '../config/engine.config';
-import { getActivePublishedId } from './historyService';
+import { getActivePublishedId, setActivePublishedId } from './historyService';
 import { getSupabaseConfig, isTableAvailable, markTableMissing } from '../utils/supabase-config';
 
 export const getDraftCanvasPrefix = (ns?: string) => (ns || getStorageNamespace()) + '_draft_canvas_';
@@ -478,29 +479,50 @@ export function initDraftSession(forceFresh: boolean = false): Promise<void> {
         return;
       }
 
-      const activePublishedId = getActivePublishedId();
+      let resolvedBaseSnapshotId = getActivePublishedId();
+
+      // If in browser, attempt to resolve authoritative active published snapshot from public edge manifest
+      if (typeof window !== 'undefined' && typeof fetch === 'function') {
+        try {
+          const manifestRes = await fetch('/api/public/manifest');
+          if (manifestRes.ok) {
+            const manifestData = await manifestRes.json();
+            if (manifestData?.activeSnapshotId) {
+              resolvedBaseSnapshotId = manifestData.activeSnapshotId;
+              setActivePublishedId(manifestData.activeSnapshotId);
+            }
+          }
+        } catch {
+          // Edge manifest unreachable; rely on Supabase or local activePublishedId
+        }
+      }
 
       // 1. Check for cloud draft in Supabase engine_drafts
       if (!forceFresh) {
         try {
           const cloudDraft = await fetchActiveCloudDraft();
           if (cloudDraft && Object.keys(cloudDraft.canvases).length > 0) {
-            let loadedValidCanvases = false;
-            for (const [nodeId, doc] of Object.entries(cloudDraft.canvases)) {
-              if (isValidCanvasDocument(doc, nodeId)) {
-                inMemoryDraftCanvases[nodeId] = doc;
-                loadedValidCanvases = true;
+            // Guard against stale cloud drafts: if baseSnapshotId does not match current active published version, skip
+            const isCloudStale = Boolean(
+              cloudDraft.baseSnapshotId && cloudDraft.baseSnapshotId !== resolvedBaseSnapshotId
+            );
+            if (!isCloudStale) {
+              let loadedValidCanvases = false;
+              for (const [nodeId, doc] of Object.entries(cloudDraft.canvases)) {
+                if (isValidCanvasDocument(doc, nodeId)) {
+                  inMemoryDraftCanvases[nodeId] = doc;
+                  loadedValidCanvases = true;
+                }
               }
-            }
-            if (loadedValidCanvases) {
-              if (cloudDraft.contentOverrides && Object.keys(cloudDraft.contentOverrides).length > 0) {
-                setAllContentOverrides(cloudDraft.contentOverrides, true);
+              if (loadedValidCanvases) {
+                if (cloudDraft.contentOverrides && Object.keys(cloudDraft.contentOverrides).length > 0) {
+                  setAllContentOverrides(cloudDraft.contentOverrides, true);
+                }
+                setDraftModeActive(true, cloudDraft.baseSnapshotId || resolvedBaseSnapshotId);
+                dispatchDraftChange();
+                invalidateContentCache();
+                return;
               }
-              const resolvedBaseId = cloudDraft.baseSnapshotId || activePublishedId;
-              setDraftModeActive(true, resolvedBaseId);
-              dispatchDraftChange();
-              invalidateContentCache();
-              return;
             }
           }
         } catch {
@@ -511,22 +533,26 @@ export function initDraftSession(forceFresh: boolean = false): Promise<void> {
         const storage = getStorage();
         if (storage) {
           try {
-            let hasSavedDraftInStorage = false;
-            for (const nodeId of NODE_IDS) {
-              const raw = storage.getItem(getDraftCanvasKey(nodeId));
-              if (raw) {
-                const parsed = JSON.parse(raw);
-                if (isValidCanvasDocument(parsed, nodeId)) {
-                  inMemoryDraftCanvases[nodeId] = parsed;
-                  hasSavedDraftInStorage = true;
+            const localBaseId = getDraftBaseId();
+            const isLocalStale = Boolean(localBaseId && localBaseId !== resolvedBaseSnapshotId);
+            if (!isLocalStale) {
+              let hasSavedDraftInStorage = false;
+              for (const nodeId of NODE_IDS) {
+                const raw = storage.getItem(getDraftCanvasKey(nodeId));
+                if (raw) {
+                  const parsed = JSON.parse(raw);
+                  if (isValidCanvasDocument(parsed, nodeId)) {
+                    inMemoryDraftCanvases[nodeId] = parsed;
+                    hasSavedDraftInStorage = true;
+                  }
                 }
               }
-            }
-            if (hasSavedDraftInStorage) {
-              setDraftModeActive(true, getDraftBaseId() || activePublishedId);
-              dispatchDraftChange();
-              invalidateContentCache();
-              return;
+              if (hasSavedDraftInStorage) {
+                setDraftModeActive(true, localBaseId || resolvedBaseSnapshotId);
+                dispatchDraftChange();
+                invalidateContentCache();
+                return;
+              }
             }
           } catch {
             // Fall through to live clone
@@ -535,12 +561,35 @@ export function initDraftSession(forceFresh: boolean = false): Promise<void> {
       }
 
       // 2. Clone active published baseline into in-memory draft store
-      for (const nodeId of NODE_IDS) {
-        const liveDoc = getLiveNodeCanvas(nodeId);
-        inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(liveDoc));
+      // Attempt to load authoritative published canvases directly from public edge API first
+      if (typeof window !== 'undefined' && typeof fetch === 'function') {
+        await Promise.all(
+          NODE_IDS.map(async (nodeId) => {
+            try {
+              const res = await fetch(`/api/public/node/${nodeId}`);
+              if (res.ok) {
+                const edgePayload = await res.json();
+                if (edgePayload?.canvas && isValidCanvasDocument(edgePayload.canvas, nodeId)) {
+                  inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(edgePayload.canvas));
+                  saveLiveNodeCanvas(edgePayload.canvas, { silent: true });
+                  return;
+                }
+              }
+            } catch {
+              // Ignore network failure, fall through to getLiveNodeCanvas
+            }
+            const liveDoc = getLiveNodeCanvas(nodeId);
+            inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(liveDoc));
+          })
+        );
+      } else {
+        for (const nodeId of NODE_IDS) {
+          const liveDoc = getLiveNodeCanvas(nodeId);
+          inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(liveDoc));
+        }
       }
 
-      setDraftModeActive(true, activePublishedId);
+      setDraftModeActive(true, resolvedBaseSnapshotId);
       setDraftDirty(false);
       dispatchDraftChange();
       invalidateContentCache();
@@ -604,8 +653,28 @@ export function syncDraftWithPublished(
         JSON.stringify({ baseId, startedAt: new Date().toISOString() })
       );
       storage.removeItem(getDraftDirtyKey());
+      // Purge any lingering draft canvas storage keys so they do not shadow published state
+      for (const nodeId of NODE_IDS) {
+        storage.removeItem(getDraftCanvasKey(nodeId));
+      }
     } catch {
       // Storage limits
+    }
+  }
+
+  // Clear remote in-progress draft from Supabase engine_drafts upon publishing
+  const config = getSupabaseConfig();
+  if (config && isTableAvailable('engine_drafts')) {
+    try {
+      fetch(`${config.url}/rest/v1/engine_drafts?id=eq.active_draft`, {
+        method: 'DELETE',
+        headers: {
+          apikey: config.anonKey,
+          Authorization: `Bearer ${config.anonKey}`,
+        },
+      }).catch(() => { });
+    } catch {
+      // Non-blocking remote cleanup
     }
   }
 

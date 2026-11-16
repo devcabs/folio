@@ -81,6 +81,10 @@ export interface UseNodeCanvasReturn {
   saveError: string | null;
   /** Dismiss the active save error */
   clearSaveError: () => void;
+  /** Error message if fetching node canvas from edge failed */
+  fetchError: string | null;
+  /** Retry fetching node canvas from edge */
+  retryFetch: () => void;
 }
 
 /**
@@ -101,6 +105,13 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
   // Vercel Best Practice: rerender-transitions
   const [isPending, startTransition] = useTransition();
   const [isHydrating, setIsHydrating] = useState<boolean>(() => !isDevMode && typeof window !== 'undefined');
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchTrigger, setFetchTrigger] = useState<number>(0);
+
+  const retryFetch = useCallback(() => {
+    setFetchError(null);
+    setFetchTrigger((c) => c + 1);
+  }, []);
 
   // Stable ref for checking latest updatedAt timestamp to prevent recursive event reflection
   const documentRef = useRef(document);
@@ -142,9 +153,35 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
     if (!isDevMode && nodeId) {
       let isCancelled = false;
       setIsHydrating(true);
+      setFetchError(null);
 
       fetch(`/api/public/node/${nodeId}`)
-        .then((res) => (res.ok ? res.json() : null))
+        .then(async (res) => {
+          if (!res.ok) {
+            let errorMsg = `Edge node fetch failed (HTTP ${res.status})`;
+            try {
+              const errBody = await res.json();
+              if (errBody?.error) errorMsg += `: ${errBody.error}`;
+            } catch {
+              // Ignore body parse errors on non-ok status
+            }
+            throw new Error(errorMsg);
+          }
+
+          const contentType =
+            res.headers && typeof res.headers.get === 'function'
+              ? res.headers.get('content-type') || ''
+              : '';
+          if (
+            contentType &&
+            !contentType.toLowerCase().includes('application/json') &&
+            !contentType.toLowerCase().includes('text/json')
+          ) {
+            throw new Error(`Edge node fetch failed: expected JSON but received ${contentType}`);
+          }
+
+          return res.json() as Promise<PublicNodePayload>;
+        })
         .then((edgeData: PublicNodePayload | null) => {
           if (isCancelled || !edgeData || edgeData.nodeId !== nodeId) return;
 
@@ -196,9 +233,13 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
               });
             }
           }
+          setFetchError(null);
         })
-        .catch(() => {
-          // Transparent fallback to local/Supabase baseline
+        .catch((err: unknown) => {
+          if (!isCancelled) {
+            const msg = err instanceof Error ? err.message : 'Failed to fetch domain record';
+            setFetchError(msg);
+          }
         })
         .finally(() => {
           if (!isCancelled) {
@@ -211,8 +252,9 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
       };
     } else {
       setIsHydrating(false);
+      setFetchError(null);
     }
-  }, [nodeId, isDevMode]);
+  }, [nodeId, isDevMode, fetchTrigger]);
 
   // Hook into active session undo/redo engine
   const { pushAction } = useUndoRedo();
@@ -421,6 +463,8 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
     deployToCloud,
     saveError,
     clearSaveError,
+    fetchError,
+    retryFetch,
   };
 }
 

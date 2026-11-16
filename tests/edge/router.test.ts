@@ -368,7 +368,7 @@ describe('Universal Cloudflare Edge Router (src/edge/router.ts)', () => {
   describe('Static Asset & SPA Fallthrough', () => {
     it('delegates non-API requests to env.ASSETS.fetch when available', async () => {
       const mockAssets = {
-        fetch: vi.fn(async (request: Request) => {
+        fetch: vi.fn(async (_request: Request) => {
           return new Response('<!DOCTYPE html><html><body>SPA Root</body></html>', {
             status: 200,
             headers: { 'Content-Type': 'text/html' },
