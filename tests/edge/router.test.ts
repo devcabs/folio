@@ -297,6 +297,7 @@ describe('Universal Cloudflare Edge Router (src/edge/router.ts)', () => {
       const res = await handleFolioEdgeRequest(req, { KV_ENGINE_PUBLIC: mockKv });
       expect(res.status).toBe(200);
       expect(res.headers.get('X-Engine-Edge-Source')).toBe('KV');
+      expect(res.headers.get('Cache-Control')).toBe('public, max-age=30, s-maxage=60, stale-while-revalidate=300');
       expect(res.headers.get('ETag')).toBeDefined();
       const json = await res.json();
       expect(json.nodeId).toBe('access');
@@ -324,15 +325,17 @@ describe('Universal Cloudflare Edge Router (src/edge/router.ts)', () => {
       expect(secondRes.headers.get('ETag')).toBe(etag);
     });
 
-    it('serves fallback payload on KV cold miss and triggers waitUntil', async () => {
+    it('serves fallback payload on KV cold miss without mutating KV', async () => {
       const ctx = { waitUntil: vi.fn() };
       const req = new Request('https://domain.com/api/public/node/resiliency');
       const res = await handleFolioEdgeRequest(req, { KV_ENGINE_PUBLIC: mockKv }, ctx);
       expect(res.status).toBe(200);
       expect(res.headers.get('X-Engine-Edge-Source')).toBe('SUPABASE_FALLBACK');
+      expect(res.headers.get('Cache-Control')).toBe('public, max-age=0, must-revalidate');
       const json = await res.json();
       expect(json.nodeId).toBe('resiliency');
-      expect(ctx.waitUntil).toHaveBeenCalled();
+      expect(ctx.waitUntil).not.toHaveBeenCalled();
+      expect(mockKv.put).not.toHaveBeenCalled();
     });
 
     it('supports legacy /api/public/pillar/:pillarId route', async () => {
@@ -363,6 +366,7 @@ describe('Universal Cloudflare Edge Router (src/edge/router.ts)', () => {
       const res = await handleFolioEdgeRequest(req, { KV_ENGINE_PUBLIC: mockKv });
       expect(res.status).toBe(200);
       expect(res.headers.get('X-Engine-Edge-Source')).toBe('KV');
+      expect(res.headers.get('Cache-Control')).toBe('public, max-age=0, must-revalidate');
       const json = await res.json();
       expect(json.activeSnapshotId).toBe('snap-manifest-1');
     });
@@ -372,6 +376,7 @@ describe('Universal Cloudflare Edge Router (src/edge/router.ts)', () => {
       const res = await handleFolioEdgeRequest(req, { KV_ENGINE_PUBLIC: mockKv });
       expect(res.status).toBe(200);
       expect(res.headers.get('X-Engine-Edge-Source')).toBe('SUPABASE_FALLBACK');
+      expect(res.headers.get('Cache-Control')).toBe('public, max-age=0, must-revalidate');
       const json = await res.json();
       expect(json.activeSnapshotId).toBe('snapshot-latest');
       expect(json.nodeIds).toHaveLength(5);

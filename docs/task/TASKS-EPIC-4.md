@@ -1,6 +1,6 @@
 # Epic 4: Pragmatic Single-Source Stabilization & Data Continuity
 
-> **Status:** Planned & Ready for Execution  
+> **Status:** Completed  
 > **Prevalence Notice:** Governed by [.agents/skills/karpathy-rules/SKILL.md](file:///Users/francisdave/Documents/folio/.agents/skills/karpathy-rules/SKILL.md), [.agents/skills/superpowers/SKILL.md](file:///Users/francisdave/Documents/folio/.agents/skills/superpowers/SKILL.md), [.agents/skills/feature-dev/SKILL.md](file:///Users/francisdave/Documents/folio/.agents/skills/feature-dev/SKILL.md), and [.agents/skills/code-simplifier/SKILL.md](file:///Users/francisdave/Documents/folio/.agents/skills/code-simplifier/SKILL.md).
 
 ---
@@ -24,10 +24,10 @@ Following a forensic architectural audit, Epic 4 strips away theoretical distrib
 
 | Subtask ID | Title | Scope | File Reference | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **4.1** | [Truthful Publish Pipeline & Fail-Stop Enforcement](file:///Users/francisdave/Documents/folio/docs/task/4.1-truthful-publish-pipeline-and-fail-stop.md) | Purge local publish fallbacks, delete "Close Anyway", remove ghost sync toasts, and keep draft dirty on failure | `docs/task/4.1-truthful-publish-pipeline-and-fail-stop.md` | Planned |
+| **4.1** | [Truthful Publish Pipeline & Fail-Stop Enforcement](file:///Users/francisdave/Documents/folio/docs/task/4.1-truthful-publish-pipeline-and-fail-stop.md) | Purge local publish fallbacks, delete "Close Anyway", remove ghost sync toasts, and keep draft dirty on failure | `docs/task/4.1-truthful-publish-pipeline-and-fail-stop.md` | Completed |
 | **4.2** | [Chart, Source & Portal Chrome Data Continuity](file:///Users/francisdave/Documents/folio/docs/task/4.2-publish-chart-and-chrome-bundling.md) | Bundle active chart configs, evidence source metadata, and portal chrome into `PublishedSnapshot`; pre-bake into node KV payloads and enforce zero-storage in-memory chrome hydration | `docs/task/4.2-publish-chart-and-chrome-bundling.md` | Completed |
-| **4.3** | [Edge Runtime Sanitization & Cache Freshness](file:///Users/francisdave/Documents/folio/docs/task/4.3-edge-runtime-sanitization-and-cache-fix.md) | Delete cold-miss `kv.put` empty canvas writes, remove `CLOUDFLARE_API_TOKEN` from client, fix manifest cache header | `docs/task/4.3-edge-runtime-sanitization-and-cache-fix.md` | Planned |
-| **4.4** | [Test Suite Realignment & Verification](file:///Users/francisdave/Documents/folio/docs/task/4.4-test-suite-realignment-and-quality-gates.md) | Invert tests to assert fail-stop on publish error, fix JSDOM container mock, verify all 64 test suites | `docs/task/4.4-test-suite-realignment-and-quality-gates.md` | Planned |
+| **4.3** | [Edge Runtime Sanitization & Cache Freshness](file:///Users/francisdave/Documents/folio/docs/task/4.3-edge-runtime-sanitization-and-cache-fix.md) | Delete cold-miss `kv.put` empty canvas writes, remove `CLOUDFLARE_API_TOKEN` from client, fix manifest cache header | `docs/task/4.3-edge-runtime-sanitization-and-cache-fix.md` | Completed |
+| **4.4** | [Test Suite Realignment & Verification](file:///Users/francisdave/Documents/folio/docs/task/4.4-test-suite-realignment-and-quality-gates.md) | Invert tests to assert fail-stop on publish error, fix JSDOM container mock, verify all 65 test suites | `docs/task/4.4-test-suite-realignment-and-quality-gates.md` | Completed |
 
 ---
 

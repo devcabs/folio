@@ -42,7 +42,7 @@ import {
   type SourceSyncStatusDetail,
 } from '../src/services/sourceService';
 import { resetEngineConfig } from '../src/config/engine.config';
-import { clearDraftStorage, isDraftModeActive } from '../src/services/draftService';
+import { clearDraftStorage, isDraftModeActive, isDraftDirty, setDraftDirty } from '../src/services/draftService';
 
 /**
  * Setup isolated mock DOM environment for React Act and CustomEvent dispatch
@@ -460,6 +460,7 @@ describe('Subtask 2.10: Data Layer Integration Testing & Quality Gates', () => {
   // -------------------------------------------------------------------------
   describe('5. Publish Pipeline Fail-Stop on Remote Errors', () => {
     it('aborts publishing and preserves draft when edge returns rate limit error', async () => {
+      setDraftDirty(true);
       process.env.VITE_SUPABASE_URL = 'https://test-sandbox.supabase.co';
       process.env.VITE_SUPABASE_ANON_KEY = 'test-anon-key-12345';
 
@@ -484,6 +485,7 @@ describe('Subtask 2.10: Data Layer Integration Testing & Quality Gates', () => {
       expect(result.localSaved).toBe(false);
       expect(result.edgeDeployed).toBe(false);
       expect(result.error).toBe('KV rate limited');
+      expect(isDraftDirty()).toBe(true);
     });
   });
 
@@ -605,6 +607,49 @@ describe('Subtask 2.10: Data Layer Integration Testing & Quality Gates', () => {
       expect(lastEvent.detail.isBackground).toBe(true);
 
       (globalThis as any).window.removeEventListener(EVENT_SOURCE_SYNC_STATUS, listener);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Scenario 9: Client Bundle Credential Leak Guard (Subtask 4.4)
+  // -------------------------------------------------------------------------
+  describe('9. Client Bundle Credential Leak Guard', () => {
+    it('verifies CLOUDFLARE_API_TOKEN is never queried or leaked in client bundles (src/components/, src/services/)', () => {
+      const fs = require('fs');
+      const path = require('path');
+
+      function scanDir(dir: string, matches: string[] = []): string[] {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            scanDir(fullPath, matches);
+          } else if (/\.(ts|tsx|js|jsx)$/.test(entry.name)) {
+            const content = fs.readFileSync(fullPath, 'utf-8');
+            if (
+              content.includes('CLOUDFLARE_API_TOKEN') ||
+              content.includes('CF_API_TOKEN')
+            ) {
+              matches.push(path.relative(process.cwd(), fullPath));
+            }
+          }
+        }
+        return matches;
+      }
+
+      const clientDirs = [
+        path.resolve(process.cwd(), 'src/components'),
+        path.resolve(process.cwd(), 'src/services'),
+      ];
+
+      const leakedFiles: string[] = [];
+      for (const dir of clientDirs) {
+        if (fs.existsSync(dir)) {
+          scanDir(dir, leakedFiles);
+        }
+      }
+
+      expect(leakedFiles).toEqual([]);
     });
   });
 });

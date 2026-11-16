@@ -7,8 +7,12 @@
  * payloads to Cloudflare KV (KV_ENGINE_PUBLIC) via Cloudflare REST API.
  */
 
-import { compileAndDeployToEdgeKV } from '../src/services/edgePreBakeService.js';
+import {
+  compilePublicNodePayload,
+  compilePortalManifest,
+} from '../src/services/edgePreBakeService.js';
 import { getDefaultSystemBaselineSnapshot } from '../src/services/historyService.js';
+import { VALID_NODES } from '../src/types/edge.js';
 
 const colors = {
   reset: '\x1b[0m',
@@ -21,6 +25,11 @@ const colors = {
   cyan: '\x1b[36m',
   red: '\x1b[31m',
 };
+
+interface KVPairPayload {
+  key: string;
+  value: string;
+}
 
 async function main() {
   console.log(`\n${colors.bright}${colors.cyan}══════════════════════════════════════════════════════════${colors.reset}`);
@@ -37,20 +46,82 @@ async function main() {
 
   // 2. Run AST transformation and bundle payloads
   console.log(`\n${colors.dim}[2/3] Transforming Canvas AST & compiling responsive multi-density descriptors...${colors.reset}`);
-  const result = await compileAndDeployToEdgeKV(snapshot);
+  const kvPayloads: KVPairPayload[] = [];
+  const transformedNodes: string[] = [];
 
-  console.log(`  ${colors.green}✓${colors.reset} Processed ${result.transformedNodes.length} nodes: ${result.transformedNodes.join(', ')}`);
-  console.log(`  ${colors.green}✓${colors.reset} Generated ${result.totalKvKeys} total KV key-value entries (manifest, nodes, charts)`);
+  const targetNodes = snapshot.canvases && Object.keys(snapshot.canvases).length > 0
+    ? Object.keys(snapshot.canvases)
+    : [...VALID_NODES];
+
+  for (const nodeId of targetNodes) {
+    const nodePayload = compilePublicNodePayload(nodeId, snapshot);
+    kvPayloads.push({
+      key: `node:${nodeId}`,
+      value: JSON.stringify(nodePayload),
+    });
+    transformedNodes.push(nodeId);
+
+    if (nodePayload.chartDatasets) {
+      for (const [chartId, chartDataset] of Object.entries(nodePayload.chartDatasets)) {
+        kvPayloads.push({
+          key: `chart:${chartId}`,
+          value: JSON.stringify(chartDataset),
+        });
+      }
+    }
+  }
+
+  const manifestPayload = compilePortalManifest(snapshot, targetNodes);
+  kvPayloads.push({
+    key: 'portal:manifest',
+    value: JSON.stringify(manifestPayload),
+  });
+
+  console.log(`  ${colors.green}✓${colors.reset} Processed ${transformedNodes.length} nodes: ${transformedNodes.join(', ')}`);
+  console.log(`  ${colors.green}✓${colors.reset} Generated ${kvPayloads.length} total KV key-value entries (manifest, nodes, charts)`);
 
   // 3. Cloudflare KV Deployment Result
   console.log(`\n${colors.dim}[3/3] Synchronizing with Cloudflare KV...${colors.reset}`);
-  if (result.deployResult.deployedCount > 0) {
-    console.log(`  ${colors.green}✓ SUCCESS:${colors.reset} Atomically uploaded ${result.deployResult.deployedCount} keys to Cloudflare KV!`);
-  } else if (result.deployResult.warning) {
-    console.log(`  ${colors.yellow}⚠ NOTICE:${colors.reset} ${result.deployResult.warning}`);
-  } else if (result.deployResult.error) {
-    console.error(`  ${colors.red}❌ ERROR:${colors.reset} ${result.deployResult.error}`);
-    process.exit(1);
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
+  const namespaceId =
+    process.env.CLOUDFLARE_KV_NAMESPACE_ID ||
+    process.env.CF_KV_NAMESPACE_ID ||
+    process.env.KV_ENGINE_PUBLIC_ID ||
+    process.env.KV_PUBLIC_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN || process.env.CF_API_TOKEN;
+
+  if (!accountId || !namespaceId || !apiToken) {
+    const missing = [
+      !accountId && 'account ID',
+      !namespaceId && 'KV namespace ID',
+      !apiToken && 'API token',
+    ].filter(Boolean).join(', ');
+
+    console.log(`  ${colors.yellow}⚠ NOTICE:${colors.reset} Cloudflare KV credentials (${missing}) not configured. Skipped remote edge deployment (local fallback mode).`);
+  } else {
+    const endpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/bulk`;
+    try {
+      const res = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(kvPayloads),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`  ${colors.red}❌ ERROR:${colors.reset} Cloudflare KV upload returned HTTP ${res.status}: ${errText}`);
+        process.exit(1);
+      } else {
+        console.log(`  ${colors.green}✓ SUCCESS:${colors.reset} Atomically uploaded ${kvPayloads.length} keys to Cloudflare KV!`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Network error during Cloudflare KV bulk deployment';
+      console.error(`  ${colors.red}❌ ERROR:${colors.reset} ${msg}`);
+      process.exit(1);
+    }
   }
 
   const elapsed = Date.now() - startTime;

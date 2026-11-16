@@ -356,6 +356,7 @@ describe('Subtask 2.7: DevPublishModal 3-Tier Status & Retry Affordance', () => 
   it('displays error message and provides Retry button on publication failure', async () => {
     const onClose = vi.fn();
     const onPublished = vi.fn();
+    draftService.setDraftDirty(true);
 
     vi.spyOn(historyService, 'publishNewSnapshot').mockResolvedValue({
       success: false,
@@ -392,9 +393,10 @@ describe('Subtask 2.7: DevPublishModal 3-Tier Status & Retry Affordance', () => 
 
     expect(historyService.publishNewSnapshot).toHaveBeenCalledTimes(1);
 
-    // Modal remains open displaying the real error
+    // Modal remains open displaying the real error and preserving dirty draft
     expect(onClose).not.toHaveBeenCalled();
     expect(onPublished).not.toHaveBeenCalled();
+    expect(draftService.isDraftDirty()).toBe(true);
     const bodyText = collectText((global as any).document.body);
     expect(bodyText).toContain('Cloudflare KV deployment failed: 502 Bad Gateway');
     expect(bodyText).toContain('Retry');

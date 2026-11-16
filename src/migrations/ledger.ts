@@ -474,6 +474,60 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.1.14',
+    releaseDate: '2026-11-17',
+    title: 'Single-Source Stabilization, Fail-Stop Publish Pipeline & Edge Sanitization',
+    summary:
+      'Stabilized single-source publishing architecture: enforced fail-stop semantics on publish network errors, bundled dynamic chart configurations and portal chrome text directly into published snapshots and edge payloads with in-memory public hydration (zero storage pollution), purged cold-miss Cloudflare KV poisoning and client-side credential exposure, and enabled instant worldwide propagation with max-age=0 must-revalidate manifest caching.',
+    breakingChanges: [
+      'Removed deprecated compileAndDeployToEdgeKV and deployPayloadsToCloudflareKV from @devcabs/folio-engine client services (Cloudflare KV deployment is strictly handled via server edge Worker bindings in /api/publish).',
+      'Fail-stop publish semantics: publishNewSnapshot() now truthfully returns { success: false, localSaved: false, edgeDeployed: false } and retains dirty draft state upon network or server errors instead of falling back to fake local publishing.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Remove direct imports and calls to compileAndDeployToEdgeKV or deployPayloadsToCloudflareKV in client-side applications.',
+        affectedFiles: [
+          'src/components/dev/DevPublishModal.tsx',
+          'src/services/historyService.ts',
+        ],
+        exampleBefore:
+          'import { compileAndDeployToEdgeKV } from "@devcabs/folio-engine";\nawait compileAndDeployToEdgeKV(snapshot);',
+        exampleAfter:
+          '// Remote edge KV deployment is handled automatically by the server-side /api/publish handler.\nawait publishNewSnapshot("Release title");',
+      },
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.1.14 to acknowledge fail-stop publishing and edge sanitization.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.1.13" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.1.14" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'edge-runtime-cache-control-0.1.14',
+        title: 'Edge Runtime Sanitization & Instant Manifest Cache Revalidation',
+        required: false,
+        description:
+          'Cloudflare KV cold misses no longer write synthetic empty documents into KV storage, and /api/public/manifest now responds with max-age=0, must-revalidate for instantaneous cache updates.',
+        affectedEntities: ['publicHandler', 'portal:manifest', 'DocumentCanvas'],
+        migrationPrompt:
+          'No manual database migration required. Verify that freshly published portal updates reflect immediately upon public reload without 24-hour cache lag.',
+      },
+      {
+        id: 'content-version-watermark-0.1.14',
+        title: 'Advance contentVersion Watermark to 0.1.14',
+        required: true,
+        description:
+          'Update contentVersion watermark in EngineConfig to 0.1.14 to clear pending migration notifications in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.1.14"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

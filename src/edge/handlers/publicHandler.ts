@@ -16,8 +16,10 @@ import {
 import bakedChartsData from '../../data/baked-charts.json';
 import type { ChartDataset } from '../../types/chart';
 
-export const CACHE_CONTROL_EDGE = 'public, max-age=60, s-maxage=86400, stale-while-revalidate=604800';
-export const CACHE_CONTROL_FALLBACK = 'public, max-age=30, s-maxage=300';
+export const CACHE_CONTROL_MANIFEST = 'public, max-age=0, must-revalidate';
+export const CACHE_CONTROL_NODE = 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
+export const CACHE_CONTROL_FALLBACK = 'public, max-age=0, must-revalidate';
+export const CACHE_CONTROL_EDGE = CACHE_CONTROL_NODE;
 
 export interface ResponseOptions {
   status?: number;
@@ -38,7 +40,7 @@ export function createEdgeJsonResponse(
   const etag = options.etag ?? computeWeakEtag(payloadString);
   const cacheControl =
     options.cacheControl ??
-    (options.source === 'KV' ? CACHE_CONTROL_EDGE : CACHE_CONTROL_FALLBACK);
+    (options.source === 'KV' ? CACHE_CONTROL_NODE : CACHE_CONTROL_FALLBACK);
   const source = options.source ?? 'KV';
 
   return new Response(payloadString, {
@@ -62,7 +64,7 @@ export function createEdgeJsonResponse(
 export function checkConditionalGet(
   request: Request,
   etag: string,
-  cacheControl: string = CACHE_CONTROL_EDGE
+  cacheControl: string = CACHE_CONTROL_FALLBACK
 ): Response | null {
   const clientEtag = request.headers.get('if-none-match');
   if (clientEtag && clientEtag === etag) {
@@ -85,7 +87,7 @@ export async function handlePublicNodeRoute(
   request: Request,
   nodeIdParam: string,
   kv: KVNamespace | null,
-  ctx?: any
+  _ctx?: any
 ): Promise<Response> {
   const nodeId = nodeIdParam.toLowerCase();
 
@@ -113,13 +115,14 @@ export async function handlePublicNodeRoute(
 
     if (cachedJson) {
       const etag = computeWeakEtag(cachedJson);
-      const response304 = checkConditionalGet(request, etag);
+      const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_NODE);
       if (response304) return response304;
 
       return createEdgeJsonResponse(cachedJson, {
         status: 200,
         etag,
         source: 'KV',
+        cacheControl: CACHE_CONTROL_NODE,
       });
     }
 
@@ -142,17 +145,14 @@ export async function handlePublicNodeRoute(
     const fallbackString = JSON.stringify(fallbackPayload);
     const etag = computeWeakEtag(fallbackString);
 
-    if (kv && ctx && typeof ctx.waitUntil === 'function') {
-      ctx.waitUntil(kv.put(kvKey, fallbackString));
-    }
-
-    const response304 = checkConditionalGet(request, etag);
+    const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_FALLBACK);
     if (response304) return response304;
 
     return createEdgeJsonResponse(fallbackString, {
       status: 200,
       etag,
       source: 'SUPABASE_FALLBACK',
+      cacheControl: CACHE_CONTROL_FALLBACK,
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown node edge error';
@@ -172,7 +172,7 @@ export async function handlePublicNodeRoute(
 export async function handlePublicManifestRoute(
   request: Request,
   kv: KVNamespace | null,
-  ctx?: any
+  _ctx?: any
 ): Promise<Response> {
   const kvKey = 'portal:manifest';
 
@@ -181,13 +181,14 @@ export async function handlePublicManifestRoute(
 
     if (cachedJson) {
       const etag = computeWeakEtag(cachedJson);
-      const response304 = checkConditionalGet(request, etag);
+      const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_MANIFEST);
       if (response304) return response304;
 
       return createEdgeJsonResponse(cachedJson, {
         status: 200,
         etag,
         source: 'KV',
+        cacheControl: CACHE_CONTROL_MANIFEST,
       });
     }
 
@@ -202,17 +203,14 @@ export async function handlePublicManifestRoute(
     const fallbackString = JSON.stringify(fallbackManifest);
     const etag = computeWeakEtag(fallbackString);
 
-    if (kv && ctx && typeof ctx.waitUntil === 'function') {
-      ctx.waitUntil(kv.put(kvKey, fallbackString));
-    }
-
-    const response304 = checkConditionalGet(request, etag);
+    const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_MANIFEST);
     if (response304) return response304;
 
     return createEdgeJsonResponse(fallbackString, {
       status: 200,
       etag,
       source: 'SUPABASE_FALLBACK',
+      cacheControl: CACHE_CONTROL_MANIFEST,
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown manifest edge error';
@@ -233,7 +231,7 @@ export async function handlePublicChartRoute(
   request: Request,
   chartIdParam: string,
   kv: KVNamespace | null,
-  ctx?: any
+  _ctx?: any
 ): Promise<Response> {
   const chartId = chartIdParam.trim();
 
@@ -254,13 +252,14 @@ export async function handlePublicChartRoute(
 
     if (cachedJson) {
       const etag = computeWeakEtag(cachedJson);
-      const response304 = checkConditionalGet(request, etag);
+      const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_NODE);
       if (response304) return response304;
 
       return createEdgeJsonResponse(cachedJson, {
         status: 200,
         etag,
         source: 'KV',
+        cacheControl: CACHE_CONTROL_NODE,
       });
     }
 
@@ -274,17 +273,14 @@ export async function handlePublicChartRoute(
         const payloadString = JSON.stringify(foundChart);
         const etag = computeWeakEtag(payloadString);
 
-        if (kv && ctx && typeof ctx.waitUntil === 'function') {
-          ctx.waitUntil(kv.put(kvKey, payloadString));
-        }
-
-        const response304 = checkConditionalGet(request, etag);
+        const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_FALLBACK);
         if (response304) return response304;
 
         return createEdgeJsonResponse(payloadString, {
           status: 200,
           etag,
           source: 'STATIC_FALLBACK',
+          cacheControl: CACHE_CONTROL_FALLBACK,
         });
       }
     }
