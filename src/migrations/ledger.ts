@@ -569,6 +569,47 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.1.16',
+    releaseDate: '2026-11-17',
+    title: 'Drive Gallery Auto-Sync, Zero-Flash Skeleton & Resilient Fallbacks',
+    summary:
+      'Enabled automatic background photo synchronization for Google Drive galleries in both public and developer modes, bundled synced photo items directly into published snapshot manifests and Edge KV node payloads, added zero-flash shimmer skeleton wireframes during SWR resolution, upgraded EmptyState with 4-state action affordances, and provided direct Google Drive escape hatches on sync error or restricted folder states.',
+    breakingChanges: [
+      'No breaking API removals; additive resilience enhancements for SourceGallery, useDrivePhotoSync, EmptyState, and snapshot source metadata bundling.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.1.16 to acknowledge gallery resilience and snapshot photo bundling.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.1.15" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.1.16" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'gallery-resilience-0.1.16',
+        title: 'Google Drive Gallery Auto-Sync & Resilient Fallback State',
+        required: false,
+        description:
+          'Photo galleries automatically trigger background photo synchronization on mount when a Google Drive folder is attached, display responsive shimmer skeletons while loading, and present an actionable Open in Google Drive button on sync errors or permission restrictions.',
+        affectedEntities: ['SourceGallery', 'useDrivePhotoSync', 'EmptyState', 'historyService'],
+        migrationPrompt:
+          'No manual database migration required. Galleries with linked Google Drive folders will automatically sync and render dignified empty and error states.',
+      },
+      {
+        id: 'content-version-watermark-0.1.16',
+        title: 'Advance contentVersion Watermark to 0.1.16',
+        required: true,
+        description:
+          'Update contentVersion watermark in EngineConfig to 0.1.16 to acknowledge gallery resilience and clear pending migration warnings.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.1.16"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

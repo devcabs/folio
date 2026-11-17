@@ -1,0 +1,101 @@
+/**
+ * EmptyState Styles
+ * Folio Engine — Canonical Empty & Dignified Status Feedback
+ *
+ * Adheres strictly to design tokens, Universal Zero Outline Policy,
+ * and 4-state interactive button matrix.
+ */
+
+.emptyStateContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border-default);
+  background-color: var(--bg-surface-muted);
+  color: var(--text-primary);
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.cardVariant {
+  border-style: solid;
+  border-color: var(--border-default);
+  background-color: var(--bg-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.title {
+  font-family: var(--font-display, var(--font-serif));
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2) 0;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  outline: none;
+}
+
+.description {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 480px;
+  margin: 0 0 var(--space-4) 0;
+  outline: none;
+}
+
+.description:last-child {
+  margin-bottom: 0;
+}
+
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1-5);
+  height: 32px;
+  padding: 0 var(--space-4);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--folio-primary, var(--text-primary));
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--duration-fast) var(--ease-out);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.actionButton:hover:not(:disabled) {
+  background-color: var(--brand-primary-tint, var(--bg-surface-hover));
+  border-color: var(--border-strong, var(--border-default));
+  color: var(--folio-primary, var(--text-primary));
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.actionButton:active:not(:disabled) {
+  transform: translateY(1px);
+  outline: none;
+}
+
+.actionButton:focus,
+.actionButton:focus-visible {
+  outline: none;
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  outline: none;
+}

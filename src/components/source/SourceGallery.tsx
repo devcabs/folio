@@ -10,6 +10,7 @@ import { Toast } from '../feedback/Toast';
 import { EmptyState } from '../feedback/EmptyState';
 import { Button } from '../ui/Button';
 import { SourceCard } from './SourceCard';
+import { SourceGallerySkeleton } from './SourceGallerySkeleton';
 import { SourceLightbox } from './SourceLightbox';
 import { SourceFolderAttachment } from './SourceFolderAttachment';
 import { LinkFolderModal } from './LinkFolderModal';
@@ -95,10 +96,14 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
     isSyncing,
     syncPhotos,
     error: syncError,
+    backgroundError,
   } = useDrivePhotoSync(effectivePointId, {
     folderUrl: driveUrl,
     isElementLevel,
+    autoSync: true,
   });
+
+  const effectiveError = syncError || backgroundError;
 
   const defaultSource = useMemo(
     () => (!isElementLevel ? getSourceSource(nodeId) : null),
@@ -368,6 +373,8 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
                 </div>
               )}
             </div>
+          ) : isSyncing ? (
+            <SourceGallerySkeleton ariaLabel={`Loading photos for ${currentFolderTitle}`} />
           ) : isConfirmedEmpty ? (
             <EmptyState
               variant="card"
@@ -387,14 +394,48 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
           ) : syncState === 'sync_error' ? (
             <EmptyState
               variant="card"
-              title="Photo Sync Failed"
-              description={syncError || 'Photo synchronization failed for this gallery. Check Google Drive folder permissions or connectivity.'}
+              title="Photo Sync Unavailable"
+              description={
+                effectiveError?.includes('API Key')
+                  ? 'Public Google Drive photo synchronization requires an API key or pre-baked snapshot. You can open and view the verified folder directly in Google Drive.'
+                  : effectiveError?.includes('403')
+                  ? 'Access to this Google Drive folder is restricted. Ensure folder General Access is set to "Anyone with the link can view", or view directly in Google Drive.'
+                  : effectiveError?.includes('404')
+                  ? 'The linked Google Drive folder could not be found. Check if the folder was moved or deleted.'
+                  : effectiveError || 'Photo synchronization failed for this gallery. Check Google Drive folder permissions or connectivity.'
+              }
+              actionLabel={currentFolderUrl ? 'Open Google Drive Folder ↗' : undefined}
+              onAction={
+                currentFolderUrl
+                  ? () => {
+                      if (typeof window !== 'undefined') {
+                        window.open(currentFolderUrl, '_blank', 'noopener,noreferrer');
+                      }
+                    }
+                  : undefined
+              }
             />
           ) : !hasDriveLink && isElementLevel ? (
             <EmptyState
               variant="card"
               title="No Google Drive Folder Linked"
               description="This gallery element does not have a Google Drive folder linked. Attach an official Drive folder to sync and display photos."
+            />
+          ) : hasDriveLink && isElementLevel ? (
+            <EmptyState
+              variant="card"
+              title="Google Drive Gallery"
+              description="Photographs and documentation are linked in Google Drive. You can view the verified folder directly."
+              actionLabel={currentFolderUrl ? 'Open Google Drive Folder ↗' : undefined}
+              onAction={
+                currentFolderUrl
+                  ? () => {
+                      if (typeof window !== 'undefined') {
+                        window.open(currentFolderUrl, '_blank', 'noopener,noreferrer');
+                      }
+                    }
+                  : undefined
+              }
             />
           ) : (
             <EmptyState

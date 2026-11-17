@@ -69,7 +69,8 @@ import {
 } from './draftService';
 import { getSessionUnlockTime, isSessionValid } from '../utils/devSecurity';
 import { getCachedChartConfig, getAllCachedChartConfigs } from './chartSourceService';
-import { getAllLiveSources } from './sourceService';
+import { getAllLiveSources, getSourceSourceSync } from './sourceService';
+import { normalizePointId } from '../utils/source';
 
 export interface EngineSyncBroadcastMessage {
   type: 'MASID_PUBLISH_BROADCAST';
@@ -458,8 +459,11 @@ export function gatherSnapshotChartConfigs(
 
 /**
  * Gathers active linked evidence source metadata.
+ * Includes synced photos (items) for zero-quota public rendering.
  */
-export function gatherSnapshotSourceMetadata(): Record<string, SyncedSourceMetadata> {
+export function gatherSnapshotSourceMetadata(
+  canvases?: Record<string, NodeCanvasDocument>
+): Record<string, SyncedSourceMetadata> {
   const sourceMetadata: Record<string, SyncedSourceMetadata> = {};
   try {
     const liveSources = getAllLiveSources();
@@ -470,11 +474,63 @@ export function gatherSnapshotSourceMetadata(): Record<string, SyncedSourceMetad
         folderTitle: source.folderTitle,
         description: source.description,
         lastSyncedAt: source.lastVerified,
+        items: source.syncedPhotos,
       };
     }
   } catch {
     // Graceful fallback
   }
+
+  // Also harvest from canvases for any gallery elements with cached photos
+  if (canvases) {
+    try {
+      for (const doc of Object.values(canvases)) {
+        if (!doc?.sections) continue;
+        for (const sec of doc.sections) {
+          for (const el of sec.elements || []) {
+            if (el.type === 'gallery') {
+              const g = el as { id?: string; pointId?: string; driveUrl?: string; title?: string };
+              const rawId = g.pointId || g.id || '';
+              const normId = normalizePointId(rawId);
+              if (normId && !sourceMetadata[normId]) {
+                const live = getSourceSourceSync(normId);
+                sourceMetadata[normId] = {
+                  pointId: normId,
+                  folderUrl: g.driveUrl || live?.folderUrl || '',
+                  folderTitle: g.title || live?.folderTitle || 'Gallery Folder',
+                  description: live?.description,
+                  lastSyncedAt: live?.lastVerified,
+                  items: live?.syncedPhotos,
+                };
+              }
+            } else if (el.type === 'subsection' && 'elements' in el) {
+              for (const leaf of (el as { elements?: any[] }).elements || []) {
+                if (leaf.type === 'gallery') {
+                  const g = leaf as { id?: string; pointId?: string; driveUrl?: string; title?: string };
+                  const rawId = g.pointId || g.id || '';
+                  const normId = normalizePointId(rawId);
+                  if (normId && !sourceMetadata[normId]) {
+                    const live = getSourceSourceSync(normId);
+                    sourceMetadata[normId] = {
+                      pointId: normId,
+                      folderUrl: g.driveUrl || live?.folderUrl || '',
+                      folderTitle: g.title || live?.folderTitle || 'Gallery Folder',
+                      description: live?.description,
+                      lastSyncedAt: live?.lastVerified,
+                      items: live?.syncedPhotos,
+                    };
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
+
   return sourceMetadata;
 }
 
@@ -496,7 +552,7 @@ export function captureCurrentSnapshot(
   const summary = computeMetricsSummary(canvases, contentOverrides);
   const resolvedSession = sessionId || getSessionId();
   const chartConfigs = gatherSnapshotChartConfigs(canvases);
-  const sourceMetadata = gatherSnapshotSourceMetadata();
+  const sourceMetadata = gatherSnapshotSourceMetadata(canvases);
 
   const id = `snap-${Date.now()}-${type}-${Math.random().toString(36).substring(2, 7)}`;
 
@@ -1126,7 +1182,7 @@ export async function publishNewSnapshot(
   const cleanTitle = title.trim() || 'Published Revision';
   const createdAt = new Date().toISOString();
   const chartConfigs = gatherSnapshotChartConfigs(canvases);
-  const sourceMetadata = gatherSnapshotSourceMetadata();
+  const sourceMetadata = gatherSnapshotSourceMetadata(canvases);
 
   const snapshot: PublishedSnapshot = {
     id,

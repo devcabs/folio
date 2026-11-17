@@ -75,6 +75,8 @@ export interface UseDrivePhotoSyncOptions {
   folderUrl?: string;
   /** Whether this sync hook is operating on an element-level gallery rather than node page */
   isElementLevel?: boolean;
+  /** Whether to automatically attempt background sync on mount when folder is present and un-synced (default: true) */
+  autoSync?: boolean;
 }
 
 export interface UseDrivePhotoSyncResult {

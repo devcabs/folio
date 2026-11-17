@@ -233,7 +233,7 @@ const AppContent: React.FC = () => {
       {/* 1. App Header: Restrained floating glass capsule */}
       <AppHeader
         brandTitle={engineConfig.branding.appName || "Folio"}
-        brandLetter={engineConfig.branding.logoText || "F"}
+        brandLetter={engineConfig.branding.logoText}
         navItems={navItems}
         mobileOnlyNav={isNodeRoute}
         onRoadmapClick={handleHeaderStartJourney}

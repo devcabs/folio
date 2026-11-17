@@ -11,7 +11,7 @@
  * - Cross-tab / multi-window synchronization via storage events
  */
 
-import { useState, useCallback, useTransition, useMemo, useEffect } from 'react';
+import { useState, useCallback, useTransition, useMemo, useEffect, useRef } from 'react';
 import type {
   SyncedSourceItem,
   DriveReconciliationStats,
@@ -174,6 +174,28 @@ export function useDrivePhotoSync(
     },
     [nodeId, activeFolderUrl, syncedPhotos, options?.isElementLevel]
   );
+
+  // Auto-sync on mount when activeFolderUrl is present and photos have not yet been synced
+  const hasAttemptedAutoSyncRef = useRef(false);
+  const lastFolderUrlRef = useRef(activeFolderUrl);
+
+  useEffect(() => {
+    if (lastFolderUrlRef.current !== activeFolderUrl) {
+      lastFolderUrlRef.current = activeFolderUrl;
+      hasAttemptedAutoSyncRef.current = false;
+    }
+  }, [activeFolderUrl]);
+
+  useEffect(() => {
+    if (!options?.autoSync) return;
+    if (hasAttemptedAutoSyncRef.current) return;
+    if (!activeFolderUrl || hasEverSynced || isManualSyncing || isBackgroundSyncing) return;
+
+    hasAttemptedAutoSyncRef.current = true;
+    void syncPhotos({ isBackground: true }).catch(() => {
+      // backgroundError is captured inside syncPhotos
+    });
+  }, [activeFolderUrl, hasEverSynced, isManualSyncing, isBackgroundSyncing, syncPhotos, options?.autoSync]);
 
   return {
     syncedPhotos,

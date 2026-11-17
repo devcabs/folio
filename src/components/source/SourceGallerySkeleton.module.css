@@ -1,0 +1,81 @@
+/**
+ * SourceGallerySkeleton Styles
+ * Folio Engine — Calm Shimmer Skeleton for Drive Photo Galleries
+ *
+ * Adheres strictly to design tokens, Universal Zero Outline Policy,
+ * and responsive collage proportions.
+ */
+
+.skeletonContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  width: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background-color: var(--bg-surface-muted);
+  outline: none;
+}
+
+.topRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-0-5);
+  width: 100%;
+}
+
+.bottomRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-0-5);
+  width: 100%;
+}
+
+.cell {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-surface-muted);
+  outline: none;
+}
+
+.cellLandscape {
+  aspect-ratio: 16 / 9;
+}
+
+.cellSquare {
+  aspect-ratio: 1 / 1;
+}
+
+.shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface-muted) 0%,
+    var(--brand-accent-tint) 50%,
+    var(--bg-surface-muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .skeletonContainer {
+    gap: var(--space-0-5);
+  }
+
+  .topRow,
+  .bottomRow {
+    gap: var(--space-0-5);
+  }
+}
