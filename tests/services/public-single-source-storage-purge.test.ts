@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { getNodeCanvas, getLiveNodeCanvas } from '../../src/services/canvasLayoutService';
+import { setInMemoryDraftCanvas, clearDraftStorage } from '../../src/services/draftService';
 import { useDocumentCanvas } from '../../src/hooks/useDocumentCanvas';
 import { useSheetChartData, getMatrixCacheKey } from '../../src/hooks/useSheetChartData';
 import * as developerModeHook from '../../src/hooks/useDeveloperMode';
@@ -203,7 +204,7 @@ describe('Subtask 3.1: Public Single-Source Reading Pipeline & LocalStorage Purg
       expect(publicDoc.sections).toEqual([]);
     });
 
-    it('reads live storage or draft storage when isDevMode = true', () => {
+    it('reads strictly from in-memory draft storage when isDevMode = true, never localStorage', () => {
       const liveKey = 'folio_live_canvas_access';
       env.mockLocalStorage.setItem(liveKey, JSON.stringify({
         nodeId: 'access',
@@ -212,9 +213,26 @@ describe('Subtask 3.1: Public Single-Source Reading Pipeline & LocalStorage Purg
         updatedAt: '2026-11-13T00:00:00Z',
       }));
 
+      env.mockLocalStorage.getItem.mockClear();
+
+      setInMemoryDraftCanvas('access', {
+        nodeId: 'access',
+        version: 2,
+        sections: [{ id: 'sec-dev', type: 'section', title: 'Dev Section', elements: [] }],
+        updatedAt: '2026-11-13T00:00:00Z',
+      });
+
       const devDoc = getNodeCanvas('access', true);
       expect(devDoc.sections.length).toBe(1);
-      expect(devDoc.sections[0].title).toBe('Live Section');
+      expect(devDoc.sections[0].title).toBe('Dev Section');
+      expect(env.mockLocalStorage.getItem).not.toHaveBeenCalled();
+
+      // When draft is empty in memory, returns default empty shell without reading localStorage
+      clearDraftStorage();
+      env.mockLocalStorage.getItem.mockClear();
+      const emptyDoc = getNodeCanvas('access', true);
+      expect(emptyDoc.sections.length).toBe(0);
+      expect(env.mockLocalStorage.getItem).not.toHaveBeenCalled();
     });
 
     it('preserves getLiveNodeCanvas for publisher bundling and draft initialization', () => {

@@ -16,7 +16,7 @@
  * 9. Universal Zero Outline Policy and 100% design token purity.
  */
 
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { Drawer } from '../ui/Drawer';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -236,10 +236,21 @@ export const HistoryHubDrawer: React.FC<HistoryHubDrawerProps> = ({
     useState<PublishedSnapshot | UnifiedPortalSnapshot | null>(null);
   const [isConfirmDefaultOpen, setIsConfirmDefaultOpen] = useState(false);
 
-  const loadHistory = useCallback(async () => {
-    setIsLoading(true);
+  // In-flight guard to eliminate overlapping fetches and render flickering
+  const inFlightRef = useRef(false);
+
+  const loadHistory = useCallback(async (isInitial = false) => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+
+    if (isInitial) {
+      setIsLoading(true);
+    }
+
     try {
-      await hydrateHistoryFromIndexedDB().catch(() => { });
+      if (isInitial) {
+        await hydrateHistoryFromIndexedDB().catch(() => { });
+      }
       const cloudSnapshots = await fetchPublishedHistoryFromCloud();
       if (cloudSnapshots.length > 0) {
         setSnapshots(cloudSnapshots);
@@ -269,6 +280,7 @@ export const HistoryHubDrawer: React.FC<HistoryHubDrawerProps> = ({
         setActiveLiveId(getActivePublishedId());
       }
     } finally {
+      inFlightRef.current = false;
       setIsLoading(false);
     }
   }, []);
@@ -276,9 +288,9 @@ export const HistoryHubDrawer: React.FC<HistoryHubDrawerProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    loadHistory();
+    loadHistory(true);
     const unsubscribe = subscribeToHistoryChange(() => {
-      loadHistory();
+      loadHistory(false);
     });
 
     return unsubscribe;

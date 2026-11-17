@@ -931,12 +931,12 @@ export function saveLiveNodeCanvas(
 
 /**
  * Synchronous retrieval of a node canvas document.
- * Reads from draft sandbox if Developer Mode is active (isDevMode === true);
+ * Reads strictly from in-memory draft sandbox if Developer Mode is active (isDevMode === true);
  * for public visitors (isDevMode === false), returns an empty baseline shell.
  * Cloudflare Edge KV is the unconditional single source of truth for public visitors.
  */
 export function getNodeCanvas(nodeId: string, isDevMode = false): NodeCanvasDocument {
-  // Developer Mode: Read in-memory draft channel
+  // Developer Mode: Read strictly from in-memory draft channel (Zero-LocalStorage policy)
   if (isDevMode) {
     const memoryDraft = getInMemoryDraftCanvas(nodeId);
     if (memoryDraft && isValidCanvasDocument(memoryDraft, nodeId)) {
@@ -945,24 +945,7 @@ export function getNodeCanvas(nodeId: string, isDevMode = false): NodeCanvasDocu
         sections: renumberSections(memoryDraft.sections),
       };
     }
-    const storage = getStorage();
-    if (storage) {
-      try {
-        const rawDraft = storage.getItem(getDraftCanvasKey(nodeId));
-        if (rawDraft) {
-          const parsedDraft = JSON.parse(rawDraft);
-          if (isValidCanvasDocument(parsedDraft, nodeId)) {
-            return {
-              ...parsedDraft,
-              sections: renumberSections(parsedDraft.sections),
-            };
-          }
-        }
-      } catch {
-        // Fall through
-      }
-    }
-    return getLiveNodeCanvas(nodeId);
+    return createDefaultCanvasDocument(nodeId);
   }
 
   // Public Mode: Return baseline shell; Edge KV is the sole authority

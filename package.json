@@ -63,6 +63,7 @@
     "test": "vitest run",
     "test:purity": "vitest run tests/purity",
     "test:tokens": "tsx scripts/verify-token-aliases.ts",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "prepack": "npm run build:lib",
     "deploy": "tsx scripts/deploy.ts",

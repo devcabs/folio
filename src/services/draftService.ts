@@ -13,8 +13,7 @@
  */
 
 import {
-  getLiveNodeCanvas,
-  saveLiveNodeCanvas,
+  dispatchAggregateCanvasChange,
   NODE_IDS,
 } from './canvasLayoutService';
 import type { NodeCanvasDocument } from '../types/canvas';
@@ -140,7 +139,10 @@ export function getDraftBaseId(): string | null {
 export function checkDraftStaleness(): DraftStalenessCheck {
   const currentActiveId = getActivePublishedId();
   const baseId = getDraftBaseId();
-  const isStale = Boolean(baseId && baseId !== currentActiveId);
+  const hasActiveDraft = isDraftModeActive() || hasDraftKeys();
+  const isStale = Boolean(
+    currentActiveId && ((hasActiveDraft && !baseId) || (baseId && baseId !== currentActiveId))
+  );
   return { isStale, baseId, currentActiveId };
 }
 
@@ -473,12 +475,7 @@ export function initDraftSession(forceFresh: boolean = false): Promise<void> {
       const sessionActive = isSessionValid(unlockTime);
       const draftExists = hasDraftKeys();
 
-      // If not forced fresh and session or draft active: retain existing in-memory draft
-      if (!forceFresh && (sessionActive || isDraftModeActive()) && draftExists && Object.keys(inMemoryDraftCanvases).length > 0) {
-        setDraftModeActive(true);
-        return;
-      }
-
+      // 1. Resolve active published snapshot ID first
       let resolvedBaseSnapshotId = getActivePublishedId();
 
       // If in browser, attempt to resolve authoritative active published snapshot from public edge manifest
@@ -497,15 +494,31 @@ export function initDraftSession(forceFresh: boolean = false): Promise<void> {
         }
       }
 
-      // 1. Check for cloud draft in Supabase engine_drafts
+      // 2. Retain existing in-memory draft ONLY IF:
+      // a) forceFresh is false, AND
+      // b) draft has uncommitted changes OR current draft base ID matches current published baseline
+      const isDirty = isDraftDirty();
+      const currentDraftBaseId = inMemoryDraftBaseId || getDraftBaseId();
+      const baseMatches = Boolean(currentDraftBaseId && currentDraftBaseId === resolvedBaseSnapshotId);
+      if (
+        !forceFresh &&
+        (sessionActive || isDraftModeActive()) &&
+        draftExists &&
+        Object.keys(inMemoryDraftCanvases).length > 0 &&
+        (isDirty || baseMatches)
+      ) {
+        setDraftModeActive(true, currentDraftBaseId || resolvedBaseSnapshotId);
+        dispatchAggregateCanvasChange(true);
+        return;
+      }
+
+      // 3. Check for cloud draft in Supabase engine_drafts
       if (!forceFresh) {
         try {
           const cloudDraft = await fetchActiveCloudDraft();
           if (cloudDraft && Object.keys(cloudDraft.canvases).length > 0) {
-            // Guard against stale cloud drafts: if baseSnapshotId does not match current active published version, skip
-            const isCloudStale = Boolean(
-              cloudDraft.baseSnapshotId && cloudDraft.baseSnapshotId !== resolvedBaseSnapshotId
-            );
+            // Guard against stale cloud drafts: if baseSnapshotId does not match current active published version or is missing, skip
+            const isCloudStale = !cloudDraft.baseSnapshotId || cloudDraft.baseSnapshotId !== resolvedBaseSnapshotId;
             if (!isCloudStale) {
               let loadedValidCanvases = false;
               for (const [nodeId, doc] of Object.entries(cloudDraft.canvases)) {
@@ -520,48 +533,18 @@ export function initDraftSession(forceFresh: boolean = false): Promise<void> {
                 }
                 setDraftModeActive(true, cloudDraft.baseSnapshotId || resolvedBaseSnapshotId);
                 dispatchDraftChange();
+                dispatchAggregateCanvasChange(true);
                 invalidateContentCache();
                 return;
               }
             }
           }
         } catch {
-          // Ignore network errors, fall through to local clone
-        }
-
-        // 1b. Check local persistent storage fallback if available
-        const storage = getStorage();
-        if (storage) {
-          try {
-            const localBaseId = getDraftBaseId();
-            const isLocalStale = Boolean(localBaseId && localBaseId !== resolvedBaseSnapshotId);
-            if (!isLocalStale) {
-              let hasSavedDraftInStorage = false;
-              for (const nodeId of NODE_IDS) {
-                const raw = storage.getItem(getDraftCanvasKey(nodeId));
-                if (raw) {
-                  const parsed = JSON.parse(raw);
-                  if (isValidCanvasDocument(parsed, nodeId)) {
-                    inMemoryDraftCanvases[nodeId] = parsed;
-                    hasSavedDraftInStorage = true;
-                  }
-                }
-              }
-              if (hasSavedDraftInStorage) {
-                setDraftModeActive(true, localBaseId || resolvedBaseSnapshotId);
-                dispatchDraftChange();
-                invalidateContentCache();
-                return;
-              }
-            }
-          } catch {
-            // Fall through to live clone
-          }
+          // Ignore network errors, fall through to edge clone
         }
       }
 
-      // 2. Clone active published baseline into in-memory draft store
-      // Attempt to load authoritative published canvases directly from public edge API first
+      // 2. Clone active published baseline strictly from Cloudflare Edge KV (Single Source of Truth)
       if (typeof window !== 'undefined' && typeof fetch === 'function') {
         await Promise.all(
           NODE_IDS.map(async (nodeId) => {
@@ -570,28 +553,30 @@ export function initDraftSession(forceFresh: boolean = false): Promise<void> {
               if (res.ok) {
                 const edgePayload = await res.json();
                 if (edgePayload?.canvas && isValidCanvasDocument(edgePayload.canvas, nodeId)) {
-                  inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(edgePayload.canvas));
-                  saveLiveNodeCanvas(edgePayload.canvas, { silent: true });
+                  const existingDoc = inMemoryDraftCanvases[nodeId];
+                  const incomingSections = edgePayload.canvas.sections;
+                  // Guard: do not overwrite populated document with cold-miss empty canvas
+                  if (
+                    incomingSections.length > 0 ||
+                    !existingDoc ||
+                    existingDoc.sections.length === 0
+                  ) {
+                    inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(edgePayload.canvas));
+                  }
                   return;
                 }
               }
             } catch {
-              // Ignore network failure, fall through to getLiveNodeCanvas
+              // Network unreachable: retain existing in-memory document
             }
-            const liveDoc = getLiveNodeCanvas(nodeId);
-            inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(liveDoc));
           })
         );
-      } else {
-        for (const nodeId of NODE_IDS) {
-          const liveDoc = getLiveNodeCanvas(nodeId);
-          inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(liveDoc));
-        }
       }
 
       setDraftModeActive(true, resolvedBaseSnapshotId);
       setDraftDirty(false);
       dispatchDraftChange();
+      dispatchAggregateCanvasChange(true);
       invalidateContentCache();
     } finally {
       activeInitDraftPromise = null;
@@ -623,8 +608,8 @@ export async function discardDraftSession(): Promise<void> {
     }
   }
 
-  dispatchDraftChange();
-  invalidateContentCache();
+  // Immediately re-populate draft from authoritative published baseline
+  await initDraftSession(true);
 }
 
 /**
@@ -633,7 +618,7 @@ export async function discardDraftSession(): Promise<void> {
  */
 export function syncDraftWithPublished(
   canvases: Record<string, NodeCanvasDocument>,
-  _contentOverrides?: Record<string, string>,
+  contentOverrides?: Record<string, string>,
   newBaseId?: string
 ): void {
   clearDraftTombstones();
@@ -678,6 +663,10 @@ export function syncDraftWithPublished(
     }
   }
 
+  if (contentOverrides && Object.keys(contentOverrides).length > 0) {
+    setAllContentOverrides(contentOverrides, true);
+  }
   setDraftDirty(false);
+  dispatchAggregateCanvasChange(true);
   invalidateContentCache();
 }

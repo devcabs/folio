@@ -528,6 +528,47 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.1.15',
+    releaseDate: '2026-11-17',
+    title: 'Authoritative Published Baseline & Unified Draft Hydration Fidelity',
+    summary:
+      'Enforced Cloudflare Edge KV as the single authoritative source for draft baseline hydration with zero-localStorage pollution, prevented screen wipe during Dev Mode toggle, enabled clean draft automatic baseline advancement upon published snapshot rollouts, and added end-to-end integration test coverage for dev-switch reactive canvas events.',
+    breakingChanges: [
+      'No breaking API removals; internal baseline hydration, screen wipe prevention, and draft staleness invalidation hardening.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.1.15 to acknowledge authoritative draft baseline hydration and screen wipe prevention.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.1.14" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.1.15" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'draft-baseline-fidelity-0.1.15',
+        title: 'Authoritative Draft Baseline Hydration & Screen Wipe Defense',
+        required: false,
+        description:
+          'Developer Mode draft initialization now clones strictly from Cloudflare Edge KV (/api/public/node/:nodeId) with zero localStorage document pollution, useDocumentCanvas preserves live rendered content across Dev Mode toggles until draft finishes hydrating, and clean drafts automatically track newly published snapshot baselines.',
+        affectedEntities: ['useDocumentCanvas', 'draftService', 'canvasLayoutService'],
+        migrationPrompt:
+          'No manual database migration required. Authoring sessions automatically hydrate authoritative live baselines from Cloudflare Edge KV without screen flickering.',
+      },
+      {
+        id: 'content-version-watermark-0.1.15',
+        title: 'Advance contentVersion Watermark to 0.1.15',
+        required: true,
+        description:
+          'Update contentVersion watermark in EngineConfig to 0.1.15 to acknowledge authoritative draft baseline hydration and clear pending migration warnings.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.1.15"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

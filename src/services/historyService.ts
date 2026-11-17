@@ -256,7 +256,50 @@ export interface LightweightHistoryManifest {
 }
 
 /**
+ * Strips heavy payloads to create and persist a lightweight metadata manifest in localStorage (< 5 KB budget).
+ */
+export function syncLightweightLocalStorage(manifest: HistoryManifest): void {
+  const storage = getStorage();
+  if (!storage) return;
+
+  let sanitizedSnapshots: HistorySnapshotMetadata[] = manifest.snapshots.map((s) => ({
+    id: s.id,
+    title: s.title,
+    createdAt: s.createdAt,
+    type: s.type,
+    notes: s.notes || undefined,
+    authorSessionId: s.authorSessionId,
+    summary: s.summary,
+  }));
+
+  let serialized = JSON.stringify({
+    version: HISTORY_SCHEMA_VERSION,
+    updatedAt: manifest.updatedAt,
+    snapshots: sanitizedSnapshots,
+  });
+
+  // Strict < 5 KB guard: if metadata exceeds 5120 bytes, prune older entries from localStorage cache
+  if (serialized.length > 5120) {
+    while (sanitizedSnapshots.length > 1 && serialized.length > 5120) {
+      sanitizedSnapshots.pop();
+      serialized = JSON.stringify({
+        version: HISTORY_SCHEMA_VERSION,
+        updatedAt: manifest.updatedAt,
+        snapshots: sanitizedSnapshots,
+      });
+    }
+  }
+
+  try {
+    storage.setItem(getHistoryManifestKey(), serialized);
+  } catch {
+    // If storage quota or restriction hit, maintain in-memory & IndexedDB
+  }
+}
+
+/**
  * Hydrates history manifest from persistent IndexedDB store (eliminates localStorage quota wipes).
+ * Pure read-and-cache operation: never re-dispatches EVENT_HISTORY_CHANGE or redundant IDB writes.
  */
 export async function hydrateHistoryFromIndexedDB(): Promise<HistoryManifest> {
   try {
@@ -264,7 +307,7 @@ export async function hydrateHistoryFromIndexedDB(): Promise<HistoryManifest> {
     if (fromIdb && Array.isArray(fromIdb.snapshots) && fromIdb.snapshots.length > 0) {
       inMemoryManifest = fromIdb;
       // Defensive: keep localStorage lightweight only, never write full IDB payload to localStorage
-      saveHistoryManifest(fromIdb);
+      syncLightweightLocalStorage(fromIdb);
       return fromIdb;
     }
   } catch {
@@ -332,42 +375,7 @@ export function saveHistoryManifest(manifest: HistoryManifest): void {
   });
 
   // 3. Strip heavy payloads to create lightweight metadata manifest for localStorage (< 5 KB budget)
-  const storage = getStorage();
-  if (storage) {
-    let sanitizedSnapshots: HistorySnapshotMetadata[] = updated.snapshots.map((s) => ({
-      id: s.id,
-      title: s.title,
-      createdAt: s.createdAt,
-      type: s.type,
-      notes: s.notes || undefined,
-      authorSessionId: s.authorSessionId,
-      summary: s.summary,
-    }));
-
-    let serialized = JSON.stringify({
-      version: HISTORY_SCHEMA_VERSION,
-      updatedAt: updated.updatedAt,
-      snapshots: sanitizedSnapshots,
-    });
-
-    // Strict < 5 KB guard: if metadata exceeds 5120 bytes, prune older entries from localStorage cache
-    if (serialized.length > 5120) {
-      while (sanitizedSnapshots.length > 1 && serialized.length > 5120) {
-        sanitizedSnapshots.pop();
-        serialized = JSON.stringify({
-          version: HISTORY_SCHEMA_VERSION,
-          updatedAt: updated.updatedAt,
-          snapshots: sanitizedSnapshots,
-        });
-      }
-    }
-
-    try {
-      storage.setItem(getHistoryManifestKey(), serialized);
-    } catch {
-      // If storage quota or restriction hit, maintain in-memory & IndexedDB
-    }
-  }
+  syncLightweightLocalStorage(updated);
 
   if (typeof window !== 'undefined') {
     try {

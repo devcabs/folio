@@ -3,6 +3,8 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useDocumentCanvas } from '../../src/hooks/useDocumentCanvas';
 import * as developerModeHook from '../../src/hooks/useDeveloperMode';
+import { clearDraftStorage, setInMemoryDraftCanvas } from '../../src/services/draftService';
+import { EVENT_DRAFT_CANVAS_CHANGE } from '../../src/services/canvasLayoutService';
 
 function ensureDomEnvironment() {
   class Element { }
@@ -293,6 +295,116 @@ describe('Subtask 2.8: useDocumentCanvas isHydrating Lifecycle', () => {
     });
 
     expect(latestHookReturn.isHydrating).toBe(false);
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it('preserves rendered document when switching to Dev Mode while draft is unpopulated, and updates when EVENT_DRAFT_CANVAS_CHANGE fires', async () => {
+    clearDraftStorage();
+    let isDevModeValue = false;
+    vi.spyOn(developerModeHook, 'useDeveloperMode').mockImplementation(() => ({
+      isDevMode: isDevModeValue,
+      isDesktop: true,
+      canUnlock: true,
+      isUnlocked: isDevModeValue,
+      toggleDevMode: vi.fn(),
+      unlockWithPin: vi.fn(),
+    } as any));
+
+    let resolveFetch: (val: any) => void = () => { };
+    const fetchPromise = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+    global.fetch = vi.fn().mockReturnValue(fetchPromise);
+
+    let latestHookReturn: any = null;
+    function TestComponent() {
+      latestHookReturn = useDocumentCanvas('access');
+      return null;
+    }
+
+    const container = (global as any).document.createElement('div');
+    const root = createRoot(container);
+
+    // 1. Initial public mount
+    await act(async () => {
+      root.render(React.createElement(TestComponent));
+    });
+
+    // 2. Resolve edge fetch with published content
+    await act(async () => {
+      resolveFetch({
+        ok: true,
+        json: async () => ({
+          nodeId: 'access',
+          canvas: {
+            nodeId: 'access',
+            version: 2,
+            sections: [
+              {
+                id: 'sec-pub-1',
+                type: 'section',
+                title: 'Live Published Section',
+                elements: [],
+              },
+            ],
+            updatedAt: '2026-11-17T00:00:00Z',
+          },
+        }),
+      });
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(latestHookReturn.document.sections.length).toBe(1);
+    expect(latestHookReturn.document.sections[0].title).toBe('Live Published Section');
+
+    // 3. User enters Developer Mode while draft hydration is still pending
+    isDevModeValue = true;
+    await act(async () => {
+      root.render(React.createElement(TestComponent));
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    // Document MUST NOT be wiped to 0 sections!
+    expect(latestHookReturn.document.sections.length).toBe(1);
+    expect(latestHookReturn.document.sections[0].title).toBe('Live Published Section');
+
+    // 4. Draft hydration completes and emits EVENT_DRAFT_CANVAS_CHANGE
+    const hydratedDraftDoc = {
+      nodeId: 'access',
+      version: 2,
+      sections: [
+        {
+          id: 'sec-draft-1',
+          type: 'section' as const,
+          title: 'Draft Hydrated Section',
+          elements: [],
+        },
+        {
+          id: 'sec-draft-2',
+          type: 'section' as const,
+          title: 'Draft Second Section',
+          elements: [],
+        },
+      ],
+      updatedAt: '2026-11-17T00:05:00Z',
+    };
+    setInMemoryDraftCanvas('access', hydratedDraftDoc);
+
+    await act(async () => {
+      (global as any).window.dispatchEvent(
+        new (global as any).CustomEvent(EVENT_DRAFT_CANVAS_CHANGE, {
+          detail: { nodeId: '*' },
+        })
+      );
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    // Hook must now reflect the newly hydrated draft document
+    expect(latestHookReturn.document.sections.length).toBe(2);
+    expect(latestHookReturn.document.sections[0].title).toBe('Draft Hydrated Section');
 
     await act(async () => {
       root.unmount();

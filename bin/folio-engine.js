@@ -24,14 +24,12 @@ async function main() {
   // Fallback for local source checkouts before `npm run build:lib` has been executed.
   const tsxBin = path.join(pkgRoot, 'node_modules', '.bin', 'tsx');
   if (fs.existsSync(srcDoctorPath) && fs.existsSync(tsxBin)) {
-    const [cmd, ...rest] = args;
-    if (!cmd || cmd === 'doctor' || cmd === 'check') {
-      const result = spawnSync(tsxBin, [srcDoctorPath, ...rest], {
-        stdio: 'inherit',
-        cwd: process.cwd(),
-      });
-      process.exit(result.status ?? 1);
-    }
+    const script = `import { runFolioCli } from ${JSON.stringify(pathToFileURL(srcDoctorPath).href)}; process.exit(runFolioCli(process.argv.slice(1)));`;
+    const result = spawnSync(tsxBin, ['--input-type=module', '-e', script, ...args], {
+      stdio: 'inherit',
+      cwd: process.cwd(),
+    });
+    process.exit(result.status ?? 1);
   }
 
   console.error(

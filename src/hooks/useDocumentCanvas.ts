@@ -122,8 +122,25 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
   const localUpdateTimestampRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Synchronize initial document if nodeId or isDevMode changed
-    const initialDoc = isDevMode ? getNodeCanvas(nodeId, true) : createDefaultCanvasDocument(nodeId);
+    // If switching into Dev Mode, check if in-memory draft is already populated
+    let initialDoc: NodeCanvasDocument;
+    if (isDevMode) {
+      const memoryDraft = getNodeCanvas(nodeId, true);
+      // If draft is still an unpopulated default shell but we already have live content rendered,
+      // retain current document until draft initialization completes and emits EVENT_DRAFT_CANVAS_CHANGE
+      if (
+        memoryDraft.sections.length === 0 &&
+        documentRef.current.sections.length > 0 &&
+        documentRef.current.nodeId === nodeId
+      ) {
+        initialDoc = documentRef.current;
+      } else {
+        initialDoc = memoryDraft;
+      }
+    } else {
+      initialDoc = createDefaultCanvasDocument(nodeId);
+    }
+
     documentRef.current = initialDoc;
     setDocument(initialDoc);
 
@@ -135,7 +152,10 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
         if (incomingDoc.updatedAt === localUpdateTimestampRef.current) {
           return;
         }
-        if (documentRef.current.updatedAt !== incomingDoc.updatedAt) {
+        if (
+          documentRef.current.updatedAt !== incomingDoc.updatedAt ||
+          documentRef.current.sections.length !== incomingDoc.sections.length
+        ) {
           documentRef.current = incomingDoc;
           startTransition(() => {
             setDocument(incomingDoc);
