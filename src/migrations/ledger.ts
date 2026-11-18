@@ -758,6 +758,47 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.2.3',
+    releaseDate: '2026-11-18',
+    title: 'Google Sheets Public GViz & HTMLView Verification Without Sheets API Key',
+    summary:
+      'Restored public GViz CSV access verification and /htmlview tab discovery in sheetsVerificationService and eliminated duplicate parallel tab fetches in useSheetVerification so Google Sheets link verification works with zero Google Sheets API key requirement.',
+    breakingChanges: [
+      'No breaking API changes; restores public GViz and htmlview Google Sheets verification compatibility.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.2.3 to acknowledge restored public Google Sheets verification.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.2.2" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.2.3" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'sheets-gviz-verification-0.2.3',
+        title: 'Public GViz & HTMLView Google Sheets Verification',
+        required: false,
+        description:
+          'ChartConfigDrawer Step 1 verifies public Google Sheets links via GViz CSV probe and discovers sheet tabs via /htmlview without requiring the Google Sheets API v4 to be enabled on your API key.',
+        affectedEntities: ['sheetsVerificationService', 'useSheetVerification', 'ChartConfigDrawer'],
+        migrationPrompt:
+          'No manual migration required. Upgrade @devcabs/folio-engine to 0.2.3 to verify public Google Sheets links without a Google Sheets API key.',
+      },
+      {
+        id: 'content-version-watermark-0.2.3',
+        title: 'Advance contentVersion Watermark to 0.2.3',
+        required: true,
+        description:
+          'Update contentVersion watermark in EngineConfig to 0.2.3 to clear pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.2.3"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**
