@@ -159,13 +159,6 @@ export const SortingAndOrderControls: React.FC<SortingAndOrderControlsProps> = (
     );
   })();
 
-  return (
-    <div className={styles.sectionBlock}>
-      <div className={styles.sectionHeader}>
-        <span className={styles.sectionEyebrow}>Data Order & Direction</span>
-      </div>
-      {content}
-    </div>
-  );
+  return <>{content}</>;
 };
 

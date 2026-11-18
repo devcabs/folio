@@ -1,0 +1,303 @@
+{
+  "access": {
+    "nodeId": "access",
+    "version": 2,
+    "updatedAt": "2026-01-15T00:00:00.000Z",
+    "sections": [
+      {
+        "id": "sec-access-01",
+        "type": "section",
+        "number": "01",
+        "isNumbered": true,
+        "title": "Baseline Discovery & Scoping",
+        "titlePointId": "node.access.section.sec-access-01.title",
+        "subtitle": "Foundational project parameters and stakeholder alignment",
+        "subtitlePointId": "node.access.section.sec-access-01.subtitle",
+        "elements": [
+          {
+            "id": "txt-access-01",
+            "type": "text",
+            "pointId": "node.access.text.txt-access-01",
+            "as": "p",
+            "content": "Stage 01 establishes the operational baseline across all participating units. Initial scoping documents define deliverable boundaries, reporting cadences, and shared accountability checkpoints before execution begins."
+          },
+          {
+            "id": "txt-access-quote",
+            "type": "text",
+            "pointId": "node.access.text.txt-access-quote",
+            "as": "blockquote",
+            "content": "Clear baseline criteria reduce downstream rework and keep every unit aligned on measurable milestones."
+          },
+          {
+            "id": "sub-access-01",
+            "type": "subsection",
+            "title": "Field Readiness & Documentation",
+            "titlePointId": "node.access.subsection.sub-access-01.title",
+            "subtitle": "Standardized onboarding and intake records",
+            "subtitlePointId": "node.access.subsection.sub-access-01.subtitle",
+            "elements": [
+              {
+                "id": "txt-access-02",
+                "type": "text",
+                "pointId": "node.access.text.txt-access-02",
+                "as": "p",
+                "content": "Each regional team completes an intake checklist verifying resource availability, schedule alignment, and point-of-contact assignments."
+              },
+              {
+                "id": "pho-access-01",
+                "type": "photo",
+                "pointId": "node.access.photo.pho-access-01",
+                "src": "/images/nodes/01-access.webp",
+                "alt": "Foundational scoping and baseline review session",
+                "caption": "Initial scoping and baseline alignment across participating teams.",
+                "aspectRatio": "16/9"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sec-access-02",
+        "type": "section",
+        "number": "02",
+        "isNumbered": true,
+        "title": "Operational Activity Metrics",
+        "titlePointId": "node.access.section.sec-access-02.title",
+        "subtitle": "Transaction volume and unit throughput",
+        "subtitlePointId": "node.access.section.sec-access-02.subtitle",
+        "elements": [
+          {
+            "id": "txt-access-03",
+            "type": "text",
+            "pointId": "node.access.text.txt-access-03",
+            "as": "p",
+            "content": "Monthly throughput is tracked across six regional units to monitor completed versus pending tasks during the initiation window."
+          },
+          {
+            "id": "cht-access-01",
+            "type": "chart",
+            "chartId": "chart-access-enrolment",
+            "title": "Operational Activity Volume",
+            "subtitle": "Monthly processed transaction volume across regional units"
+          }
+        ]
+      }
+    ]
+  },
+  "equity": {
+    "nodeId": "equity",
+    "version": 2,
+    "updatedAt": "2026-01-15T00:00:00.000Z",
+    "sections": [
+      {
+        "id": "sec-equity-01",
+        "type": "section",
+        "number": "01",
+        "isNumbered": true,
+        "title": "Workflow & Specification Mapping",
+        "titlePointId": "node.equity.section.sec-equity-01.title",
+        "subtitle": "Cross-unit dependencies and functional criteria",
+        "subtitlePointId": "node.equity.section.sec-equity-01.subtitle",
+        "elements": [
+          {
+            "id": "txt-equity-01",
+            "type": "text",
+            "pointId": "node.equity.text.txt-equity-01",
+            "as": "p",
+            "content": "Stage 02 translates high-level project goals into concrete workflow specifications. Teams map handoff boundaries, standardize reporting formats, and validate integration points."
+          },
+          {
+            "id": "pho-equity-01",
+            "type": "photo",
+            "pointId": "node.equity.photo.pho-equity-01",
+            "src": "/images/nodes/02-equity.webp",
+            "alt": "Collaborative workflow planning session",
+            "caption": "Coordinated planning across specialized operational units.",
+            "aspectRatio": "16/9"
+          }
+        ]
+      },
+      {
+        "id": "sec-equity-02",
+        "type": "section",
+        "number": "02",
+        "isNumbered": true,
+        "title": "Resource Allocation Breakdown",
+        "titlePointId": "node.equity.section.sec-equity-02.title",
+        "subtitle": "Departmental expenditure distribution",
+        "subtitlePointId": "node.equity.section.sec-equity-02.subtitle",
+        "elements": [
+          {
+            "id": "cht-equity-01",
+            "type": "chart",
+            "chartId": "chart-equity-assistance",
+            "title": "Resource Allocation by Department",
+            "subtitle": "Percentage distribution of standard operational expenditure"
+          }
+        ]
+      }
+    ]
+  },
+  "quality": {
+    "nodeId": "quality",
+    "version": 2,
+    "updatedAt": "2026-01-15T00:00:00.000Z",
+    "sections": [
+      {
+        "id": "sec-quality-01",
+        "type": "section",
+        "number": "01",
+        "isNumbered": true,
+        "title": "Implementation & Quality Assurance",
+        "titlePointId": "node.quality.section.sec-quality-01.title",
+        "subtitle": "Verification gates and deliverable benchmarks",
+        "subtitlePointId": "node.quality.section.sec-quality-01.subtitle",
+        "elements": [
+          {
+            "id": "txt-quality-01",
+            "type": "text",
+            "pointId": "node.quality.text.txt-quality-01",
+            "as": "p",
+            "content": "Stage 03 oversees active execution, continuous quality checks, and quarterly performance reviews against established operational benchmarks."
+          },
+          {
+            "id": "pho-quality-01",
+            "type": "photo",
+            "pointId": "node.quality.photo.pho-quality-01",
+            "src": "/images/nodes/03-quality.webp",
+            "alt": "Quality assurance and implementation review",
+            "caption": "Structured verification of quarterly performance indicators.",
+            "aspectRatio": "16/9"
+          }
+        ]
+      },
+      {
+        "id": "sec-quality-02",
+        "type": "section",
+        "number": "02",
+        "isNumbered": true,
+        "title": "Quarterly Performance Index",
+        "titlePointId": "node.quality.section.sec-quality-02.title",
+        "subtitle": "Longitudinal indicator tracking",
+        "subtitlePointId": "node.quality.section.sec-quality-02.subtitle",
+        "elements": [
+          {
+            "id": "cht-quality-01",
+            "type": "chart",
+            "chartId": "chart-quality-mps",
+            "title": "Quarterly Performance Index",
+            "subtitle": "Standard performance indicators recorded over consecutive quarters"
+          }
+        ]
+      }
+    ]
+  },
+  "resiliency": {
+    "nodeId": "resiliency",
+    "version": 2,
+    "updatedAt": "2026-01-15T00:00:00.000Z",
+    "sections": [
+      {
+        "id": "sec-resiliency-01",
+        "type": "section",
+        "number": "01",
+        "isNumbered": true,
+        "title": "System Optimization & Continuity",
+        "titlePointId": "node.resiliency.section.sec-resiliency-01.title",
+        "subtitle": "Response readiness and operational resilience",
+        "subtitlePointId": "node.resiliency.section.sec-resiliency-01.subtitle",
+        "elements": [
+          {
+            "id": "txt-resiliency-01",
+            "type": "text",
+            "pointId": "node.resiliency.text.txt-resiliency-01",
+            "as": "p",
+            "content": "Stage 04 focuses on response times, continuity drills, and bottleneck elimination so operational workflows remain reliable under peak demand."
+          },
+          {
+            "id": "pho-resiliency-01",
+            "type": "photo",
+            "pointId": "node.resiliency.photo.pho-resiliency-01",
+            "src": "/images/nodes/04-resiliency.webp",
+            "alt": "Operational continuity and response readiness",
+            "caption": "Continuous monitoring of response latency and recovery readiness.",
+            "aspectRatio": "16/9"
+          }
+        ]
+      },
+      {
+        "id": "sec-resiliency-02",
+        "type": "section",
+        "number": "02",
+        "isNumbered": true,
+        "title": "Response Time Distribution",
+        "titlePointId": "node.resiliency.section.sec-resiliency-02.title",
+        "subtitle": "Completion latency across standard requests",
+        "subtitlePointId": "node.resiliency.section.sec-resiliency-02.subtitle",
+        "elements": [
+          {
+            "id": "cht-resiliency-01",
+            "type": "chart",
+            "chartId": "chart-resiliency-drrm",
+            "title": "Response Time Distribution",
+            "subtitle": "Distribution of response completion times across standard requests"
+          }
+        ]
+      }
+    ]
+  },
+  "governance": {
+    "nodeId": "governance",
+    "version": 2,
+    "updatedAt": "2026-01-15T00:00:00.000Z",
+    "sections": [
+      {
+        "id": "sec-governance-01",
+        "type": "section",
+        "number": "01",
+        "isNumbered": true,
+        "title": "Governance & Audit Readiness",
+        "titlePointId": "node.governance.section.sec-governance-01.title",
+        "subtitle": "Transparent reporting and administrative compliance",
+        "subtitlePointId": "node.governance.section.sec-governance-01.subtitle",
+        "elements": [
+          {
+            "id": "txt-governance-01",
+            "type": "text",
+            "pointId": "node.governance.text.txt-governance-01",
+            "as": "p",
+            "content": "Stage 05 consolidates audit logs, administrative filings, and scheduled compliance reviews into an immutable operational record."
+          },
+          {
+            "id": "pho-governance-01",
+            "type": "photo",
+            "pointId": "node.governance.photo.pho-governance-01",
+            "src": "/images/nodes/05-governance.webp",
+            "alt": "Governance review and audit documentation",
+            "caption": "Scheduled administrative reviews and compliance verification.",
+            "aspectRatio": "16/9"
+          }
+        ]
+      },
+      {
+        "id": "sec-governance-02",
+        "type": "section",
+        "number": "02",
+        "isNumbered": true,
+        "title": "Scheduled Tasks & Reviews",
+        "titlePointId": "node.governance.section.sec-governance-02.title",
+        "subtitle": "Weekly completed reviews and filings",
+        "subtitlePointId": "node.governance.section.sec-governance-02.subtitle",
+        "elements": [
+          {
+            "id": "cht-governance-01",
+            "type": "chart",
+            "chartId": "chart-governance-mooe",
+            "title": "Scheduled Tasks & Administrative Reviews",
+            "subtitle": "Weekly completed reviews and administrative filings"
+          }
+        ]
+      }
+    ]
+  }
+}

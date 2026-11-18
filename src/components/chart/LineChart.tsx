@@ -43,7 +43,7 @@ export const LineChart: React.FC<LineChartProps> = ({
   curveInterpolation = 'smooth',
   showAreaFill = false,
   markerSize = 'regular',
-  autoScaleY = false,
+  autoScaleY = true,
   startAtZero,
   showValues = false,
   xLabel,

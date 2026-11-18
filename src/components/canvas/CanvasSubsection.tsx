@@ -40,6 +40,9 @@ export const CanvasSubsection: React.FC<CanvasSubsectionProps> = memo(({
       className={`${styles.subsection} ${className || ''}`.trim()}
       role="region"
       aria-label={subsection.title}
+      data-toc-title={subsection.title}
+      data-toc-level="subsection"
+      data-toc-numbered="false"
     >
       <SectionTitle
         title={subsection.title}

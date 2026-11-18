@@ -973,9 +973,23 @@
   outline: none !important;
 }
 
-.segmentBtn:hover {
+.segmentBtn:hover:not(:disabled) {
   color: var(--text-primary);
   background: var(--bg-surface);
+}
+
+.segmentBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.segmentBtn:focus-visible {
+  outline: none !important;
+  box-shadow: inset 0 0 0 1px var(--folio-primary);
+}
+
+.segmentBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .segmentBtnActive {
@@ -988,6 +1002,11 @@
 
 .segmentIcon {
   font-size: var(--text-xs);
+}
+
+.nestedControl {
+  padding-left: var(--space-6);
+  margin-top: var(--space-1);
 }
 
 /* Tier 2: Column Type Badges & Series Actions */
@@ -1033,16 +1052,18 @@
 .seriesActionsRow {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  justify-content: flex-end;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1-5);
   outline: none;
 }
 
 .quickActionBtn {
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-0-5) var(--space-1-5);
   font-size: 10px;
   font-family: var(--font-sans);
   font-weight: 500;
+  line-height: var(--leading-tight);
   border: 1px solid var(--border-default);
   background: var(--bg-surface);
   color: var(--text-secondary);
@@ -1052,9 +1073,24 @@
   outline: none !important;
 }
 
-.quickActionBtn:hover {
+.quickActionBtn:hover:not(:disabled) {
   background: var(--bg-surface-muted);
   color: var(--text-primary);
+}
+
+.quickActionBtn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.quickActionBtn:focus-visible {
+  outline: none !important;
+  border-color: var(--folio-primary);
+  color: var(--folio-primary);
+}
+
+.quickActionBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .reorderBtnGroup {

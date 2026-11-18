@@ -33,26 +33,78 @@
   justify-content: space-between;
 }
 
-.select {
-  width: 100%;
-  box-sizing: border-box;
-  padding: var(--space-2) var(--space-3);
-  font-family: var(--font-sans);
-  font-size: var(--text-body);
-  color: var(--text-primary);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out),
-              background var(--duration-fast) var(--ease-out);
+/* Segmented Chart Type Switcher */
+.chartTypeGroup {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--bg-surface-muted);
+  border: 1px solid var(--folio-border);
+  border-radius: calc(var(--radius-control) + var(--space-1));
   outline: none;
 }
 
-.select:focus {
-  border-color: var(--folio-primary);
-  background: var(--bg-surface);
+.chartTypeOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-1-5) var(--space-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  user-select: none;
   outline: none;
+  transition: color var(--duration-fast) var(--ease-out),
+              background var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out),
+              transform var(--duration-fast) var(--ease-out);
+}
+
+.chartTypeOption:hover:not(:disabled):not(.chartTypeOptionActive) {
+  color: var(--text-primary);
+  background: var(--folio-bg-surface);
+  transform: translateY(calc(-1 * var(--space-0-5)));
+}
+
+.chartTypeOption:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.chartTypeOption:focus-visible {
+  outline: none;
+  border-color: var(--folio-primary);
+  color: var(--text-primary);
+}
+
+.chartTypeOption:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chartTypeOptionActive {
+  color: var(--folio-primary);
+  background: var(--folio-bg-surface);
+  border-color: var(--folio-border);
+  box-shadow: var(--elevation-flat);
+}
+
+.chartTypeOptionActive:focus-visible {
+  outline: none;
+  border-color: var(--folio-primary);
+}
+
+.chartTypeLabel {
+  line-height: var(--leading-tight);
+  white-space: nowrap;
 }
 
 /* Sub-Tab Navigation Bar */
@@ -62,7 +114,8 @@
   gap: var(--space-1);
   background: var(--bg-surface-muted);
   padding: var(--space-1);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--folio-border);
+  border-radius: calc(var(--radius-control) + var(--space-1));
   margin-bottom: var(--space-3);
   outline: none;
 }
@@ -74,7 +127,7 @@
   font-weight: 600;
   color: var(--text-secondary);
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--radius-control);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
@@ -86,6 +139,12 @@
 .subTabButton:hover:not(.subTabActive) {
   color: var(--text-primary);
   background: var(--bg-surface);
+}
+
+.subTabButton:focus-visible {
+  outline: none;
+  border-color: var(--folio-primary);
+  color: var(--text-primary);
 }
 
 .subTabActive {

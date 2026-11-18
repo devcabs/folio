@@ -116,6 +116,20 @@ async function parseErrorDetail(res: Response): Promise<string> {
 }
 
 /**
+ * Rejects HTML responses (e.g. Vite/SPA fallback serving index.html with HTTP 200)
+ * before calling res.json(), avoiding cryptic `Unexpected token '<', "<!DOCTYPE "...` errors.
+ */
+function assertJsonContentType(res: Response, label: string): void {
+  const contentType =
+    res.headers && typeof res.headers.get === 'function'
+      ? res.headers.get('content-type') || ''
+      : '';
+  if (contentType && contentType.toLowerCase().includes('html')) {
+    throw new Error(`${label}: expected JSON but received ${contentType}`);
+  }
+}
+
+/**
  * Fetches Public Mode contentOverrides directly from Cloudflare KV portal:manifest.
  * Fails stop (throws) on non-2xx HTTP status or network error.
  */
@@ -127,6 +141,7 @@ export async function fetchPublicManifestOverrides(): Promise<Record<string, str
   if (!res.ok) {
     throw new Error(`Manifest KV read failed (HTTP ${res.status})`);
   }
+  assertJsonContentType(res, 'Manifest KV read failed');
   const manifest = (await res.json()) as PublicPortalManifestPayload;
   return manifest.contentOverrides ? { ...manifest.contentOverrides } : {};
 }
@@ -150,6 +165,7 @@ export async function fetchDraftWorkspaceOverrides(
     const detail = await parseErrorDetail(res);
     throw new Error(`Draft workspace KV read failed: ${detail} (HTTP ${res.status})`);
   }
+  assertJsonContentType(res, 'Draft workspace KV read failed');
   const draft = (await res.json()) as DraftWorkspaceResponse;
   return {
     contentOverrides: draft.contentOverrides ? { ...draft.contentOverrides } : {},

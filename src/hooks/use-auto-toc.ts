@@ -39,6 +39,10 @@ export function extractNavItemsFromContainer(
   const elements = Array.from(container.querySelectorAll<HTMLElement>(sectionSelector));
   const seenIds = new Set<string>();
   const items: NavItem[] = [];
+  const sectionEntries: Array<{ el: HTMLElement; item: NavItem }> = [];
+
+  const isSubsectionEl = (node: HTMLElement) =>
+    node.getAttribute('data-toc-level') === 'subsection';
 
   for (const el of elements) {
     const id = el.id?.trim();
@@ -52,13 +56,17 @@ export function extractNavItemsFromContainer(
       continue;
     }
 
-    // If an element contains child sections that are themselves matched sections in the TOC,
+    const isSubsection = isSubsectionEl(el);
+
+    // If a top-level element contains child top-level sections,
     // this element is a wrapper container, NOT an individual leaf section
-    const hasChildSections = elements.some(
-      (other) => other !== el && el.contains(other)
-    );
-    if (hasChildSections) {
-      continue;
+    if (!isSubsection) {
+      const hasChildSections = elements.some(
+        (other) => other !== el && el.contains(other) && !isSubsectionEl(other)
+      );
+      if (hasChildSections) {
+        continue;
+      }
     }
 
     seenIds.add(id);
@@ -104,15 +112,59 @@ export function extractNavItemsFromContainer(
       number = (dataNumber && dataNumber !== 'false') ? dataNumber : numberText || undefined;
     }
 
-    items.push({
-      id,
-      label,
-      number,
-      href: `#${id}`,
-    });
+    if (isSubsection) {
+      const subItem: NavItem = {
+        id,
+        label,
+        number,
+        href: `#${id}`,
+        level: 'subsection',
+      };
+
+      let parentEntry: { el: HTMLElement; item: NavItem } | undefined;
+      for (let i = sectionEntries.length - 1; i >= 0; i--) {
+        if (sectionEntries[i].el.contains(el)) {
+          parentEntry = sectionEntries[i];
+          break;
+        }
+      }
+
+      if (parentEntry) {
+        if (!parentEntry.item.children) {
+          parentEntry.item.children = [];
+        }
+        parentEntry.item.children.push(subItem);
+      } else {
+        items.push(subItem);
+      }
+    } else {
+      const sectionItem: NavItem = {
+        id,
+        label,
+        number,
+        href: `#${id}`,
+      };
+      items.push(sectionItem);
+      sectionEntries.push({ el, item: sectionItem });
+    }
   }
 
   return items;
+}
+
+function areNavItemsEqual(a: NavItem[], b: NavItem[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((itemA, idx) => {
+    const itemB = b[idx];
+    return (
+      itemA.id === itemB.id &&
+      itemA.label === itemB.label &&
+      itemA.number === itemB.number &&
+      itemA.href === itemB.href &&
+      itemA.level === itemB.level &&
+      areNavItemsEqual(itemA.children || [], itemB.children || [])
+    );
+  });
 }
 
 /**
@@ -159,22 +211,13 @@ export function useAutoTableOfContents(
         formatIdToTitle
       );
 
-      setItems((prev) => {
-        if (
-          prev.length === newItems.length &&
-          prev.every(
-            (p, idx) =>
-              p.id === newItems[idx].id &&
-              p.label === newItems[idx].label &&
-              p.number === newItems[idx].number &&
-              p.href === newItems[idx].href
-          )
-        ) {
-          return prev;
-        }
-        return newItems;
-      });
+      setItems((prev) => (areNavItemsEqual(prev, newItems) ? prev : newItems));
     };
+
+    if (typeof MutationObserver === 'undefined') {
+      updateItems();
+      return;
+    }
 
     const scheduleUpdate = () => {
       if (rafIdRef.current !== null) return;
@@ -184,38 +227,59 @@ export function useAutoTableOfContents(
       });
     };
 
-    // Run initial scan
-    updateItems();
-
-    const container = getContainer();
-    if (!container) {
-      // Container might not be mounted yet on very first tick; schedule check
+    let observedContainer: HTMLElement | null = null;
+    const containerObserver = new MutationObserver(() => {
       scheduleUpdate();
-      return;
+    });
+
+    const syncContainerObserver = () => {
+      const nextContainer = getContainer();
+      if (nextContainer === observedContainer) return;
+
+      containerObserver.disconnect();
+      observedContainer = nextContainer;
+
+      if (observedContainer) {
+        containerObserver.observe(observedContainer, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: [
+            'id',
+            'data-toc-title',
+            'data-title',
+            'data-toc-number',
+            'data-toc-numbered',
+            'data-toc-level',
+            'data-number',
+            'data-numbered',
+            'aria-label',
+          ],
+        });
+      }
+
+      updateItems();
+    };
+
+    // Initial scan & observer attachment
+    syncContainerObserver();
+
+    // Watch document.body when targeting by containerId so route transitions
+    // that mount/unmount the container automatically re-bind the observer.
+    let rootObserver: MutationObserver | null = null;
+    if (!containerRef && containerId && typeof document !== 'undefined' && document.body) {
+      rootObserver = new MutationObserver(() => {
+        syncContainerObserver();
+      });
+      rootObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
     }
 
-    const observer = new MutationObserver(() => {
-      scheduleUpdate();
-    });
-
-    observer.observe(container, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: [
-        'id',
-        'data-toc-title',
-        'data-title',
-        'data-toc-number',
-        'data-toc-numbered',
-        'data-number',
-        'data-numbered',
-        'aria-label',
-      ],
-    });
-
     return () => {
-      observer.disconnect();
+      containerObserver.disconnect();
+      rootObserver?.disconnect();
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = null;

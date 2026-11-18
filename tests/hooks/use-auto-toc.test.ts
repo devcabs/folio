@@ -141,5 +141,56 @@ describe('useAutoTableOfContents & extractNavItemsFromContainer', () => {
     expect(items.map((i) => i.label)).toEqual(['Node Overview', '112323']);
     expect(items.map((i) => i.number)).toEqual([undefined, '01']);
   });
+
+  it('extracts subsections nested under their parent section without skipping the parent', () => {
+    const container = createMockElement('main', 'node-content');
+
+    const sec1 = createMockElement('section', 'sec-architecture', {
+      'data-toc-title': 'Architecture',
+      'data-toc-number': '01',
+      'data-toc-numbered': 'true',
+    });
+
+    const sub1 = createMockElement('div', 'subsec-tokens', {
+      'data-toc-title': 'Design Tokens',
+      'data-toc-level': 'subsection',
+      'data-toc-numbered': 'false',
+    });
+    const sub2 = createMockElement('div', 'subsec-layout', {
+      'data-toc-title': 'Layout Grid',
+      'data-toc-level': 'subsection',
+      'data-toc-numbered': 'false',
+    });
+
+    sec1.appendChild(sub1);
+    sec1.appendChild(sub2);
+    container.appendChild(sec1);
+
+    const items = extractNavItemsFromContainer(container);
+    expect(items).toEqual([
+      {
+        id: 'sec-architecture',
+        label: 'Architecture',
+        number: '01',
+        href: '#sec-architecture',
+        children: [
+          {
+            id: 'subsec-tokens',
+            label: 'Design Tokens',
+            number: undefined,
+            href: '#subsec-tokens',
+            level: 'subsection',
+          },
+          {
+            id: 'subsec-layout',
+            label: 'Layout Grid',
+            number: undefined,
+            href: '#subsec-layout',
+            level: 'subsection',
+          },
+        ],
+      },
+    ]);
+  });
 });
 

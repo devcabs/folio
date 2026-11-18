@@ -17,4 +17,8 @@ export interface NavItem {
   number?: string;
   /** Explicit active state flag when controlled externally */
   isActive?: boolean;
+  /** Optional hierarchy level for nested Table of Contents rendering */
+  level?: 'section' | 'subsection';
+  /** Optional nested child navigation items (e.g. subsections under a section) */
+  children?: NavItem[];
 }

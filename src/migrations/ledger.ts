@@ -840,6 +840,47 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.2.5',
+    releaseDate: '2026-11-18',
+    title: 'Chart Config UX Realignment (Epic 10) & Nested Editorial ToC',
+    summary:
+      'Realigned ChartConfigDrawer Step 2 into Shape the Data -> Encode the Visual -> Polish & Label with a segmented chart type switcher, non-exclusive accordions, Auto/Zero baseline toggles, and split Scatter analytics/scale controls; added nested subsection Table of Contents support in useAutoToc and EditorialSidebar.',
+    breakingChanges: [
+      'No breaking API changes; additive NavItem.level and NavItem.children properties and ChartConfigDrawer Step 2 UX realignment.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.2.5 to acknowledge Epic 10 chart configuration UX and nested ToC updates.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.2.4" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.2.5" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'chart-config-ux-realignment-0.2.5',
+        title: 'Chart Configuration UX Realignment & Nested Subsection ToC',
+        required: false,
+        description:
+          'ChartConfigDrawer Step 2 now uses a segmented Chart Type switcher, non-exclusive accordions, Auto | Zero baseline toggles, and Shape -> Encode -> Polish ordering; EditorialSidebar and useAutoToc support nested subsection navigation items.',
+        affectedEntities: ['ChartConfigDrawer', 'Step3ChartSetup', 'EditorialSidebar', 'useAutoToc', 'NavItem'],
+        migrationPrompt:
+          'No manual code migration required. Upgrade @devcabs/folio-engine to 0.2.5 for the realigned chart configuration UX and nested subsection ToC.',
+      },
+      {
+        id: 'content-version-watermark-0.2.5',
+        title: 'Advance contentVersion Watermark to 0.2.5',
+        required: true,
+        description:
+          'Update contentVersion watermark in EngineConfig to 0.2.5 to clear pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.2.5"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

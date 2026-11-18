@@ -1,4 +1,5 @@
 import React from 'react';
+import { AxisBaselineToggle } from './AxisBaselineToggle';
 import styles from '../../ChartConfigDrawer.module.css';
 
 interface LineVisualControlsProps {
@@ -72,22 +73,14 @@ export const LineVisualControls: React.FC<LineVisualControlsProps> = ({
         </label>
       </div>
 
-      <div className={styles.formGroup}>
-        <label htmlFor="cfg-line-start-at-zero" className={styles.checkboxLabel}>
-          <input
-            id="cfg-line-start-at-zero"
-            type="checkbox"
-            className={styles.checkbox}
-            checked={startAtZero}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setStartAtZero(checked);
-              setAutoScaleY(!checked);
-            }}
-          />
-          <span>Start vertical axis at zero</span>
-        </label>
-      </div>
+      <AxisBaselineToggle
+        label="Vertical (Y) Axis Baseline"
+        startAtZero={startAtZero}
+        onChange={(nextStartAtZero) => {
+          setStartAtZero(nextStartAtZero);
+          setAutoScaleY(!nextStartAtZero);
+        }}
+      />
     </>
   );
 };

@@ -81,14 +81,14 @@ export function createSnapshotFromConfig(cfg?: SheetChartConfig): FormSnapshot {
     curveInterpolation: cfg?.visualConfig?.curveInterpolation || (cfg?.defaultType === 'scatter' ? 'none' : 'smooth'),
     showAreaFill: cfg?.visualConfig?.showAreaFill || false,
     markerSize: cfg?.visualConfig?.markerSize || 'regular',
-    autoScaleY: cfg?.visualConfig?.autoScaleY || false,
-    startAtZero: cfg?.visualConfig?.startAtZero ?? (cfg?.visualConfig?.autoScaleY ? false : true),
+    autoScaleY: cfg?.visualConfig?.autoScaleY ?? (cfg?.visualConfig?.startAtZero !== undefined ? !cfg.visualConfig.startAtZero : true),
+    startAtZero: cfg?.visualConfig?.startAtZero ?? (cfg?.visualConfig?.autoScaleY !== undefined ? !cfg.visualConfig.autoScaleY : false),
     scatterXColIndex: cfg?.visualConfig?.scatterXColIndex,
     scatterYColIndex: cfg?.visualConfig?.scatterYColIndex,
     scatterLabelColIndex: cfg?.visualConfig?.scatterLabelColIndex,
     scatterGroupColIndex: cfg?.visualConfig?.scatterGroupColIndex,
-    autoScaleX: cfg?.visualConfig?.autoScaleX || false,
-    startAtZeroX: cfg?.visualConfig?.startAtZeroX ?? (cfg?.visualConfig?.autoScaleX ? false : true),
+    autoScaleX: cfg?.visualConfig?.autoScaleX ?? (cfg?.visualConfig?.startAtZeroX !== undefined ? !cfg.visualConfig.startAtZeroX : true),
+    startAtZeroX: cfg?.visualConfig?.startAtZeroX ?? (cfg?.visualConfig?.autoScaleX !== undefined ? !cfg.visualConfig.autoScaleX : false),
     loessBandwidth: cfg?.visualConfig?.loessBandwidth ?? 0.5,
     showCorrelationChip: cfg?.visualConfig?.showCorrelationChip || false,
     donutVariant: cfg?.visualConfig?.donutVariant || 'donut',
@@ -181,13 +181,15 @@ export function useChartConfigForm(initialConfig?: SheetChartConfig) {
   const [markerSize, setMarkerSize] = useState<'compact' | 'regular' | 'prominent'>(
     () => initialConfig?.visualConfig?.markerSize || 'regular'
   );
-  const [autoScaleY, setAutoScaleY] = useState<boolean>(
-    () => initialConfig?.visualConfig?.autoScaleY || false
-  );
+  const [autoScaleY, setAutoScaleY] = useState<boolean>(() => {
+    if (initialConfig?.visualConfig?.autoScaleY !== undefined) return initialConfig.visualConfig.autoScaleY;
+    if (initialConfig?.visualConfig?.startAtZero !== undefined) return !initialConfig.visualConfig.startAtZero;
+    return true;
+  });
   const [startAtZero, setStartAtZero] = useState<boolean>(() => {
     if (initialConfig?.visualConfig?.startAtZero !== undefined) return initialConfig.visualConfig.startAtZero;
     if (initialConfig?.visualConfig?.autoScaleY !== undefined) return !initialConfig.visualConfig.autoScaleY;
-    return true;
+    return false;
   });
 
   // Scatter visual state
@@ -203,13 +205,15 @@ export function useChartConfigForm(initialConfig?: SheetChartConfig) {
   const [scatterGroupColIndex, setScatterGroupColIndex] = useState<number | undefined>(
     () => initialConfig?.visualConfig?.scatterGroupColIndex
   );
-  const [autoScaleX, setAutoScaleX] = useState<boolean>(
-    () => initialConfig?.visualConfig?.autoScaleX || false
-  );
+  const [autoScaleX, setAutoScaleX] = useState<boolean>(() => {
+    if (initialConfig?.visualConfig?.autoScaleX !== undefined) return initialConfig.visualConfig.autoScaleX;
+    if (initialConfig?.visualConfig?.startAtZeroX !== undefined) return !initialConfig.visualConfig.startAtZeroX;
+    return true;
+  });
   const [startAtZeroX, setStartAtZeroX] = useState<boolean>(() => {
     if (initialConfig?.visualConfig?.startAtZeroX !== undefined) return initialConfig.visualConfig.startAtZeroX;
     if (initialConfig?.visualConfig?.autoScaleX !== undefined) return !initialConfig.visualConfig.autoScaleX;
-    return true;
+    return false;
   });
   const [loessBandwidth, setLoessBandwidth] = useState<number>(
     () => initialConfig?.visualConfig?.loessBandwidth ?? 0.5
@@ -257,6 +261,25 @@ export function useChartConfigForm(initialConfig?: SheetChartConfig) {
     createSnapshotFromConfig(initialConfig)
   );
 
+  const handleSetChartType = useCallback(
+    (nextType: ChartType) => {
+      setChartType(nextType);
+      setCurveInterpolation((prev) => {
+        if (nextType === 'scatter' && (prev === 'smooth' || prev === 'straight')) {
+          return 'none';
+        }
+        if (nextType === 'line' && (prev === 'none' || prev === 'linear' || prev === 'polynomial')) {
+          return 'smooth';
+        }
+        if (nextType === 'histogram' && (prev === 'straight' || prev === 'linear' || prev === 'polynomial')) {
+          return 'none';
+        }
+        return prev;
+      });
+    },
+    []
+  );
+
   // Reset form to a specific configuration
   const resetForm = useCallback((cfg?: SheetChartConfig) => {
     const snapshot = createSnapshotFromConfig(cfg);
@@ -291,14 +314,14 @@ export function useChartConfigForm(initialConfig?: SheetChartConfig) {
     setCurveInterpolation(cfg?.visualConfig?.curveInterpolation || (cfg?.defaultType === 'scatter' ? 'none' : 'smooth'));
     setShowAreaFill(cfg?.visualConfig?.showAreaFill || false);
     setMarkerSize(cfg?.visualConfig?.markerSize || 'regular');
-    setAutoScaleY(cfg?.visualConfig?.autoScaleY || false);
-    setStartAtZero(cfg?.visualConfig?.startAtZero ?? (cfg?.visualConfig?.autoScaleY ? false : true));
+    setAutoScaleY(cfg?.visualConfig?.autoScaleY ?? (cfg?.visualConfig?.startAtZero !== undefined ? !cfg.visualConfig.startAtZero : true));
+    setStartAtZero(cfg?.visualConfig?.startAtZero ?? (cfg?.visualConfig?.autoScaleY !== undefined ? !cfg.visualConfig.autoScaleY : false));
     setScatterXColIndex(cfg?.visualConfig?.scatterXColIndex);
     setScatterYColIndex(cfg?.visualConfig?.scatterYColIndex);
     setScatterLabelColIndex(cfg?.visualConfig?.scatterLabelColIndex);
     setScatterGroupColIndex(cfg?.visualConfig?.scatterGroupColIndex);
-    setAutoScaleX(cfg?.visualConfig?.autoScaleX || false);
-    setStartAtZeroX(cfg?.visualConfig?.startAtZeroX ?? (cfg?.visualConfig?.autoScaleX ? false : true));
+    setAutoScaleX(cfg?.visualConfig?.autoScaleX ?? (cfg?.visualConfig?.startAtZeroX !== undefined ? !cfg.visualConfig.startAtZeroX : true));
+    setStartAtZeroX(cfg?.visualConfig?.startAtZeroX ?? (cfg?.visualConfig?.autoScaleX !== undefined ? !cfg.visualConfig.autoScaleX : false));
     setLoessBandwidth(cfg?.visualConfig?.loessBandwidth ?? 0.5);
     setShowCorrelationChip(cfg?.visualConfig?.showCorrelationChip || false);
     setDonutVariant(cfg?.visualConfig?.donutVariant || 'donut');
@@ -568,7 +591,7 @@ export function useChartConfigForm(initialConfig?: SheetChartConfig) {
     range,
     setRange,
     chartType,
-    setChartType,
+    setChartType: handleSetChartType,
     unit,
     setUnit,
     titleOverride,

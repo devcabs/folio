@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import type { ChartType } from '../../../../types/chart';
 import type { ChartConfigFormReturn } from '../hooks/useChartConfigForm';
 import { BarVisualControls } from '../controls/BarVisualControls';
 import { LineVisualControls } from '../controls/LineVisualControls';
 import { DonutVisualControls } from '../controls/DonutVisualControls';
 import { HistogramVisualControls } from '../controls/HistogramVisualControls';
-import { ScatterVisualControls } from '../controls/ScatterVisualControls';
+import { ScatterVisualControls, ScatterScaleControls } from '../controls/ScatterVisualControls';
 import { ChartTitlesSection } from '../controls/ChartTitlesSection';
 import { ScatterDataControls } from '../controls/ScatterDataControls';
 import { StandardDataControls } from '../controls/StandardDataControls';
@@ -14,6 +14,78 @@ import { ValueLabelToggle, AccordionSection } from '../../../ui';
 import styles from './Step3ChartSetup.module.css';
 
 export type ChartSetupSubTab = 'style' | 'data' | 'sorting';
+
+const CHART_TYPE_OPTIONS: ReadonlyArray<{ value: ChartType; label: string }> = [
+  { value: 'bar', label: 'Bar' },
+  { value: 'line', label: 'Line' },
+  { value: 'donut', label: 'Donut' },
+  { value: 'scatter', label: 'Scatter' },
+  { value: 'histogram', label: 'Histogram' },
+];
+
+const ChartTypeIcon: React.FC<{ type: ChartType }> = ({ type }) => {
+  switch (type) {
+    case 'bar':
+      return (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <rect x="2" y="8" width="3" height="6" rx="0.75" />
+          <rect x="6.5" y="4" width="3" height="10" rx="0.75" />
+          <rect x="11" y="6" width="3" height="8" rx="0.75" />
+        </svg>
+      );
+    case 'line':
+      return (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="2 12 6 7.5 9.5 9.5 14 4" />
+          <circle cx="6" cy="7.5" r="1" fill="currentColor" stroke="none" />
+          <circle cx="9.5" cy="9.5" r="1" fill="currentColor" stroke="none" />
+          <circle cx="14" cy="4" r="1" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'donut':
+      return (
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.75"
+          aria-hidden="true"
+        >
+          <circle cx="8" cy="8" r="4.75" />
+        </svg>
+      );
+    case 'scatter':
+      return (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <circle cx="4" cy="11" r="1.5" />
+          <circle cx="6.5" cy="6.5" r="1.5" />
+          <circle cx="10.5" cy="8.5" r="1.5" />
+          <circle cx="12.5" cy="4" r="1.5" />
+        </svg>
+      );
+    case 'histogram':
+      return (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <rect x="2" y="9" width="3" height="5" />
+          <rect x="5" y="5" width="3" height="9" />
+          <rect x="8" y="3" width="3" height="11" />
+          <rect x="11" y="7" width="3" height="7" />
+        </svg>
+      );
+  }
+};
 
 interface Step3ChartSetupProps {
   form: ChartConfigFormReturn;
@@ -128,25 +200,84 @@ export const Step3ChartSetup: React.FC<Step3ChartSetupProps> = ({
   const effectiveScatterLabel =
     typeof scatterLabelColIndex === 'number' ? scatterLabelColIndex : 0;
 
+  const chartTypeRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const handleChartTypeKeyDown = (
+    e: React.KeyboardEvent<HTMLButtonElement>,
+    index: number
+  ) => {
+    let nextIndex: number | null = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      nextIndex = (index + 1) % CHART_TYPE_OPTIONS.length;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      nextIndex = (index - 1 + CHART_TYPE_OPTIONS.length) % CHART_TYPE_OPTIONS.length;
+    } else if (e.key === 'Home') {
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      nextIndex = CHART_TYPE_OPTIONS.length - 1;
+    }
+
+    if (nextIndex === null) return;
+    e.preventDefault();
+    setChartType(CHART_TYPE_OPTIONS[nextIndex].value);
+    chartTypeRefs.current[nextIndex]?.focus();
+  };
+
+  const orderSectionTitle =
+    chartType === 'donut'
+      ? 'Slice Order & Direction'
+      : chartType === 'scatter'
+      ? 'Point Order'
+      : 'Order & Direction';
+
+  const visualSectionTitle =
+    chartType === 'bar'
+      ? 'Visual Style & Layout'
+      : chartType === 'line'
+      ? 'Visual Style & Scale'
+      : chartType === 'donut'
+      ? 'Visual Style'
+      : chartType === 'histogram'
+      ? 'Visual Style & Statistics'
+      : 'Trendline & Analytics';
+
+  const titlesSectionTitle =
+    chartType === 'donut' ? 'Titles & Subtitle' : 'Titles & Axis Labels';
+
   return (
     <div className={styles.stepPanel}>
-      {/* Global Chart Type Selector */}
+      {/* Global Chart Type Switcher */}
       <div className={styles.formGroup}>
-        <label className={styles.label} htmlFor="cfg-chart-type">
+        <div className={styles.label}>
           <span>Chart Type</span>
-        </label>
-        <select
-          id="cfg-chart-type"
-          className={styles.select}
-          value={chartType}
-          onChange={(e) => setChartType(e.target.value as ChartType)}
+        </div>
+        <div
+          className={styles.chartTypeGroup}
+          role="radiogroup"
+          aria-label="Chart Type"
         >
-          <option value="bar">Bar Chart</option>
-          <option value="line">Line Chart</option>
-          <option value="donut">Donut Chart</option>
-          <option value="scatter">Scatter Plot</option>
-          <option value="histogram">Histogram</option>
-        </select>
+          {CHART_TYPE_OPTIONS.map((option, index) => {
+            const isSelected = chartType === option.value;
+            return (
+              <button
+                key={option.value}
+                ref={(el) => {
+                  chartTypeRefs.current[index] = el;
+                }}
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
+                tabIndex={isSelected ? 0 : -1}
+                className={`${styles.chartTypeOption} ${isSelected ? styles.chartTypeOptionActive : ''}`}
+                onClick={() => setChartType(option.value)}
+                onKeyDown={(e) => handleChartTypeKeyDown(e, index)}
+              >
+                <ChartTypeIcon type={option.value} />
+                <span className={styles.chartTypeLabel}>{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Sub-Tab Navigation Bar */}
@@ -190,20 +321,6 @@ export const Step3ChartSetup: React.FC<Step3ChartSetupProps> = ({
         className={`${styles.subTabPanel} ${setupSubTab !== 'data' ? styles.subTabPanelHidden : ''}`}
         hidden={setupSubTab !== 'data'}
       >
-        <AccordionSection name="chart-data" title="Table Orientation" defaultOpen={false}>
-          <div className={styles.formGroup}>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                className={styles.checkbox}
-                checked={transpose}
-                onChange={(e) => setTranspose(e.target.checked)}
-              />
-              <span>Transpose data: Swap rows and columns</span>
-            </label>
-          </div>
-        </AccordionSection>
-
         {chartType === 'scatter' ? (
           <ScatterDataControls
             effectiveScatterX={effectiveScatterX}
@@ -242,6 +359,34 @@ export const Step3ChartSetup: React.FC<Step3ChartSetupProps> = ({
             handleToggleSeries={handleToggleSeries}
           />
         )}
+
+        <AccordionSection title={orderSectionTitle} defaultOpen={false}>
+          <SortingAndOrderControls
+            chartType={chartType}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            sortField={sortField}
+            setSortField={setSortField}
+            sortDirection={sortDirection}
+            setSortDirection={setSortDirection}
+            categoryColIndex={categoryColIndex}
+            detectedColumns={detectedColumns}
+          />
+        </AccordionSection>
+
+        <AccordionSection title="Table Orientation" defaultOpen={false}>
+          <div className={styles.formGroup}>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                className={styles.checkbox}
+                checked={transpose}
+                onChange={(e) => setTranspose(e.target.checked)}
+              />
+              <span>Transpose data: Swap rows and columns</span>
+            </label>
+          </div>
+        </AccordionSection>
       </div>
 
       {/* SUB-TAB PANEL 2: APPEARANCE */}
@@ -252,23 +397,8 @@ export const Step3ChartSetup: React.FC<Step3ChartSetupProps> = ({
         className={`${styles.subTabPanel} ${setupSubTab !== 'style' ? styles.subTabPanelHidden : ''}`}
         hidden={setupSubTab !== 'style'}
       >
-        {/* 1. Custom Titles & Labels Section */}
-        <AccordionSection name="chart-appearance" title="Titles & Axis Labels" defaultOpen={true}>
-          <ChartTitlesSection
-            titleOverride={titleOverride}
-            setTitleOverride={setTitleOverride}
-            subtitleOverride={subtitleOverride}
-            setSubtitleOverride={setSubtitleOverride}
-            xLabel={xLabel}
-            setXLabel={setXLabel}
-            yLabel={yLabel}
-            setYLabel={setYLabel}
-            chartType={chartType}
-          />
-        </AccordionSection>
-
-        {/* 2. Chart Geometry & Visual Styling */}
-        <AccordionSection name="chart-appearance" title="Geometry & Visual Style" defaultOpen={false}>
+        {/* 1. Encode the Visual: Chart Geometry & Visual Styling */}
+        <AccordionSection title={visualSectionTitle} defaultOpen={true}>
           {chartType === 'bar' && (
             <BarVisualControls
               barOrientation={barOrientation}
@@ -326,6 +456,13 @@ export const Step3ChartSetup: React.FC<Step3ChartSetupProps> = ({
               setShowCorrelationChip={setShowCorrelationChip}
               showReferenceGuide={showReferenceGuide}
               setShowReferenceGuide={setShowReferenceGuide}
+            />
+          )}
+        </AccordionSection>
+
+        {chartType === 'scatter' && (
+          <AccordionSection title="Axes & Scale" defaultOpen={false}>
+            <ScatterScaleControls
               startAtZero={startAtZero}
               setStartAtZero={setStartAtZero}
               setAutoScaleY={setAutoScaleY}
@@ -333,12 +470,12 @@ export const Step3ChartSetup: React.FC<Step3ChartSetupProps> = ({
               setStartAtZeroX={setStartAtZeroX}
               setAutoScaleX={setAutoScaleX}
             />
-          )}
-        </AccordionSection>
+          </AccordionSection>
+        )}
 
-        {/* 3. Data Labels & Annotations */}
+        {/* 2. Polish & Label: Data Labels & Annotations */}
         {(chartType === 'bar' || chartType === 'line' || chartType === 'donut') && (
-          <AccordionSection name="chart-appearance" title="Data Labels" defaultOpen={false}>
+          <AccordionSection title="Data Labels" defaultOpen={false}>
             {chartType === 'bar' && (
               <ValueLabelToggle
                 id="cfg-show-values-bar-app"
@@ -368,18 +505,18 @@ export const Step3ChartSetup: React.FC<Step3ChartSetupProps> = ({
           </AccordionSection>
         )}
 
-        {/* 4. Sorting & Data Direction (at bottom of Appearance) */}
-        <AccordionSection name="chart-appearance" title="Order & Direction" defaultOpen={false}>
-          <SortingAndOrderControls
+        {/* 3. Polish & Label: Custom Titles & Labels Section */}
+        <AccordionSection title={titlesSectionTitle} defaultOpen={false}>
+          <ChartTitlesSection
+            titleOverride={titleOverride}
+            setTitleOverride={setTitleOverride}
+            subtitleOverride={subtitleOverride}
+            setSubtitleOverride={setSubtitleOverride}
+            xLabel={xLabel}
+            setXLabel={setXLabel}
+            yLabel={yLabel}
+            setYLabel={setYLabel}
             chartType={chartType}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            sortField={sortField}
-            setSortField={setSortField}
-            sortDirection={sortDirection}
-            setSortDirection={setSortDirection}
-            categoryColIndex={categoryColIndex}
-            detectedColumns={detectedColumns}
           />
         </AccordionSection>
       </div>

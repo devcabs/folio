@@ -47,6 +47,10 @@ export class MockElement {
     return this.childNodes.filter((c: any) => c.nodeType === 1);
   }
 
+  get options(): any[] {
+    return this.children.filter((c: any) => c.tagName === 'OPTION');
+  }
+
   appendChild(child: any) {
     if (child.parentNode) {
       child.parentNode.removeChild(child);

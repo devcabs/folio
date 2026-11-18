@@ -26,7 +26,7 @@ export const ScatterDataControls: React.FC<ScatterDataControlsProps> = ({
 }) => {
   return (
     <>
-      <AccordionSection name="chart-data" title="Axes Mapping" defaultOpen={true}>
+      <AccordionSection title="Axes Mapping" defaultOpen={true}>
         <ColumnSelect
           id="cfg-scatter-x-col"
           label="X-Axis Metric (Horizontal)"
@@ -52,7 +52,7 @@ export const ScatterDataControls: React.FC<ScatterDataControlsProps> = ({
         />
       </AccordionSection>
 
-      <AccordionSection name="chart-data" title="Point Labels & Grouping" defaultOpen={false}>
+      <AccordionSection title="Point Labels & Grouping" defaultOpen={false}>
         <ColumnSelect
           id="cfg-scatter-label-col"
           label="Point Tooltip Label"

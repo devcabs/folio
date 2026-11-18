@@ -113,6 +113,21 @@
   padding: 0;
 }
 
+.subNavList {
+  list-style: none;
+  padding: 0 0 0 var(--space-2);
+  margin: 2px 0 var(--space-1) var(--space-3);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.subNavItem {
+  margin: 0;
+  padding: 0;
+}
+
 .navLink {
   display: flex;
   align-items: center;
@@ -135,6 +150,17 @@
 }
 
 .navLink:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-surface-muted);
+}
+
+.subNavLink {
+  padding: 6px 10px;
+  font-size: var(--text-caption-sm);
+  color: var(--text-muted);
+}
+
+.subNavLink:hover {
   color: var(--text-primary);
   background-color: var(--bg-surface-muted);
 }

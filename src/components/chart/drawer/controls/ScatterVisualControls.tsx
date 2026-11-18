@@ -1,5 +1,6 @@
 import React from 'react';
 import { TieredSlider } from '../../../ui';
+import { AxisBaselineToggle } from './AxisBaselineToggle';
 import styles from '../../ChartConfigDrawer.module.css';
 
 interface ScatterVisualControlsProps {
@@ -15,12 +16,6 @@ interface ScatterVisualControlsProps {
   setShowCorrelationChip: (val: boolean) => void;
   showReferenceGuide: boolean;
   setShowReferenceGuide: (val: boolean) => void;
-  startAtZero: boolean;
-  setStartAtZero: (val: boolean) => void;
-  setAutoScaleY: (val: boolean) => void;
-  startAtZeroX: boolean;
-  setStartAtZeroX: (val: boolean) => void;
-  setAutoScaleX: (val: boolean) => void;
 }
 
 export const ScatterVisualControls: React.FC<ScatterVisualControlsProps> = ({
@@ -36,12 +31,6 @@ export const ScatterVisualControls: React.FC<ScatterVisualControlsProps> = ({
   setShowCorrelationChip,
   showReferenceGuide,
   setShowReferenceGuide,
-  startAtZero,
-  setStartAtZero,
-  setAutoScaleY,
-  startAtZeroX,
-  setStartAtZeroX,
-  setAutoScaleX,
 }) => {
   return (
     <>
@@ -150,43 +139,46 @@ export const ScatterVisualControls: React.FC<ScatterVisualControlsProps> = ({
           <span>Show Mean Quadrant Crosshairs</span>
         </label>
       </div>
-
-      <div className={styles.twoColRow}>
-        <div className={styles.formGroup}>
-          <label htmlFor="cfg-scatter-start-at-zero-y" className={styles.checkboxLabel}>
-            <input
-              id="cfg-scatter-start-at-zero-y"
-              type="checkbox"
-              className={styles.checkbox}
-              checked={startAtZero}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setStartAtZero(checked);
-                setAutoScaleY(!checked);
-              }}
-            />
-            <span>Start Vertical (Y) Axis at Zero</span>
-          </label>
-        </div>
-
-        <div className={styles.formGroup}>
-          <label htmlFor="cfg-scatter-start-at-zero-x" className={styles.checkboxLabel}>
-            <input
-              id="cfg-scatter-start-at-zero-x"
-              type="checkbox"
-              className={styles.checkbox}
-              checked={startAtZeroX}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setStartAtZeroX(checked);
-                setAutoScaleX(!checked);
-              }}
-            />
-            <span>Start Horizontal (X) Axis at Zero</span>
-          </label>
-        </div>
-      </div>
-
     </>
+  );
+};
+
+interface ScatterScaleControlsProps {
+  startAtZero: boolean;
+  setStartAtZero: (val: boolean) => void;
+  setAutoScaleY: (val: boolean) => void;
+  startAtZeroX: boolean;
+  setStartAtZeroX: (val: boolean) => void;
+  setAutoScaleX: (val: boolean) => void;
+}
+
+export const ScatterScaleControls: React.FC<ScatterScaleControlsProps> = ({
+  startAtZero,
+  setStartAtZero,
+  setAutoScaleY,
+  startAtZeroX,
+  setStartAtZeroX,
+  setAutoScaleX,
+}) => {
+  return (
+    <div className={styles.twoColRow}>
+      <AxisBaselineToggle
+        label="Vertical (Y) Axis Baseline"
+        startAtZero={startAtZero}
+        onChange={(nextStartAtZero) => {
+          setStartAtZero(nextStartAtZero);
+          setAutoScaleY(!nextStartAtZero);
+        }}
+      />
+
+      <AxisBaselineToggle
+        label="Horizontal (X) Axis Baseline"
+        startAtZero={startAtZeroX}
+        onChange={(nextStartAtZeroX) => {
+          setStartAtZeroX(nextStartAtZeroX);
+          setAutoScaleX(!nextStartAtZeroX);
+        }}
+      />
+    </div>
   );
 };

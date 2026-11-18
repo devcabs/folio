@@ -327,19 +327,29 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
       if (!lockToken) return;
       renewDevLockHeartbeat(lockToken).then(async (renewed) => {
         if (!renewed) {
-          console.warn('[DeveloperModeContext] Liveness heartbeat rejected: lock held by another coordinator.');
+          console.warn('[DeveloperModeContext] Liveness heartbeat rejected (lock expired or superseded).');
           setIsDevMode(false);
           setLockToken(null);
           clearSessionUnlockTime();
           dispatchDraftChange(false, false);
-          setIsLockBlocked(true);
-          isLockBlockedRef.current = true;
           const status = await checkDevLockStatus(null);
-          setActiveLockInfo(status.currentLock || null);
-          setToastState({
-            message: 'Developer Mode session ended: another coordinator is currently active.',
-            type: 'error',
-          });
+          if (!status.canAcquire && status.currentLock && !status.isSelfSession) {
+            setIsLockBlocked(true);
+            isLockBlockedRef.current = true;
+            setActiveLockInfo(status.currentLock);
+            setToastState({
+              message: 'Developer Mode session ended: another coordinator is currently active.',
+              type: 'error',
+            });
+          } else {
+            setIsLockBlocked(false);
+            isLockBlockedRef.current = false;
+            setActiveLockInfo(null);
+            setToastState({
+              message: 'Developer Mode session expired. Please re-authenticate to continue.',
+              type: 'error',
+            });
+          }
         }
       });
     };
@@ -375,7 +385,7 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handlePageHide);
     };
-  }, [isDevMode, sessionId]);
+  }, [isDevMode, sessionId, lockToken]);
 
   // 4c. Global Reload Interceptor: prevent accidental keyboard refresh (Cmd+R, Ctrl+R, F5) while on draft
   useEffect(() => {

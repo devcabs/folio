@@ -45,11 +45,20 @@ export const EditorialSidebar: React.FC<EditorialSidebarProps> = ({
   nodeTitle: _nodeTitle,
   onBack,
 }) => {
-  // Extract element IDs for scrollspy monitoring
+  // Extract element IDs (including nested subsections) in document order for scrollspy monitoring
   const itemIds = useMemo(() => {
-    return items
-      .map((item) => item.id || (item.href.startsWith('#') ? item.href.slice(1) : ''))
-      .filter(Boolean);
+    const ids: string[] = [];
+    const collectIds = (navItems: NavItem[]) => {
+      for (const item of navItems) {
+        const id = item.id || (item.href.startsWith('#') ? item.href.slice(1) : '');
+        if (id) ids.push(id);
+        if (item.children && item.children.length > 0) {
+          collectIds(item.children);
+        }
+      }
+    };
+    collectIds(items);
+    return ids;
   }, [items]);
 
   const [clickLockedId, setClickLockedId] = useState<string | null>(null);
@@ -166,20 +175,35 @@ export const EditorialSidebar: React.FC<EditorialSidebarProps> = ({
       <nav>
         <ul className={styles.navList}>
           {items.map((item) => {
-            const itemId = item.id || (item.href.startsWith('#') ? item.href.slice(1) : '');
-            const isActive = item.isActive ?? (Boolean(itemId) && effectiveActiveId === itemId);
+            const renderNavLink = (navItem: NavItem, isSubsection: boolean) => {
+              const itemId = navItem.id || (navItem.href.startsWith('#') ? navItem.href.slice(1) : '');
+              const isActive = navItem.isActive ?? (Boolean(itemId) && effectiveActiveId === itemId);
 
-            return (
-              <li key={item.href} className={styles.navItem}>
+              return (
                 <a
-                  href={item.href}
-                  className={`${styles.navLink} ${isActive ? styles.navLinkActive : ''}`}
-                  onClick={(e) => handleLinkClick(e, item)}
+                  href={navItem.href}
+                  className={`${styles.navLink} ${isSubsection ? styles.subNavLink : ''} ${isActive ? styles.navLinkActive : ''}`.trim()}
+                  onClick={(e) => handleLinkClick(e, navItem)}
                   aria-current={isActive ? 'true' : undefined}
                 >
-                  {item.number && <span className={styles.itemNumber}>{item.number}</span>}
-                  <span className={styles.itemLabel}>{item.label}</span>
+                  {navItem.number && <span className={styles.itemNumber}>{navItem.number}</span>}
+                  <span className={styles.itemLabel}>{navItem.label}</span>
                 </a>
+              );
+            };
+
+            return (
+              <li key={item.id || item.href} className={styles.navItem}>
+                {renderNavLink(item, item.level === 'subsection')}
+                {item.children && item.children.length > 0 && (
+                  <ul className={styles.subNavList}>
+                    {item.children.map((subItem) => (
+                      <li key={subItem.id || subItem.href} className={styles.subNavItem}>
+                        {renderNavLink(subItem, true)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             );
           })}

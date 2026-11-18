@@ -66,7 +66,6 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
   return (
     <>
       <AccordionSection
-        name="chart-data"
         title={
           chartType === 'line'
             ? 'Category / Date (X-Axis)'
@@ -80,7 +79,6 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
       >
         <ColumnSelect
           id="cfg-category-col"
-          label="Source Column"
           value={categoryColIndex}
           onChange={(newCat: number) => {
             setCategoryColIndex(newCat);
@@ -102,7 +100,7 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
       </AccordionSection>
 
       {chartType === 'histogram' && (
-        <AccordionSection name="chart-data" title="Binning & Distribution" defaultOpen={false}>
+        <AccordionSection title="Binning & Distribution" defaultOpen={true}>
           {binStrategy === 'custom' ? (
             <div className={styles.twoColRow}>
               <div className={styles.formGroup}>
@@ -211,22 +209,41 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
           )}
 
           <div className={styles.formGroup}>
-            <label htmlFor="cfg-histogram-ymode" className={styles.checkboxLabel}>
-              <input
-                id="cfg-histogram-ymode"
-                type="checkbox"
-                className={styles.checkbox}
-                checked={histogramYMode === 'relative'}
-                onChange={(e) => setHistogramYMode(e.target.checked ? 'relative' : 'frequency')}
-              />
-              <span>Show as Percentage instead of Count</span>
-            </label>
+            <span className={styles.label}>Display Values As</span>
+            <div
+              className={styles.segmentedControl}
+              role="radiogroup"
+              aria-label="Display Values As"
+            >
+              <button
+                type="button"
+                role="radio"
+                aria-checked={histogramYMode === 'frequency'}
+                className={`${styles.segmentBtn} ${
+                  histogramYMode === 'frequency' ? styles.segmentBtnActive : ''
+                }`}
+                onClick={() => setHistogramYMode('frequency')}
+              >
+                Count
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={histogramYMode === 'relative'}
+                className={`${styles.segmentBtn} ${
+                  histogramYMode === 'relative' ? styles.segmentBtnActive : ''
+                }`}
+                onClick={() => setHistogramYMode('relative')}
+              >
+                Percentage
+              </button>
+            </div>
           </div>
         </AccordionSection>
       )}
 
       {chartType === 'donut' ? (
-        <AccordionSection name="chart-data" title="Slice Values" defaultOpen={false}>
+        <AccordionSection title="Slice Values" defaultOpen={false}>
           <ColumnSelect
             id="cfg-donut-metric-col"
             label="Slice Values (Metric)"
@@ -287,7 +304,6 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
 
           return (
             <AccordionSection
-              name="chart-data"
               title={chartType === 'histogram' ? 'Subgroup Frequencies' : 'Metric Series (Y-Axis)'}
               defaultOpen={false}
               badge={
@@ -297,6 +313,29 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
               }
             >
               <div className={styles.formGroup}>
+                {candidateColumns.length > 1 && (
+                  <div className={styles.seriesActionsRow}>
+                    <button
+                      type="button"
+                      className={styles.quickActionBtn}
+                      disabled={activeIncluded.length === candidateColumns.length}
+                      onClick={() => setIncludedSeriesIndices(candidateColumns.map((c) => c.index))}
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.quickActionBtn}
+                      disabled={
+                        activeIncluded.length === 1 &&
+                        activeIncluded[0] === candidateColumns[0].index
+                      }
+                      onClick={() => setIncludedSeriesIndices([candidateColumns[0].index])}
+                    >
+                      First
+                    </button>
+                  </div>
+                )}
                 <DraggableRows<ColumnItem>
                   items={orderedCandidates}
                   keyExtractor={(col: ColumnItem) => col.index}

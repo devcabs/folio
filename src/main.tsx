@@ -1,9 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import sampleNodes from './data/sample-nodes.json';
+import type { NodeItem } from './types/node';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <App config={{ nodes: sampleNodes as NodeItem[] }} />
   </React.StrictMode>
 );

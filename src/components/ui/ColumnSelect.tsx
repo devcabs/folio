@@ -10,7 +10,7 @@ export interface DetectedColumnOption {
 
 export interface ColumnSelectProps {
   id: string;
-  label: string;
+  label?: string;
   value: number;
   onChange: (colIndex: number) => void;
   columns: DetectedColumnOption[];
@@ -88,11 +88,13 @@ export const ColumnSelect: React.FC<ColumnSelectProps> = ({
 
   return (
     <div className={`${styles.formGroup} ${className}`.trim()} ref={containerRef}>
-      <div className={styles.labelRow}>
-        <label htmlFor={id} className={styles.label} onClick={() => setIsOpen((prev) => !prev)}>
-          {label}
-        </label>
-      </div>
+      {label && (
+        <div className={styles.labelRow}>
+          <label htmlFor={id} className={styles.label} onClick={() => setIsOpen((prev) => !prev)}>
+            {label}
+          </label>
+        </div>
+      )}
 
       <div className={styles.selectWrapper}>
         {/* Hidden native select for test assertions & semantic forms */}

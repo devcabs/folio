@@ -51,11 +51,11 @@ An audit of Step 2 (`Chart Setup`) in [ChartConfigDrawer.tsx](file:///Users/fran
 
 | Subtask ID | Title | Scope | File Reference | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **10.1** | [Chart Type Switcher & Non-Exclusive Accordions](file:///Users/francisdave/Documents/folio/docs/task/10.1-chart-type-switcher-and-non-exclusive-accordions.md) | Replace `<select>` Chart Type dropdown with a token-compliant segmented selector and remove forced exclusive accordion collapsing in `Step3ChartSetup` | `docs/task/10.1-chart-type-switcher-and-non-exclusive-accordions.md` | Pending |
-| **10.2** | [Resequence `Data` Tab ("Shape the Data")](file:///Users/francisdave/Documents/folio/docs/task/10.2-shape-the-data-tab-resequencing.md) | Place primary column mapping first, move `Order & Direction` into `Data`, open Histogram `Binning & Distribution` by default, replace Histogram percentage checkbox with `Count \| Percentage` segmented choice, add `All / First` series helper, and move `Table Orientation` to bottom of `Data` | `docs/task/10.2-shape-the-data-tab-resequencing.md` | Pending |
-| **10.3** | [Resequence `Appearance` Visual Encoding ("Encode the Visual")](file:///Users/francisdave/Documents/folio/docs/task/10.3-encode-the-visual-appearance-resequencing.md) | Promote `Visual Style` to top of `Appearance` (`defaultOpen={true}`), split Scatter into `Trendline & Analytics` and `Axes & Scale`, replace `Start at Zero` checkboxes with `Auto \| Zero` baseline toggles, and nest Histogram `Include Median & Mode` under `Show Summary Statistics Card` | `docs/task/10.3-encode-the-visual-appearance-resequencing.md` | Pending |
-| **10.4** | [Consolidate "Polish & Label" Section](file:///Users/francisdave/Documents/folio/docs/task/10.4-polish-and-label-consolidation.md) | Place `Data Labels` (Bar/Line/Donut) and `Titles & Axis Labels` at the bottom of `Appearance` as the final polish step with clear conditional labels | `docs/task/10.4-polish-and-label-consolidation.md` | Pending |
-| **10.5** | [Chart Configuration UX Tests & Token Verification](file:///Users/francisdave/Documents/folio/docs/task/10.5-chart-config-ux-regression-tests-and-token-audit.md) | Add unit/component tests verifying per-chart section order, keyboard navigation, and state preservation, plus `test:tokens`, `tsc --noEmit`, and `npm run build` | `docs/task/10.5-chart-config-ux-regression-tests-and-token-audit.md` | Pending |
+| **10.1** | [Chart Type Switcher & Non-Exclusive Accordions](file:///Users/francisdave/Documents/folio/docs/task/10.1-chart-type-switcher-and-non-exclusive-accordions.md) | Replace `<select>` Chart Type dropdown with a token-compliant segmented selector and remove forced exclusive accordion collapsing in `Step3ChartSetup` | `docs/task/10.1-chart-type-switcher-and-non-exclusive-accordions.md` | Done |
+| **10.2** | [Resequence `Data` Tab ("Shape the Data")](file:///Users/francisdave/Documents/folio/docs/task/10.2-shape-the-data-tab-resequencing.md) | Place primary column mapping first, move `Order & Direction` into `Data`, open Histogram `Binning & Distribution` by default, replace Histogram percentage checkbox with `Count \| Percentage` segmented choice, add `All / First` series helper, and move `Table Orientation` to bottom of `Data` | `docs/task/10.2-shape-the-data-tab-resequencing.md` | Done |
+| **10.3** | [Resequence `Appearance` Visual Encoding ("Encode the Visual")](file:///Users/francisdave/Documents/folio/docs/task/10.3-encode-the-visual-appearance-resequencing.md) | Promote `Visual Style` to top of `Appearance` (`defaultOpen={true}`), split Scatter into `Trendline & Analytics` and `Axes & Scale`, replace `Start at Zero` checkboxes with `Auto \| Zero` baseline toggles, and nest Histogram `Include Median & Mode` under `Show Summary Statistics Card` | `docs/task/10.3-encode-the-visual-appearance-resequencing.md` | Done |
+| **10.4** | [Consolidate "Polish & Label" Section](file:///Users/francisdave/Documents/folio/docs/task/10.4-polish-and-label-consolidation.md) | Place `Data Labels` (Bar/Line/Donut) and `Titles & Axis Labels` at the bottom of `Appearance` as the final polish step with clear conditional labels | `docs/task/10.4-polish-and-label-consolidation.md` | Done |
+| **10.5** | [Chart Configuration UX Tests & Token Verification](file:///Users/francisdave/Documents/folio/docs/task/10.5-chart-config-ux-regression-tests-and-token-audit.md) | Add unit/component tests verifying per-chart section order, keyboard navigation, and state preservation, plus `test:tokens`, `tsc --noEmit`, and `npm run build` | `docs/task/10.5-chart-config-ux-regression-tests-and-token-audit.md` | Done |
 
 ---
 
@@ -80,10 +80,10 @@ flowchart TD
 ## 🛡️ Quality Verification Gates
 
 Before marking Epic 10 complete:
-- [ ] `npm run test:tokens` passes with 100% token purity and zero raw hex/pixel violations.
-- [ ] `npm test` passes across all unit and integration suites (including new Epic 10 sequence and control tests).
-- [ ] `npm run build` and `tsc --noEmit` complete with zero TypeScript diagnostics.
-- [ ] **Shape the Data Invariant:** In `Data`, primary mapping is always first and open; `Order & Direction` lives in `Data`; `Table Orientation` (Transpose) sits at the bottom of `Data`.
-- [ ] **Encode the Visual Invariant:** In `Appearance`, visual encoding (`Visual Style` / `Trendline & Analytics`) is first and open by default (`defaultOpen={true}`).
-- [ ] **Polish & Label Invariant:** `Data Labels` (when applicable) and `Titles & Axis Labels` sit at the bottom of `Appearance` without breaking any persisted `SheetChartConfig` fields.
-- [ ] **4-State Interactive Matrix & Zero Outline Policy:** All new/updated controls (segmented Chart Type switcher, buttons, inputs, accordions) implement Default, Hover, Active, Focus-Visible (`outline: none`), and Disabled states using `src/styles/tokens.css`.
+- [x] `npm run test:tokens` passes with 100% token purity and zero raw hex/pixel violations.
+- [x] `npm test` passes across all unit and integration suites (including new Epic 10 sequence and control tests).
+- [x] `npm run build` and `tsc --noEmit` complete with zero TypeScript diagnostics.
+- [x] **Shape the Data Invariant:** In `Data`, primary mapping is always first and open; `Order & Direction` lives in `Data`; `Table Orientation` (Transpose) sits at the bottom of `Data`.
+- [x] **Encode the Visual Invariant:** In `Appearance`, visual encoding (`Visual Style` / `Trendline & Analytics`) is first and open by default (`defaultOpen={true}`).
+- [x] **Polish & Label Invariant:** `Data Labels` (when applicable) and `Titles & Axis Labels` sit at the bottom of `Appearance` without breaking any persisted `SheetChartConfig` fields.
+- [x] **4-State Interactive Matrix & Zero Outline Policy:** All new/updated controls (segmented Chart Type switcher, buttons, inputs, accordions) implement Default, Hover, Active, Focus-Visible (`outline: none`), and Disabled states using `src/styles/tokens.css`.

@@ -52,32 +52,32 @@ export const HistogramVisualControls: React.FC<HistogramVisualControlsProps> = (
         </div>
       </div>
 
-      <div className={styles.twoColRow}>
-        <div className={styles.formGroup}>
-          <label htmlFor="cfg-show-summary-stats" className={styles.checkboxLabel}>
-            <input
-              id="cfg-show-summary-stats"
-              type="checkbox"
-              className={styles.checkbox}
-              checked={showSummaryStats}
-              onChange={(e) => setShowSummaryStats(e.target.checked)}
-            />
-            <span>Show Summary Statistics Card</span>
-          </label>
-        </div>
+      <div className={styles.formGroup}>
+        <label htmlFor="cfg-show-summary-stats" className={styles.checkboxLabel}>
+          <input
+            id="cfg-show-summary-stats"
+            type="checkbox"
+            className={styles.checkbox}
+            checked={showSummaryStats}
+            onChange={(e) => setShowSummaryStats(e.target.checked)}
+          />
+          <span>Show Summary Statistics Card</span>
+        </label>
 
-        <div className={styles.formGroup}>
-          <label htmlFor="cfg-show-median-mode" className={styles.checkboxLabel}>
-            <input
-              id="cfg-show-median-mode"
-              type="checkbox"
-              className={styles.checkbox}
-              checked={showMedianMode}
-              onChange={(e) => setShowMedianMode(e.target.checked)}
-            />
-            <span>Include Median & Mode</span>
-          </label>
-        </div>
+        {showSummaryStats && (
+          <div className={styles.nestedControl}>
+            <label htmlFor="cfg-show-median-mode" className={styles.checkboxLabel}>
+              <input
+                id="cfg-show-median-mode"
+                type="checkbox"
+                className={styles.checkbox}
+                checked={showMedianMode}
+                onChange={(e) => setShowMedianMode(e.target.checked)}
+              />
+              <span>Include Median & Mode</span>
+            </label>
+          </div>
+        )}
       </div>
     </>
   );
