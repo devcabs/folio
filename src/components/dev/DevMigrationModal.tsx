@@ -170,27 +170,16 @@ export const DevMigrationModal: React.FC<DevMigrationModalProps> = ({
     >
       <div className={styles.content}>
         <div className={styles.header}>
-          <div className={styles.headerTopRow}>
-            <span className={styles.versionBadge} aria-label="Engine version transition">
-              <span>v{pendingReport.contentVersionWatermark}</span>
-              <span className={styles.versionArrow} aria-hidden="true">
-                ➔
-              </span>
-              <span>v{pendingReport.currentEngineVersion}</span>
-            </span>
-
-            <span className={styles.summaryPill}>
-              {count} Pending Migration{count === 1 ? '' : 's'}
-              {requiredCount > 0 ? ` (${requiredCount} Required)` : ''}
-            </span>
-          </div>
+          <p className={styles.metaLine} aria-label="Engine version transition">
+            v{pendingReport.contentVersionWatermark} → v{pendingReport.currentEngineVersion} ·{' '}
+            {count} pending{requiredCount > 0 ? ` (${requiredCount} required)` : ''}
+          </p>
 
           <h2 id="dev-migration-title" className={styles.title}>
             Content Migrations Pending
           </h2>
           <p id="dev-migration-desc" className={styles.subtitle}>
-            Folio Engine updated to v{pendingReport.currentEngineVersion}. Review the content
-            schema and configuration updates below, or copy the prompt for your AI coding assistant.
+            Schema and configuration updates for v{pendingReport.currentEngineVersion}.
           </p>
         </div>
 

@@ -34,6 +34,7 @@ export interface ChartCardProps {
   className?: string;
   editTriggerId?: string;
   hideEditButton?: boolean;
+  onEdit?: () => void;
 }
 
 /**
@@ -64,6 +65,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   className,
   editTriggerId,
   hideEditButton = false,
+  onEdit,
 }) => {
   const { isDevMode, isDesktop } = useDeveloperMode();
   const canEdit = isDevMode && isDesktop && !hideEditButton;
@@ -216,7 +218,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
               errorMessage={errorMessage || (status === 'error' ? 'Failed to synchronize indicator data.' : undefined)}
               hasSheetUrl={Boolean(config?.sheetUrl)}
               isLoading={isSyncing}
-              onEdit={() => setIsDrawerOpen(true)}
+              onEdit={() => (onEdit ? onEdit() : setIsDrawerOpen(true))}
             />
           )}
         </div>
@@ -263,7 +265,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
               size="xs"
               data-dev-edit-trigger="true"
               data-canvas-edit-trigger={editTriggerId}
-              onClick={() => setIsDrawerOpen(true)}
+              onClick={() => (onEdit ? onEdit() : setIsDrawerOpen(true))}
               onMouseEnter={() => setIsEditHovered(true)}
               onMouseLeave={() => setIsEditHovered(false)}
               aria-label={`Edit chart ${chartId}`}
@@ -291,8 +293,8 @@ export const ChartCard: React.FC<ChartCardProps> = ({
         )}
       </div>
 
-      {/* Slide-Out Administrative Drawer */}
-      {canEdit && (
+      {/* Slide-Out Administrative Drawer (fallback when not managed by DocumentCanvas) */}
+      {canEdit && !onEdit && (
         <ChartConfigDrawer
           isOpen={isDrawerOpen}
           onClose={() => setIsDrawerOpen(false)}

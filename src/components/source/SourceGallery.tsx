@@ -39,6 +39,8 @@ export interface SourceGalleryProps {
   onUpdateGallery?: (
     updates: GalleryElementUpdates
   ) => Promise<{ ok: boolean; error?: string } | void> | void;
+  /** Optional unified edit handler (e.g. from DocumentCanvas) */
+  onEdit?: () => void;
 }
 
 /**
@@ -69,6 +71,7 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
   description,
   syncedPhotos: propSyncedPhotos,
   onUpdateGallery,
+  onEdit,
 }) => {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [activeLightboxIndex, setActiveLightboxIndex] = useState(0);
@@ -455,7 +458,7 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
               size="xs"
               data-dev-edit-trigger="true"
               data-canvas-edit-trigger={editTriggerId}
-              onClick={() => setIsSourceModalOpen(true)}
+              onClick={() => (onEdit ? onEdit() : setIsSourceModalOpen(true))}
               onMouseEnter={() => setIsGalleryEditHovered(true)}
               onMouseLeave={() => setIsGalleryEditHovered(false)}
               className={styles.sideEditBtn}
@@ -493,12 +496,12 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
           accentColor={accentColor}
           onClose={handleCloseLightbox}
           onNavigate={handleNavigateLightbox}
-          onEditSource={() => setIsSourceModalOpen(true)}
+          onEditSource={() => (onEdit ? onEdit() : setIsSourceModalOpen(true))}
           onEditPhoto={(targetItem) => setEditingPhoto(targetItem)}
         />
       )}
 
-      {/* Footer Action Bar: Elevated Evidence Folder Attachment & Developer Sync Controls Below Gallery */}
+      {/* Footer Action Bar: Elevated Evidence Folder Attachment Below Gallery */}
       {(hasDriveLink || isDevActive) && (
         <div className={styles.footer}>
           <div className={styles.footerLeft}>
@@ -513,38 +516,25 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
               onUpdateFolder={(newUrl, newTitle) =>
                 onUpdateGallery?.({ driveUrl: newUrl, title: newTitle })
               }
+              onEdit={onEdit}
             />
           </div>
-
-          {isDevActive && hasDriveLink && (
-            <div className={styles.footerRight}>
-              <button
-                type="button"
-                className={`${styles.syncButton} ${isSyncing ? styles.syncing : ''}`}
-                onClick={handleManualSync}
-                disabled={isSyncing}
-                title="Reconcile and sync photos from Google Drive"
-                aria-label="Sync photos from Google Drive"
-              >
-                <span className={styles.syncIcon} aria-hidden="true">↻</span>
-                <span>{isSyncing ? 'Syncing...' : 'Sync Photos'}</span>
-              </button>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Dedicated Link Folder Modal for Drive Source */}
-      <LinkFolderModal
-        isOpen={isSourceModalOpen}
-        pointId={effectivePointId}
-        initialTitle={currentFolderTitle}
-        initialUrl={currentFolderUrl}
-        onClose={() => setIsSourceModalOpen(false)}
-        onSuccess={(newUrl, newTitle) =>
-          onUpdateGallery?.({ driveUrl: newUrl, title: newTitle })
-        }
-      />
+      {/* Dedicated Link Folder Modal for Drive Source (fallback when not managed by DocumentCanvas) */}
+      {!onEdit && (
+        <LinkFolderModal
+          isOpen={isSourceModalOpen}
+          pointId={effectivePointId}
+          initialTitle={currentFolderTitle}
+          initialUrl={currentFolderUrl}
+          onClose={() => setIsSourceModalOpen(false)}
+          onSuccess={(newUrl, newTitle) =>
+            onUpdateGallery?.({ driveUrl: newUrl, title: newTitle })
+          }
+        />
+      )}
 
       {/* Dedicated Edit Photo Modal for Coordinator Custom Titles & Captions */}
       {editingPhoto && (

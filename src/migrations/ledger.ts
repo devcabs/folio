@@ -799,6 +799,47 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.2.4',
+    releaseDate: '2026-11-18',
+    title: 'Dev Mode Canvas Authoring Controls, Insertion Bars & Modal Unification',
+    summary:
+      'Rendered the post-header + Add Element bar unconditionally on canvas sections and subsections in Developer Mode, eliminated the subsection ghost hover zone and duplicate trailing insertion bar, removed the duplicate footer Sync Photos button in SourceGallery, and unified floating toolbar Edit actions with the side Edit button modals/drawers for galleries (LinkFolderModal) and charts (ChartConfigDrawer).',
+    breakingChanges: [
+      'No breaking API changes; additive Developer Mode canvas authoring fixes and unified edit modal/drawer routing.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.2.4 to acknowledge Developer Mode canvas authoring and modal unification updates.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.2.3" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.2.4" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'canvas-authoring-modal-unification-0.2.4',
+        title: 'Unified Canvas Authoring Bars & Edit Modals',
+        required: false,
+        description:
+          'Developer Mode sections and subsections always expose a single post-header + Add Element bar without ghost hover gaps, SourceGallery renders a single side Sync button, and floating toolbar Edit triggers open the same LinkFolderModal and pre-populated ChartConfigDrawer as side Edit buttons.',
+        affectedEntities: ['DocumentCanvas', 'CanvasItemControls', 'SourceGallery', 'ChartCard'],
+        migrationPrompt:
+          'No manual code migration required. Upgrade @devcabs/folio-engine to 0.2.4 for unified Developer Mode canvas authoring controls and edit modals.',
+      },
+      {
+        id: 'content-version-watermark-0.2.4',
+        title: 'Advance contentVersion Watermark to 0.2.4',
+        required: true,
+        description:
+          'Update contentVersion watermark in EngineConfig to 0.2.4 to clear pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.2.4"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

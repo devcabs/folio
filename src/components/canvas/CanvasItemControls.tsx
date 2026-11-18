@@ -125,9 +125,10 @@ export const CanvasItemControls: React.FC<CanvasItemControlsProps> = memo(({
     }
   };
 
-  const floatingBarClass = itemType === 'section'
-    ? `${styles.itemControlsFloatingBar} ${styles.sectionFloatingBar}`
-    : styles.itemControlsFloatingBar;
+  const floatingBarClass =
+    itemType === 'section' || itemType === 'subsection'
+      ? `${styles.itemControlsFloatingBar} ${styles.sectionFloatingBar}`
+      : styles.itemControlsFloatingBar;
 
   const isHoverSuppressed = suppressHover || isDeleteModalOpen;
 

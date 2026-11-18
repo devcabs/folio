@@ -21,6 +21,7 @@ export interface CanvasGalleryProps {
   onUpdateGallery?: (
     updates: GalleryElementUpdates
   ) => Promise<{ ok: boolean; error?: string } | void> | void;
+  onEdit?: () => void;
 }
 
 /**
@@ -38,6 +39,7 @@ export const CanvasGallery: React.FC<CanvasGalleryProps> = memo(({
   accentColor,
   className,
   onUpdateGallery,
+  onEdit,
 }) => {
   return (
     <div className={`${styles.galleryWrapper || ''} ${className || ''}`.trim()}>
@@ -53,6 +55,7 @@ export const CanvasGallery: React.FC<CanvasGalleryProps> = memo(({
         accentColor={accentColor}
         editTriggerId={element.id}
         onUpdateGallery={onUpdateGallery}
+        onEdit={onEdit}
       />
     </div>
   );

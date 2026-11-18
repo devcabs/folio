@@ -16,7 +16,7 @@
   width: 100%;
 }
 
-/* Footer bar displaying authentic folder attachment and developer sync controls below gallery */
+/* Footer bar displaying authentic folder attachment below gallery */
 .footer,
 .header {
   display: flex;
@@ -34,7 +34,6 @@
   min-width: 0;
 }
 
-.footerRight,
 .headerRight {
   display: flex;
   align-items: center;
@@ -42,62 +41,11 @@
   flex-shrink: 0;
 }
 
-/* Tactile 4-State Button Matrix for Manual Drive Photo Sync */
-.syncButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  height: 26px;
-  min-height: 26px;
-  padding: 0 11px;
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-full);
-  box-sizing: border-box;
-  line-height: 1;
-  white-space: nowrap;
-  transition: all var(--duration-fast) var(--ease-out);
-  cursor: pointer;
-  outline: none;
-}
-
-.syncButton:hover:not(:disabled) {
-  background: var(--brand-primary-tint);
-  color: var(--folio-primary);
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
-  outline: none;
-}
-
-.syncButton:active:not(:disabled) {
-  transform: translateY(1px);
-  outline: none;
-}
-
-.syncButton:focus,
-.syncButton:focus-visible {
-  outline: none;
-}
-
-.syncButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
 .syncIcon {
   display: inline-block;
   font-size: 12px;
   line-height: 1;
   transition: transform var(--duration-fast) var(--ease-out);
-}
-
-.syncing .syncIcon {
-  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {

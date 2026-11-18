@@ -72,38 +72,19 @@ export const DevLockBlockedModal: React.FC = () => {
       isOpen={isLockBlocked}
       onClose={closeLockBlockedModal}
       onConfirm={isChecking ? undefined : handleManualCheck}
-      maxWidth="480px"
+      maxWidth="420px"
       ariaLabelledBy="dev-lock-title"
       ariaDescribedBy="dev-lock-desc"
     >
       <div className={styles.content}>
-        <div className={styles.header}>
-          <h2 id="dev-lock-title" className={styles.title}>
-            Developer Mode is active elsewhere
-          </h2>
-          <p id="dev-lock-desc" className={styles.subtitle}>
-            Another user is currently editing.
-          </p>
-        </div>
-
-        {/* Hierarchical Session Metadata (No Card Box) */}
-        <div className={styles.metaList}>
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>Started</span>
-            <span className={styles.metaValue}>{sessionAge}</span>
-          </div>
-
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>Auto-refresh</span>
-            <span className={styles.metaValueData}>{secondsRemaining}s</span>
-          </div>
-        </div>
-
-        <p className={styles.noticeText}>
-          Frees automatically after 1 minute of inactivity.
+        <h2 id="dev-lock-title" className={styles.title}>
+          Someone else is editing
+        </h2>
+        <p id="dev-lock-desc" className={styles.body}>
+          Another session started {sessionAge.toLowerCase()}. It unlocks after 1 minute of inactivity — checking again in{' '}
+          <span className={styles.countdown}>{secondsRemaining}s</span>.
         </p>
 
-        {/* Modal Actions */}
         <div className={styles.actions}>
           <Button
             variant="secondary"
@@ -120,7 +101,7 @@ export const DevLockBlockedModal: React.FC = () => {
             disabled={isChecking}
             onClick={handleManualCheck}
           >
-            {isChecking ? 'Checking...' : 'Check Status'}
+            {isChecking ? 'Checking...' : 'Check now'}
           </Button>
         </div>
       </div>

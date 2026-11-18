@@ -13,6 +13,7 @@ import type {
   ChartElement,
 } from '../../types/canvas';
 import type { NodeCode } from '../../types/node';
+import type { SheetChartConfig } from '../../types/chart';
 import { useDocumentCanvas } from '../../hooks/useNodeCanvas';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
@@ -29,6 +30,7 @@ import { CanvasEmptyNotice } from './CanvasEmptyNotice';
 import { CanvasItemControls } from './CanvasItemControls';
 // CanvasElementModal unified canonically into UniversalEditModal
 import { UniversalEditModal } from '../dev/UniversalEditModal';
+import { LinkFolderModal } from '../source/LinkFolderModal';
 import { ChartConfigDrawer } from '../chart/ChartConfigDrawer';
 import { Toast } from '../feedback/Toast';
 import { TopErrorBanner } from '../feedback/TopErrorBanner';
@@ -57,6 +59,20 @@ interface ActiveChartDrawerState {
   isOpen: boolean;
   mode: 'add' | 'edit';
   chartId: string;
+  elementId?: string;
+  initialConfig?: SheetChartConfig;
+  targetSectionId?: string;
+  targetIndex?: number;
+  targetSubsectionId?: string;
+}
+
+interface ActiveGalleryModalState {
+  isOpen: boolean;
+  mode: 'add' | 'edit';
+  itemId?: string;
+  pointId: string;
+  initialTitle: string;
+  initialUrl: string;
   targetSectionId?: string;
   targetIndex?: number;
   targetSubsectionId?: string;
@@ -112,6 +128,7 @@ function renderCanvasLeaf(
               ? (updates) => onUpdateGallery(leaf.id, updates)
               : undefined
           }
+          onEdit={onEditLeaf ? () => onEditLeaf(leaf) : undefined}
         />
       );
     case 'chart':
@@ -122,6 +139,7 @@ function renderCanvasLeaf(
           nodeTitle={nodeTitle}
           accentColor={accentColor}
           onUpdateElement={onUpdateChart}
+          onEdit={onEditLeaf ? () => onEditLeaf(leaf) : undefined}
         />
       );
     default:
@@ -173,6 +191,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
 
   // Unified modal and drawer state
   const [activeModal, setActiveModal] = useState<ActiveCanvasModalState | null>(null);
+  const [activeGalleryModal, setActiveGalleryModal] = useState<ActiveGalleryModalState | null>(null);
   const [activeChartDrawer, setActiveChartDrawer] = useState<ActiveChartDrawerState | null>(null);
 
 
@@ -220,6 +239,22 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         isOpen: true,
         mode: 'add',
         chartId: newChartId,
+        targetSectionId,
+        targetIndex,
+        targetSubsectionId,
+      });
+      return;
+    }
+
+    if (type === 'gallery') {
+      const newGalleryId = generateCanvasId('gallery');
+      setActiveGalleryModal({
+        isOpen: true,
+        mode: 'add',
+        itemId: newGalleryId,
+        pointId: `node.${nodeId}.gallery.${newGalleryId}`,
+        initialTitle: '',
+        initialUrl: '',
         targetSectionId,
         targetIndex,
         targetSubsectionId,
@@ -289,6 +324,20 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         isOpen: true,
         mode: 'edit',
         chartId: leaf.chartId,
+        elementId: leaf.id,
+        initialConfig: leaf.config as SheetChartConfig | undefined,
+      });
+      return;
+    }
+
+    if (leaf.type === 'gallery') {
+      setActiveGalleryModal({
+        isOpen: true,
+        mode: 'edit',
+        itemId: leaf.id,
+        pointId: leaf.pointId || leaf.id,
+        initialTitle: leaf.title || '',
+        initialUrl: leaf.driveUrl || '',
       });
       return;
     }
@@ -298,22 +347,11 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       return;
     }
 
-    let initialData: CanvasElementFormData = {};
-    let pointId: string | undefined;
-
-    if (leaf.type === 'text') {
-      pointId = leaf.pointId;
-      initialData = {
-        content: leaf.content,
-        as: leaf.as || 'p',
-      };
-    } else if (leaf.type === 'gallery') {
-      pointId = leaf.pointId || leaf.titlePointId;
-      initialData = {
-        title: leaf.title || '',
-        driveUrl: leaf.driveUrl || '',
-      };
-    }
+    const pointId = leaf.pointId;
+    const initialData: CanvasElementFormData = {
+      content: leaf.content,
+      as: leaf.as || 'p',
+    };
 
     setActiveModal({
       isOpen: true,
@@ -368,7 +406,19 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         elements: [],
       };
       if (targetSectionId) {
-        restoreSubsection(targetSectionId, newSub, targetIndex);
+        if (targetSubsectionId) {
+          const parentSec = document.sections.find((s) => s.id === targetSectionId);
+          const subIdx = parentSec
+            ? parentSec.elements.findIndex((el) => el.id === targetSubsectionId)
+            : -1;
+          restoreSubsection(
+            targetSectionId,
+            newSub,
+            subIdx !== -1 ? subIdx + 1 : undefined
+          );
+        } else {
+          restoreSubsection(targetSectionId, newSub, targetIndex);
+        }
       } else if (document.sections.length > 0) {
         const targetSec = (typeof targetIndex === 'number' && targetIndex === 0)
           ? document.sections[0]
@@ -614,8 +664,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                     computedNumber={computedNumber}
                     onEdit={() => handleEditSection(section)}
                   >
-                    {/* Section-Level Initial Insertion Dropzone: Only shown when section has no elements */}
-                    {isAuthoringActive && (section.elements || []).length === 0 && (
+                    {/* Section-Level Post-Header Insertion Bar: Always shown in Dev Mode to allow inserting at index 0 */}
+                    {isAuthoringActive && (
                       <CanvasAddBar
                         barId={`sec-top-${section.id}`}
                         activeBarId={activeAddBarId}
@@ -662,8 +712,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                                   accentColor={accentColor}
                                   onEdit={() => handleEditSubsection(child)}
                                 >
-                                  {/* Subsection-Level Initial Insertion Dropzone: Only shown when subsection is empty */}
-                                  {isAuthoringActive && validSubLeaves.length === 0 && (
+                                  {/* Subsection-Level Post-Header Insertion Bar: Always shown in Dev Mode */}
+                                  {isAuthoringActive && (
                                     <CanvasAddBar
                                       barId={`sub-top-${child.id}`}
                                       activeBarId={activeAddBarId}
@@ -726,16 +776,6 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                                   })}
                                 </CanvasSubsection>
                               </CanvasItemControls>
-
-                              {isAuthoringActive && (
-                                <CanvasAddBar
-                                  barId={`sub-${child.id}`}
-                                  activeBarId={activeAddBarId}
-                                  onToggleActive={handleToggleAddBarActive}
-                                  onAddElement={(type) => handleAddElement(type, section.id, childIdx + 1)}
-                                  accentColor={accentColor}
-                                />
-                              )}
                             </React.Fragment>
                           );
                         }
@@ -830,6 +870,63 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         onResetToDefault={handleResetModal}
       />
 
+      {/* Unified Gallery Link Folder Modal */}
+      {activeGalleryModal && (
+        <LinkFolderModal
+          isOpen={activeGalleryModal.isOpen}
+          pointId={activeGalleryModal.pointId}
+          initialTitle={activeGalleryModal.initialTitle}
+          initialUrl={activeGalleryModal.initialUrl}
+          onClose={() => setActiveGalleryModal(null)}
+          onSuccess={async (newUrl, newTitle) => {
+            if (activeGalleryModal.mode === 'add') {
+              const galleryId = activeGalleryModal.itemId || generateCanvasId('gallery');
+              const galleryLeaf: GalleryElement = {
+                id: galleryId,
+                type: 'gallery',
+                pointId: activeGalleryModal.pointId,
+                title: newTitle.trim() || undefined,
+                titlePointId: `node.${nodeId}.gallery.${galleryId}.title`,
+                driveUrl: newUrl.trim() || undefined,
+              };
+              let result: { ok: boolean; error?: string } | undefined;
+              if (activeGalleryModal.targetSectionId) {
+                result = await addElement(
+                  activeGalleryModal.targetSectionId,
+                  galleryLeaf,
+                  activeGalleryModal.targetIndex,
+                  activeGalleryModal.targetSubsectionId
+                );
+              } else if (document.sections.length === 0) {
+                const newSec = createDefaultSection(0, nodeId);
+                newSec.elements.push(galleryLeaf);
+                result = await restoreSection(newSec, 0);
+              } else {
+                const targetSec = (typeof activeGalleryModal.targetIndex === 'number' && activeGalleryModal.targetIndex === 0)
+                  ? document.sections[0]
+                  : document.sections[Math.min((activeGalleryModal.targetIndex ?? 1) - 1, document.sections.length - 1)];
+                const insertIdx = (typeof activeGalleryModal.targetIndex === 'number' && activeGalleryModal.targetIndex === 0)
+                  ? 0
+                  : undefined;
+                result = await addElement(targetSec.id, galleryLeaf, insertIdx);
+              }
+              if (result && !result.ok) {
+                return result;
+              }
+            } else if (activeGalleryModal.itemId) {
+              const result = await handleUpdateGallery(activeGalleryModal.itemId, {
+                driveUrl: newUrl,
+                title: newTitle,
+              });
+              if (result && !result.ok) {
+                return result;
+              }
+            }
+            setActiveGalleryModal(null);
+          }}
+        />
+      )}
+
       {/* Fast-Track Indicator Chart Drawer */}
       {activeChartDrawer && (
         <ChartConfigDrawer
@@ -837,6 +934,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
           mode={activeChartDrawer.mode}
           chartId={activeChartDrawer.chartId}
           nodeId={nodeId as NodeCode}
+          initialConfig={activeChartDrawer.initialConfig}
           onClose={() => setActiveChartDrawer(null)}
           onDeployed={async (config, dataset) => {
             if (activeChartDrawer.mode === 'add') {
@@ -872,6 +970,16 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                   result = await addElement(targetSec.id, chartLeaf, insertIdx);
                 }
               }
+              if (result && !result.ok) {
+                return result;
+              }
+            } else if (activeChartDrawer.mode === 'edit' && activeChartDrawer.elementId) {
+              const result = await updateItem<ChartElement>(activeChartDrawer.elementId, {
+                config,
+                ...(dataset ? { dataset } : {}),
+                title: config.titleOverride || dataset?.title || 'Indicator Chart',
+                subtitle: config.subtitleOverride ?? dataset?.subtitle,
+              });
               if (result && !result.ok) {
                 return result;
               }

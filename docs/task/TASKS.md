@@ -1,98 +1,55 @@
-# Unified Tasks: Folio Engine Migration Ledger & Consumer Drift Protection
+# Folio Engine — Active Epics & Atomic Task Index
 
-> **Status:** Planned & Ready for Execution  
-> **Prevalence Notice:** Governed by [.agents/skills/feature-dev/SKILL.md](file:///Users/francisdave/Documents/folio/.agents/skills/feature-dev/SKILL.md), [.agents/skills/karpathy-rules/SKILL.md](file:///Users/francisdave/Documents/folio/.agents/skills/karpathy-rules/SKILL.md), and [.agents/rules/design-system-first.md](file:///Users/francisdave/Documents/folio/.agents/rules/design-system-first.md).
-
----
-
-## 🎯 Executive Overview
-
-Folio Engine (`@devcabs/folio-engine`) is consumed by standalone portfolio and client applications. When engine versions bump with schema changes, new token requirements, or AST adjustments, consumer apps frequently break due to untracked migration steps and unnoticed content drift.
-
-This initiative introduces a comprehensive 3-pillar safety system:
-1. **Single Typed Migration Ledger (`src/migrations/ledger.ts`)**: Single source of truth containing every version transition, breaking code changes, and required content changes. Auto-generates `CHANGELOG.md` and blocks releases in `scripts/deploy.ts` if entries are missing.
-2. **AI Agent Guidance (`npx folio-engine doctor` & Agent Rule)**: CLI doctor and agent instructions that allow AI coding assistants managing consumer apps to immediately identify and execute code/content migrations.
-3. **In-App Dev Mode Notification (`DevMigrationModal` + Action Toast)**: When entering Dev Mode in a consumer app, the engine detects pending content changes between the app's `contentVersion` watermark and the current engine version, prompting the user with an actionable review modal and a copyable AI migration prompt.
+> **Prevalence Notice:** Governed by [.agents/skills/karpathy-rules/SKILL.md](file:///Users/francisdave/Documents/folio/.agents/skills/karpathy-rules/SKILL.md), [.agents/skills/feature-dev/SKILL.md](file:///Users/francisdave/Documents/folio/.agents/skills/feature-dev/SKILL.md), [.agents/skills/superpowers/SKILL.md](file:///Users/francisdave/Documents/folio/.agents/skills/superpowers/SKILL.md), and [.agents/rules/design-system-first.md](file:///Users/francisdave/Documents/folio/.agents/rules/design-system-first.md).
 
 ---
 
-## 🗺️ Subtasks Index
+## 📚 Active Epics Overview
 
-### Phase 0 — Pre-Flight: Smell Fixes (Foundations)
+| Epic ID | Title | Canonical Epic Spec | Status |
+| :--- | :--- | :--- | :--- |
+| **Epic 9** | [Developer Mode Canvas Authoring Controls, Insertion Bars & Modal Unification](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-9.md) | `docs/task/TASKS-EPIC-9.md` | Planned |
+| **Epic 10** | [Chart Configuration UX Realignment — "Shape the Data → Encode the Visual → Polish & Label"](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-10.md) | `docs/task/TASKS-EPIC-10.md` | Planned |
+| **Epic 11** | [Lightweight Canvas PDF Support — Inline `pdf` Viewer & Drive `documents` Folder Sync](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-11.md) | `docs/task/TASKS-EPIC-11.md` | Planned |
 
-> Must be completed before any implementation task. These establish the architectural contracts, isolation boundaries, and safety rails that all subsequent tasks depend on.
+---
+
+## 📄 Epic 11: Lightweight Canvas PDF Support (`TASKS-EPIC-11.md`)
+
+**Canonical Document:** [TASKS-EPIC-11.md](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-11.md)
+
+| Subtask ID | Phase | Title | Scope | File Reference | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **11.1** | Phase 1 (MVP) | [PDF & Documents Data Contracts, Edge Schemas, URL Resolvers & Design Tokens](file:///Users/francisdave/Documents/folio/docs/task/11.1-pdf-data-contracts-url-resolvers-and-tokens.md) | Define `PdfElement`, `DocumentsElement`, `SyncedDocumentItem`, Zod edge schemas, Drive `/preview` & `/view` URL resolvers in `mediaUrl.ts`, default factories in `canvasDefaults.ts`, and PDF/document tokens in `src/styles/tokens.css` | `docs/task/11.1-pdf-data-contracts-url-resolvers-and-tokens.md` | Pending |
+| **11.2** | Phase 1 (MVP) | [Inline `<CanvasPdf>` Viewer Component & Fallback States](file:///Users/francisdave/Documents/folio/docs/task/11.2-canvas-pdf-inline-viewer-component.md) | Build `<CanvasPdf>` with responsive Google Drive `/preview` `<iframe>`, editorial title/caption, `"Open in New Tab ↗"` link, calm fallback state, and side `✎ Edit` button | `docs/task/11.2-canvas-pdf-inline-viewer-component.md` | Pending |
+| **11.3** | Phase 1 (MVP) | [Single PDF Authoring Wiring (`CanvasAddBar`, `UniversalEditModal`, `DocumentCanvas`)](file:///Users/francisdave/Documents/folio/docs/task/11.3-single-pdf-authoring-and-modal-wiring.md) | Wire `pdf` creation, editing, deletion confirmation, and AST persistence across `CanvasAddBar`, `UniversalEditModal`, `CanvasDeleteConfirmModal`, and `DocumentCanvas` | `docs/task/11.3-single-pdf-authoring-and-modal-wiring.md` | Pending |
+| **11.4** | Phase 2 (`documents`) | [Google Drive PDF Folder Sync Service & `useDriveDocumentSync` Hook](file:///Users/francisdave/Documents/folio/docs/task/11.4-drive-pdf-folder-sync-service-and-hook.md) | Implement `driveDocumentSyncService.ts` (`fetchDriveFolderPdfs`, `reconcileDriveDocuments`, `syncFolderDocuments`) and `useDriveDocumentSync.ts` with 5-state lifecycle and AST persistence | `docs/task/11.4-drive-pdf-folder-sync-service-and-hook.md` | Pending |
+| **11.5** | Phase 2 (`documents`) | [`<CanvasDocuments>`, `<SourceDocuments>` List & `<PdfPreviewModal>` Suite](file:///Users/francisdave/Documents/folio/docs/task/11.5-canvas-documents-list-and-preview-modal.md) | Build `<SourceDocuments>`, `<PdfPreviewModal>`, `<EditDocumentModal>`, and `<CanvasDocuments>`, wire `Document` submenu (`Single PDF` / `PDF Folder`) in `CanvasAddBar`, and unify `LinkFolderModal` editing in `DocumentCanvas` | `docs/task/11.5-canvas-documents-list-and-preview-modal.md` | Pending |
+| **11.6** | Phase 2 (Release) | [End-to-End Verification, Version Doctor Migration Ledger & Diátaxis Docs Sync](file:///Users/francisdave/Documents/folio/docs/task/11.6-pdf-support-e2e-verification-ledger-and-docs-sync.md) | Record release entry in `src/migrations/ledger.ts`, sync `CHANGELOG.md`, update Diátaxis docs per `docs-sync.md`, and run full quality/token/migration verification gates | `docs/task/11.6-pdf-support-e2e-verification-ledger-and-docs-sync.md` | Pending |
+
+---
+
+## 📊 Epic 10: Chart Configuration UX Realignment (`TASKS-EPIC-10.md`)
+
+**Canonical Document:** [TASKS-EPIC-10.md](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-10.md)
 
 | Subtask ID | Title | Scope | File Reference | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **1.1** | [Pre-Flight: Deploy Gate Version Pre-Calculation](file:///Users/francisdave/Documents/folio/docs/task/1.1-preflight-deploy-gate-timing.md) | Semver utils + gate fires before `npm version` to prevent orphan tags | `docs/task/1.1-preflight-deploy-gate-timing.md` | Pending |
-| **1.2** | [Pre-Flight: Storage Adapter & SSR Safety](file:///Users/francisdave/Documents/folio/docs/task/1.2-preflight-storage-ssr-safety.md) | `StorageAdapter` interface + `createInMemoryAdapter()` — no direct `localStorage` calls | `docs/task/1.2-preflight-storage-ssr-safety.md` | Completed |
-| **1.3** | [Pre-Flight: Watermark Precedence Contract](file:///Users/francisdave/Documents/folio/docs/task/1.3-preflight-watermark-precedence.md) | `resolveContentWatermark()` — single strict rule for config vs runtime watermark | `docs/task/1.3-preflight-watermark-precedence.md` | Pending |
-| **1.4** | [Pre-Flight: MigrationContext Isolation](file:///Users/francisdave/Documents/folio/docs/task/1.4-preflight-migration-context-isolation.md) | New `MigrationContext.tsx` as sibling — zero coupling to `DeveloperModeContext` | `docs/task/1.4-preflight-migration-context-isolation.md` | Completed |
-| **1.5** | [Pre-Flight: AI Prompt Formatter Extraction](file:///Users/francisdave/Documents/folio/docs/task/1.5-preflight-prompt-formatter-layer.md) | `migrationPromptFormatter.ts` pure util — formatter out of service layer | `docs/task/1.5-preflight-prompt-formatter-layer.md` | Completed |
-| **1.6** | [Pre-Flight: Ledger Runtime Zod Validation](file:///Users/francisdave/Documents/folio/docs/task/1.6-preflight-ledger-runtime-validation.md) | Zod schemas as named exports + validate ledger at module load time | `docs/task/1.6-preflight-ledger-runtime-validation.md` | Completed |
-| **1.7** | [Pre-Flight: Doctor Monorepo-Safe Resolution](file:///Users/francisdave/Documents/folio/docs/task/1.7-preflight-doctor-path-resolution.md) | `packageResolver.ts` using `require.resolve` — no brittle CWD assumptions | `docs/task/1.7-preflight-doctor-path-resolution.md` | Completed |
-| **1.8** | [Pre-Flight: Test Storage Isolation](file:///Users/francisdave/Documents/folio/docs/task/1.8-preflight-test-storage-isolation.md) | `beforeEach` adapter injection + no global `localStorage` in tests | `docs/task/1.8-preflight-test-storage-isolation.md` | Completed |
-| **1.9** | [Pre-Flight: Changelog Git Strategy](file:///Users/francisdave/Documents/folio/docs/task/1.9-preflight-changelog-git-strategy.md) | `.gitignore` CHANGELOG + `--dry-run`/`--verify` flags + CI hook | `docs/task/1.9-preflight-changelog-git-strategy.md` | Completed |
+| **10.1** | [Chart Type Switcher & Non-Exclusive Accordions](file:///Users/francisdave/Documents/folio/docs/task/10.1-chart-type-switcher-and-non-exclusive-accordions.md) | Replace `<select>` Chart Type dropdown with a token-compliant segmented selector and remove forced exclusive accordion collapsing in `Step3ChartSetup` | `docs/task/10.1-chart-type-switcher-and-non-exclusive-accordions.md` | Pending |
+| **10.2** | [Resequence `Data` Tab ("Shape the Data")](file:///Users/francisdave/Documents/folio/docs/task/10.2-shape-the-data-tab-resequencing.md) | Place primary column mapping first, move `Order & Direction` from `Appearance` into `Data`, open Histogram `Binning & Distribution` by default, and move `Table Orientation` (Transpose) to the bottom of `Data` | `docs/task/10.2-shape-the-data-tab-resequencing.md` | Pending |
+| **10.3** | [Resequence `Appearance` Visual Encoding ("Encode the Visual")](file:///Users/francisdave/Documents/folio/docs/task/10.3-encode-the-visual-appearance-resequencing.md) | Promote `Visual Style` to top of `Appearance` (`defaultOpen={true}`) across all 5 charts and split Scatter's 8-control panel into `Trendline & Analytics` and `Axes & Scale` | `docs/task/10.3-encode-the-visual-appearance-resequencing.md` | Pending |
+| **10.4** | [Consolidate "Polish & Label" Section](file:///Users/francisdave/Documents/folio/docs/task/10.4-polish-and-label-consolidation.md) | Place `Data Labels` (Bar/Line/Donut) and `Titles & Axis Labels` at the bottom of `Appearance` as the final polish step with clear conditional labels | `docs/task/10.4-polish-and-label-consolidation.md` | Pending |
+| **10.5** | [Chart Configuration UX Tests & Token Verification](file:///Users/francisdave/Documents/folio/docs/task/10.5-chart-config-ux-regression-tests-and-token-audit.md) | Add unit/component tests verifying per-chart section order, keyboard navigation, and state preservation, plus `test:tokens`, `tsc --noEmit`, and `npm run build` | `docs/task/10.5-chart-config-ux-regression-tests-and-token-audit.md` | Pending |
 
-### Phase 1 — Implementation
+---
+
+## 🛠️ Epic 9: Developer Mode Canvas Authoring Controls, Insertion Bars & Modal Unification (`TASKS-EPIC-9.md`)
+
+**Canonical Document:** [TASKS-EPIC-9.md](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-9.md)
 
 | Subtask ID | Title | Scope | File Reference | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **1.10** | [Migration Data Contracts & Config](file:///Users/francisdave/Documents/folio/docs/task/1.10-migration-data-contracts.md) | Define TypeScript contracts + Zod schemas for migration entries, extend `EngineConfig` | `docs/task/1.10-migration-data-contracts.md` | Completed |
-| **1.11** | [Migration Ledger & Runtime Service](file:///Users/francisdave/Documents/folio/docs/task/1.11-migration-ledger-and-service.md) | Implement `src/migrations/ledger.ts` and `src/services/migrationService.ts` with baseline history | `docs/task/1.11-migration-ledger-and-service.md` | Completed |
-| **1.12** | [Dev Mode Notification & Review Modal](file:///Users/francisdave/Documents/folio/docs/task/1.12-dev-mode-notification-and-modal.md) | Build `DevMigrationModal`, Dev Mode toast trigger, and `DevModeBadge` indicator pill | `docs/task/1.12-dev-mode-notification-and-modal.md` | Pending |
-| **1.13** | [CLI Doctor & AI Migration Agent Rules](file:///Users/francisdave/Documents/folio/docs/task/1.13-cli-doctor-and-agent-reminders.md) | Create `npx folio-engine doctor` CLI runner and `.agents/rules/folio-engine-migration.md` | `docs/task/1.13-cli-doctor-and-agent-reminders.md` | Completed |
-| **1.14** | [Hard Deploy Gate & Auto-Changelog](file:///Users/francisdave/Documents/folio/docs/task/1.14-deploy-release-gate-and-changelog.md) | Enforce ledger entry in `scripts/deploy.ts` and compile `CHANGELOG.md` via `--verify` gate | `docs/task/1.14-deploy-release-gate-and-changelog.md` | Completed |
-| **1.15** | [Verification, Unit Tests & Quality Gates](file:///Users/francisdave/Documents/folio/docs/task/1.15-testing-and-verification.md) | Comprehensive test suite for ledger integrity, diff computation, and token audits | `docs/task/1.15-testing-and-verification.md` | Completed |
-
----
-
-## 🔄 Sequence & Dependency Graph
-
-```mermaid
-flowchart TD
-    subgraph Phase0["Phase 0 — Pre-Flight Smell Fixes"]
-        S1["1.1 Deploy Gate Timing\n(scripts/lib/semver-utils.ts)"]
-        S2["1.2 Storage Adapter\n(src/utils/storageAdapter.ts)"]
-        S3["1.3 Watermark Precedence\n(src/utils/watermarkResolver.ts)"]
-        S4["1.4 MigrationContext Isolation\n(src/context/MigrationContext.tsx)"]
-        S5["1.5 Prompt Formatter Layer\n(src/utils/migrationPromptFormatter.ts)"]
-        S6["1.6 Ledger Zod Validation\n(src/types/migration.ts schemas)"]
-        S7["1.7 Doctor Path Resolution\n(src/diagnostics/packageResolver.ts)"]
-        S8["1.8 Test Storage Isolation\n(createInMemoryAdapter in tests)"]
-        S9["1.9 Changelog Git Strategy\n(.gitignore + --verify flag)"]
-        S2 --> S3
-        S2 --> S8
-        S3 --> S4
-    end
-
-    subgraph Phase1["Phase 1 — Implementation"]
-        T10["1.10 Data Contracts\n(src/types/migration.ts)"]
-        T11["1.11 Ledger & Service\n(src/migrations/ledger.ts)"]
-        T12["1.12 Dev Mode UI\n(DevMigrationModal + Toast)"]
-        T13["1.13 CLI Doctor\n(bin/folio-engine.js)"]
-        T14["1.14 Deploy Gate\n(scripts/deploy.ts)"]
-        T15["1.15 Tests & Verification\n(tests/migration.test.ts)"]
-        T10 --> T11
-        T11 --> T12
-        T11 --> T13
-        T11 --> T14
-        T12 --> T15
-        T13 --> T15
-        T14 --> T15
-    end
-
-    Phase0 --> Phase1
-```
-
----
-
-## 🛡️ Quality Verification Gates
-
-Before completing the overall task:
-- [x] `npm run test:tokens` passes with 0 token mismatches or raw values.
-- [x] `npm test` runs with 100% passing tests (including `tests/migration.test.ts`).
-- [x] `npm run build:lib` and `tsc --noEmit` succeed with zero TypeScript diagnostics.
-- [x] `scripts/deploy.ts` pre-flight validation successfully blocks bump if ledger entry is omitted.
-- [x] Dev Mode entry in consumer test scenario prompts toast and opens `DevMigrationModal`.
-
+| **9.1** | [Unconditional Post-Header Insertion Bar for Canvas Sections](file:///Users/francisdave/Documents/folio/docs/task/9.1-canvas-section-post-header-add-bar.md) | Always render `sec-top-${section.id}` `CanvasAddBar` immediately after every `<CanvasSection>` heading in Dev Mode | `docs/task/9.1-canvas-section-post-header-add-bar.md` | Pending |
+| **9.2** | [Eliminate Subsection Ghost Hover Zone & Duplicate Insertion Bars](file:///Users/francisdave/Documents/folio/docs/task/9.2-canvas-subsection-ghost-gap-and-duplicate-add-bar-fix.md) | Render `sub-top-${child.id}` unconditionally, remove duplicate `sub-${child.id}` bar, fix subsection insertion index, and anchor subsection toolbar at top | `docs/task/9.2-canvas-subsection-ghost-gap-and-duplicate-add-bar-fix.md` | Pending |
+| **9.3** | [Deduplicate Gallery Sync Photos Affordance in `SourceGallery`](file:///Users/francisdave/Documents/folio/docs/task/9.3-gallery-duplicate-sync-photos-button-removal.md) | Remove legacy `footerRight` `↻ Sync Photos` button in `SourceGallery.tsx`, keeping the single canonical `sideSyncBtn` in `sideEditWrapper` | `docs/task/9.3-gallery-duplicate-sync-photos-button-removal.md` | Pending |
+| **9.4** | [Unify Floating Toolbar Edit Action with Side `✎ Edit` Button Modals](file:///Users/francisdave/Documents/folio/docs/task/9.4-floating-toolbar-and-side-edit-modal-unification.md) | Unify Gallery floating toolbar Edit + side `✎ Edit` onto `LinkFolderModal`, and unify Chart floating toolbar Edit + side `✎ Edit` onto `ChartConfigDrawer` with `initialConfig` & AST persistence | `docs/task/9.4-floating-toolbar-and-side-edit-modal-unification.md` | Pending |

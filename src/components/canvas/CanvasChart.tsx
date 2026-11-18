@@ -19,6 +19,7 @@ export interface CanvasChartProps {
     elementId: string,
     updates: Partial<ChartElement>
   ) => Promise<{ ok: boolean; error?: string } | void> | void;
+  onEdit?: () => void;
 }
 
 /**
@@ -40,6 +41,7 @@ export const CanvasChart: React.FC<CanvasChartProps> = memo(({
   isDevMode: isDevModeProp,
   className,
   onUpdateElement,
+  onEdit,
 }) => {
   const { isDevMode: isDevContext } = useDeveloperMode();
   const isDevMode = isDevModeProp ?? isDevContext;
@@ -88,6 +90,7 @@ export const CanvasChart: React.FC<CanvasChartProps> = memo(({
         onConfigUpdated={handleConfigUpdated}
         onSync={syncLiveSheet}
         isSyncing={status === 'syncing'}
+        onEdit={onEdit}
       />
     </div>
   );

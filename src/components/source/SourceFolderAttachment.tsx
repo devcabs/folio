@@ -26,6 +26,8 @@ export interface SourceFolderAttachmentProps {
     newUrl: string,
     newTitle: string
   ) => Promise<{ ok: boolean; error?: string } | void> | void;
+  /** Optional unified edit handler (e.g. from DocumentCanvas) */
+  onEdit?: () => void;
 }
 
 /**
@@ -46,6 +48,7 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
   folderUrl = '',
   folderTitle = '',
   onUpdateFolder,
+  onEdit,
 }) => {
   const { isDevMode, isDesktop } = useDeveloperMode();
   const isDevActive = isDevMode && isDesktop;
@@ -87,7 +90,7 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
           icon={driveIconSvg}
           label="Attach Drive Folder"
           title="No Drive folder configured. Use Edit to link an official folder."
-          onClick={() => setIsLinkModalOpen(true)}
+          onClick={() => (onEdit ? onEdit() : setIsLinkModalOpen(true))}
         />
       );
     }
@@ -135,7 +138,7 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
     <div className={`${styles.wrapper} ${className}`.trim()}>
       {renderAnchorContent()}
 
-      {isDevActive && (
+      {isDevActive && !onEdit && (
         <LinkFolderModal
           isOpen={isLinkModalOpen}
           pointId={pointId}
