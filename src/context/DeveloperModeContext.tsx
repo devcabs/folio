@@ -738,6 +738,15 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
           return false;
         }
 
+        if (lockRes.status && lockRes.status >= 500) {
+          setPinState('error');
+          setToastState({
+            message: lockRes.error || `Edge lock service unavailable (HTTP ${lockRes.status}).`,
+            type: 'error',
+          });
+          return false;
+        }
+
         const remaining =
           typeof lockRes.attemptsRemaining === 'number'
             ? lockRes.attemptsRemaining

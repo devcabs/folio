@@ -83,31 +83,7 @@
   text-align: center;
   max-width: 440px;
   width: 100%;
-  padding: var(--space-pad-surface);
-  background: color-mix(in srgb, var(--bg-surface) 90%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  box-shadow: var(--elevation-flat);
   outline: none;
-}
-
-.logoWrapper {
-  margin-bottom: var(--space-flow-tight);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  outline: none;
-}
-
-.kicker {
-  font-family: var(--font-mono);
-  font-size: var(--text-caption-sm);
-  color: var(--brand-accent-dark);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-tight);
-  margin-bottom: var(--space-flow-tight);
 }
 
 .title {

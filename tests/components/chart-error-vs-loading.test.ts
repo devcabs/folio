@@ -16,7 +16,7 @@ describe('Subtask 3.3: Chart Error vs. Loading Visual Differentiation', () => {
   });
 
   describe('DataPendingCard Component', () => {
-    it('renders transient loading state with aria-busy="true", aria-label="Loading indicator data", and ghost wireframe when isLoading is true', () => {
+    it('renders transient loading state with aria-busy="true", aria-label="Loading data", and ghost wireframe when isLoading is true', () => {
       vi.spyOn(developerModeHook, 'useDeveloperMode').mockReturnValue({
         isDevMode: false,
         isDesktop: true,
@@ -34,7 +34,7 @@ describe('Subtask 3.3: Chart Error vs. Loading Visual Differentiation', () => {
       );
 
       expect(html).toContain('aria-busy="true"');
-      expect(html).toContain('aria-label="Loading indicator data"');
+      expect(html).toContain('aria-label="Loading data"');
       expect(html).toContain('Fetching latest data...');
       // Ghost wireframe SVG lines/rects are rendered
       expect(html).toContain('viewBox="0 0 540 220"');
@@ -59,12 +59,12 @@ describe('Subtask 3.3: Chart Error vs. Loading Visual Differentiation', () => {
       );
 
       expect(html).toContain('aria-busy="false"');
-      expect(html).toContain('aria-label="Indicator Data Notice"');
+      expect(html).toContain('aria-label="Data Pending Notice"');
       expect(html).not.toContain('Fetching latest data...');
       // Ghost wireframe SVG viewBox 0 0 540 220 is NOT rendered
       expect(html).not.toContain('viewBox="0 0 540 220"');
       // Public notice with brand mark is rendered
-      expect(html).toContain('Indicator Data Pending');
+      expect(html).toContain('Data Pending');
     });
 
     it('displays concrete error message in diagnostic panel in coordinator mode when category is connection_error', () => {
@@ -147,7 +147,7 @@ describe('Subtask 3.3: Chart Error vs. Loading Visual Differentiation', () => {
       );
 
       expect(html).toContain('aria-busy="true"');
-      expect(html).toContain('aria-label="Loading indicator data"');
+      expect(html).toContain('aria-label="Loading data"');
       expect(html).toContain('Fetching latest data...');
       expect(html).toContain('viewBox="0 0 540 220"');
     });
@@ -172,7 +172,7 @@ describe('Subtask 3.3: Chart Error vs. Loading Visual Differentiation', () => {
       );
 
       expect(html).toContain('aria-busy="false"');
-      expect(html).toContain('aria-label="Indicator Data Notice"');
+      expect(html).toContain('aria-label="Data Pending Notice"');
       expect(html).not.toContain('viewBox="0 0 540 220"');
       expect(html).toContain('Connection Issue');
       expect(html).toContain('Sheet permission denied (HTTP 403)');
@@ -197,9 +197,9 @@ describe('Subtask 3.3: Chart Error vs. Loading Visual Differentiation', () => {
       );
 
       expect(html).toContain('aria-busy="false"');
-      expect(html).toContain('aria-label="Indicator Data Notice"');
+      expect(html).toContain('aria-label="Data Pending Notice"');
       expect(html).not.toContain('viewBox="0 0 540 220"');
-      expect(html).toContain('Indicator Data Pending');
+      expect(html).toContain('Data Pending');
     });
   });
 });

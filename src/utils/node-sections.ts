@@ -21,13 +21,7 @@ export function getNodeSections(node: NodeItem): NavItem[] {
     'Stakeholder Review',
   ];
 
-  const sections: NodeSection[] = [
-    {
-      id: 'node-overview',
-      label: 'Overview',
-      href: '#node-overview',
-    },
-  ];
+  const sections: NodeSection[] = [];
 
   node.stages?.forEach((stage, idx) => {
     const stageNum = String(stage.step).padStart(2, '0');

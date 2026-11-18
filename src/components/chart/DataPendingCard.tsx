@@ -1,6 +1,5 @@
 import React from 'react';
 import type { ChartProblemCategory } from '../../types/chart';
-import { ParametricShape } from '../ui/ParametricShape';
 import { Button } from '../ui/Button';
 import { ChartGhostWireframe } from './ChartGhostWireframe';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
@@ -35,7 +34,6 @@ export interface DataPendingCardProps {
  */
 export const DataPendingCard: React.FC<DataPendingCardProps> = ({
   chartId,
-  nodeTitle,
   category = 'unlinked',
   errorMessage,
   hasSheetUrl = false,
@@ -93,7 +91,7 @@ export const DataPendingCard: React.FC<DataPendingCardProps> = ({
     <div
       className={`${styles.container} ${isLoading ? styles.loadingState : styles.staticState} ${className || ''}`.trim()}
       role="region"
-      aria-label={isLoading ? 'Loading indicator data' : 'Indicator Data Notice'}
+      aria-label={isLoading ? 'Loading data' : 'Data Pending Notice'}
       aria-busy={isLoading ? 'true' : 'false'}
       tabIndex={-1}
     >
@@ -131,18 +129,10 @@ export const DataPendingCard: React.FC<DataPendingCardProps> = ({
         </div>
       ) : (
         <div className={styles.publicNoticeWrapper}>
-          <div className={styles.logoWrapper}>
-            <ParametricShape sides={8} waviness={0.15} radius={18} fill="var(--folio-primary)" />
-          </div>
-
-          <div className={styles.kicker}>
-            {nodeTitle ? `${nodeTitle} Indicator` : 'Official Indicator'}
-          </div>
-
-          <h3 className={styles.title}>{headline || 'Indicator Data Pending'}</h3>
+          <h3 className={styles.title}>{headline || 'Data Pending'}</h3>
 
           <p className={styles.description}>
-            {description || 'The designated coordinator is finalizing official validation and records encoding for this indicator. Data receipts will appear once published.'}
+            {description || 'Data for this chart is not yet available. It will appear here once published.'}
           </p>
         </div>
       )}

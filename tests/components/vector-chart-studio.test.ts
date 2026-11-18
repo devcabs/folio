@@ -183,7 +183,7 @@ describe("Vector Chart Studio & D3 Visualizers (Phase 5 Engine Extraction)", () 
   });
 
   describe("Sub-Phase 5.3 & 5.4: Chart Containers & Dynamic Routing", () => {
-    it("renders DataPendingCard with parametric mark and customizable headline", () => {
+    it("renders DataPendingCard with customizable headline and description", () => {
       const html = ReactDOMServer.renderToString(
         React.createElement(DataPendingCard, {
           headline: "Custom Empty Title",
@@ -192,7 +192,7 @@ describe("Vector Chart Studio & D3 Visualizers (Phase 5 Engine Extraction)", () 
       );
       expect(html).toContain("Custom Empty Title");
       expect(html).toContain("Custom explanation paragraph.");
-      expect(html).toContain("<svg"); // ParametricShape mark
+      expect(html).not.toContain("<svg");
     });
 
     it("routes datasets deterministically to corresponding visualizers via ChartRouter", () => {

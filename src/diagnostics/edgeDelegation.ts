@@ -143,15 +143,41 @@ export function verifyEdgeDelegation(
 
   const workerFound = workerFile !== null;
 
-  // If wrangler config exists but no worker was found, suggest adding worker.ts
-  const hasWrangler =
-    fs.existsSync(path.join(cwd, 'wrangler.toml')) ||
-    fs.existsSync(path.join(cwd, 'wrangler.json'));
+  // If wrangler config exists, audit worker presence and required Edge KV / security vars
+  const wranglerJsonPath = path.join(cwd, 'wrangler.json');
+  const wranglerTomlPath = path.join(cwd, 'wrangler.toml');
+  const activeWranglerPath = fs.existsSync(wranglerJsonPath)
+    ? wranglerJsonPath
+    : fs.existsSync(wranglerTomlPath)
+      ? wranglerTomlPath
+      : null;
 
-  if (hasWrangler && !workerFound) {
-    warnings.push(
-      `[Edge Router] wrangler configuration detected but no worker.ts found. Ensure host app exports a worker delegating to handleFolioEdgeRequest.`
-    );
+  if (activeWranglerPath) {
+    if (!workerFound) {
+      warnings.push(
+        `[Edge Router] wrangler configuration detected but no worker.ts found. Ensure host app exports a worker delegating to handleFolioEdgeRequest.`
+      );
+    } else {
+      try {
+        const wranglerRaw = fs.readFileSync(activeWranglerPath, 'utf-8');
+        const wranglerFile = path.basename(activeWranglerPath);
+        if (!wranglerRaw.includes('KV_ENGINE_PUBLIC')) {
+          warnings.push(
+            `[Edge KV] "${wranglerFile}" does not reference KV_ENGINE_PUBLIC. Bind KV_ENGINE_PUBLIC so edge handlers do not return HTTP 503.`
+          );
+        }
+        if (
+          !wranglerRaw.includes('DEV_SECURITY_SALT') ||
+          !wranglerRaw.includes('DEV_PIN_HASH')
+        ) {
+          warnings.push(
+            `[Edge Security] "${wranglerFile}" is missing DEV_SECURITY_SALT or DEV_PIN_HASH in vars. Configure both so POST /api/lock does not return HTTP 503.`
+          );
+        }
+      } catch {
+        // Ignore unreadable wrangler config
+      }
+    }
   }
 
   const ok = errors.length === 0;

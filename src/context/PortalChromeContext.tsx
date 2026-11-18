@@ -22,6 +22,8 @@ import {
 } from '../utils/contentDb';
 import { TopErrorBanner } from '../components/feedback/TopErrorBanner';
 
+const HYDRATION_BACKOFF_SCHEDULE_MS = [2000, 4000, 8000, 15000] as const;
+
 export interface PortalChromeContextValue {
   contentOverrides: Record<string, string>;
   isHydrating: boolean;
@@ -71,10 +73,33 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
   overridesRef.current = contentOverrides;
   const draftUpdatedAtRef = useRef(draftUpdatedAt);
   draftUpdatedAtRef.current = draftUpdatedAt;
+  const backoffAttemptRef = useRef<number>(0);
 
   const retry = useCallback(() => {
     setRetryCount((c) => c + 1);
   }, []);
+
+  useEffect(() => {
+    backoffAttemptRef.current = 0;
+  }, [isDevMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || hasHydrated || !hydrationError || isHydrating) {
+      return;
+    }
+    const attempt = backoffAttemptRef.current;
+    const delayMs =
+      HYDRATION_BACKOFF_SCHEDULE_MS[
+        Math.min(attempt, HYDRATION_BACKOFF_SCHEDULE_MS.length - 1)
+      ];
+    backoffAttemptRef.current = attempt + 1;
+    const timerId = setTimeout(() => {
+      retry();
+    }, delayMs);
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [hasHydrated, hydrationError, isHydrating, retry]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
@@ -114,6 +139,7 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
           setContentOverrides(overrides);
           setDraftUpdatedAt(null);
         }
+        backoffAttemptRef.current = 0;
         setHydrationError(null);
         setHasHydrated(true);
       } catch (err) {

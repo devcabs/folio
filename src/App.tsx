@@ -4,6 +4,7 @@ import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import type { RoadmapSectionHandle, RoadmapScrollZone } from './components/roadmap/RoadmapSection';
 import { AppHeader, type NavItem } from './components/layout/AppHeader';
 import { HeroWelcome } from './components/layout/HeroWelcome';
+import { HeroWelcomeGhostWireframe } from './components/layout/HeroWelcomeGhostWireframe';
 import { RoadmapSection } from './components/roadmap/RoadmapSection';
 import { PhotoFlightEngine } from './components/roadmap/PhotoFlightEngine';
 import { AppFooter } from './components/layout/AppFooter';
@@ -22,7 +23,7 @@ import type { NodeItem, NodeCode } from './types/node';
 
 import { MigrationProvider } from './context/MigrationContext';
 import { DeveloperModeProvider } from './context/DeveloperModeContext';
-import { PortalChromeProvider } from './context/PortalChromeContext';
+import { PortalChromeProvider, usePortalChrome } from './context/PortalChromeContext';
 import { UndoRedoProvider } from './context/UndoRedoContext';
 import {
   DevPinModal,
@@ -33,12 +34,11 @@ import {
 } from './components/dev';
 import styles from './App.module.css';
 
-const DEFAULT_NODE_SECTIONS: NavItem[] = [
-  { id: 'node-overview', label: 'Overview', href: '#node-overview' },
-];
+const DEFAULT_NODE_SECTIONS: NavItem[] = [];
 
 const AppContent: React.FC = () => {
   const engineConfig = getEngineConfig();
+  const portalChrome = usePortalChrome();
   const nodes = getActiveNodes();
   const validNodeIds = useMemo(() => nodes.map((n: NodeItem) => n.id as NodeCode), [nodes]);
 
@@ -160,7 +160,7 @@ const AppContent: React.FC = () => {
 
   // Discrete Step Navigation & Natural Scroll Lockdown
   useDiscreteStepNavigation({
-    enabled: route === 'home',
+    enabled: route === 'home' && (!portalChrome || portalChrome.hasHydrated),
     activeStage,
     scrollZone,
     onNextStage: handleNextStage,
@@ -222,6 +222,14 @@ const AppContent: React.FC = () => {
       navigateToHome(1);
     }
   }, [currentNode, navigateToHome]);
+
+  if (portalChrome && !portalChrome.hasHydrated) {
+    return (
+      <div className={styles.appShell} data-testid="portal-hydration-gate">
+        <HeroWelcomeGhostWireframe />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.appShell}>

@@ -708,6 +708,56 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.2.2',
+    releaseDate: '2026-11-18',
+    title: 'Edge PIN Security Env Audit & Pre-0.2.0 KV AST Migration Guide',
+    summary:
+      'Added edge wrangler security env diagnostics (DEV_SECURITY_SALT and DEV_PIN_HASH), explicit 5xx PIN verification feedback in DeveloperModeContext, and migration guidance for folding pre-0.2.0 chartDatasets and sourceMetadata into self-contained Canvas AST elements.',
+    breakingChanges: [
+      'No breaking API changes; additive diagnostics, 5xx lock error reporting, and migration guidance only.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Configure DEV_SECURITY_SALT and DEV_PIN_HASH in wrangler.json / wrangler.toml vars so POST /api/lock can verify coordinator PINs on the Edge Worker without returning HTTP 503.',
+        affectedFiles: ['wrangler.json', 'wrangler.toml'],
+        exampleBefore:
+          '"kv_namespaces": [{ "binding": "KV_ENGINE_PUBLIC", "id": "..." }]',
+        exampleAfter:
+          '"vars": {\n  "DEV_SECURITY_SALT": "your_salt",\n  "DEV_PIN_HASH": "your_sha256_pin_hash"\n},\n"kv_namespaces": [{ "binding": "KV_ENGINE_PUBLIC", "id": "..." }]',
+      },
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.2.2 to acknowledge edge PIN security configuration.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.2.1" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.2.2" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'edge-pin-security-vars-0.2.2',
+        title: 'Configure DEV_SECURITY_SALT & DEV_PIN_HASH in Wrangler',
+        required: true,
+        description:
+          'Edge lockHandler requires DEV_SECURITY_SALT and DEV_PIN_HASH in Cloudflare Worker environment variables to authenticate coordinator PINs via POST /api/lock.',
+        affectedEntities: ['wrangler.json', 'wrangler.toml', 'lockHandler'],
+        migrationPrompt:
+          'Add `vars: { DEV_SECURITY_SALT, DEV_PIN_HASH }` to your `wrangler.json` or `[vars]` in `wrangler.toml` matching your application securitySalt and expectedPinHash.',
+      },
+      {
+        id: 'content-version-watermark-0.2.2',
+        title: 'Advance contentVersion Watermark to 0.2.2',
+        required: true,
+        description:
+          'Update contentVersion watermark in EngineConfig to 0.2.2 to clear pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.2.2"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**
