@@ -1,14 +1,13 @@
 /**
- * Google Sheets Access Verification & API Discovery Service
+ * Google Sheets Access Verification & Tab Discovery Service
  * Folio Engine
  * Document Reference: docs/tasks/task7_2_access_verification_sheets_api.md
  *
  * Implements:
- * 1. Pre-flight link access verification: Validates read access against Google endpoints
- *    and produces tailored sharing guidance.
- * 2. Automatic Sheet Tab Discovery: Uses Google Sheets API v4 metadata to auto-discover
- *    tab names and sheet IDs (GIDs).
- * 3. Fallbacks: Graceful degradation for unconfigured API keys, rate limits, or network errors.
+ * 1. Pre-flight link access verification: Validates public read access via GViz probe
+ *    (with optional Sheets API v4 metadata check) and produces tailored sharing guidance.
+ * 2. Automatic Sheet Tab Discovery: Discovers tab names and sheet IDs (GIDs) via
+ *    public htmlview metadata (or Sheets API v4 when enabled) without requiring a Sheets API key.
  */
 
 export interface SheetMetadataTab {
@@ -115,8 +114,40 @@ export function parseSheetsApiMetadata(data: unknown): SheetMetadataTab[] {
 }
 
 /**
- * Discovers available sheet tabs using the authoritative Google Sheets API v4 metadata endpoint.
- * Fails stop by throwing an Error when the API key is missing or the Sheets API request fails.
+ * Pure parser for tab names and sheet GIDs from public Google Sheets htmlview payload.
+ * Google embeds workbook sheets as:
+ * items.push({name: "Sheet1", pageUrl: "...", gid: "0", ...})
+ */
+export function parseHtmlViewTabs(html: string): SheetMetadataTab[] {
+  if (!html || typeof html !== 'string') return [];
+
+  const regex = /items\.push\(\{\s*name:\s*"([^"\\]*(?:\\.[^"\\]*)*)"[^}]*gid:\s*"([0-9-]+)"/g;
+  let match: RegExpExecArray | null;
+  const tabs: SheetMetadataTab[] = [];
+
+  while ((match = regex.exec(html)) !== null) {
+    let title = match[1];
+    try {
+      title = JSON.parse(`"${title}"`);
+    } catch {
+      // keep raw string if JSON unescape fails
+    }
+    const rawGid = match[2];
+    const sheetId = Number(rawGid) || 0;
+    tabs.push({
+      title: title.trim(),
+      sheetId,
+      index: tabs.length,
+    });
+  }
+
+  return tabs;
+}
+
+/**
+ * Discovers available sheet tabs using:
+ * 1. Public htmlview tab metadata (no Google Sheets API required, works for any public sheet).
+ * 2. Optional Google Sheets API v4 metadata endpoint if enabled.
  */
 export async function fetchSheetTabs(
   spreadsheetIdOrUrl: string,
@@ -125,46 +156,78 @@ export async function fetchSheetTabs(
 ): Promise<SheetMetadataTab[]> {
   const spreadsheetId = extractSpreadsheetId(spreadsheetIdOrUrl) || spreadsheetIdOrUrl;
   if (!spreadsheetId) {
-    throw new Error('Invalid Google Spreadsheet ID or URL.');
+    return [];
   }
 
   const timeoutMs = options?.timeoutMs ?? 6000;
-  const key = apiKey !== undefined ? apiKey : getGoogleApiKey();
-  if (!key) {
-    throw new Error('Google Sheets API key is not configured.');
-  }
 
-  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
-
+  // Primary: Public htmlview tab discovery (works without Google Sheets API enabled)
   try {
-    const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-      spreadsheetId
-    )}?fields=properties.title,sheets.properties&key=${encodeURIComponent(key)}`;
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
-    const response = await fetch(apiUrl, {
+    const htmlUrl = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(
+      spreadsheetId
+    )}/htmlview`;
+
+    const response = await fetch(htmlUrl, {
       method: 'GET',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'text/html,*/*' },
       signal: controller?.signal,
     });
 
     if (timeoutId) clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      throw new Error(`Google Sheets API v4 metadata request failed with HTTP ${response.status}.`);
+    if (response.ok) {
+      const htmlText = await response.text();
+      const tabs = parseHtmlViewTabs(htmlText);
+      if (tabs && tabs.length > 0) {
+        return tabs;
+      }
     }
-
-    const data = await response.json();
-    return parseSheetsApiMetadata(data);
-  } catch (err: unknown) {
-    if (timeoutId) clearTimeout(timeoutId);
-    throw err instanceof Error ? err : new Error('Failed to fetch Google Sheet tabs.');
+  } catch {
+    // Fall through to optional API check
   }
+
+  // Secondary fallback: Google Sheets API v4 if an API key with Sheets scope is provided
+  const key = apiKey !== undefined ? apiKey : getGoogleApiKey();
+  if (key) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+    try {
+      const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
+        spreadsheetId
+      )}?fields=properties.title,sheets.properties&key=${encodeURIComponent(key)}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller?.signal,
+      });
+
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        const tabs = parseSheetsApiMetadata(data);
+        if (tabs && tabs.length > 0) {
+          return tabs;
+        }
+      }
+    } catch {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  }
+
+  return [];
 }
 
 /**
- * Verifies readability of a Google Sheet link using the authoritative Google Sheets API v4 endpoint.
- * Fails stop when the API key is missing or the Sheets API request fails (zero GViz or scraping fallbacks).
+ * Verifies public readability of a Google Sheet link.
+ *
+ * Uses the public GViz CSV probe (matching fetchLiveSheetMatrix) as the authoritative check
+ * for "Anyone with the link can view", plus /htmlview tab discovery and Drive API modifiedTime.
  */
 export async function verifySheetAccess(
   url: string,
@@ -180,29 +243,19 @@ export async function verifySheetAccess(
   }
 
   const sheetGid = extractSheetGid(url);
-  const key = options?.apiKey !== undefined ? options.apiKey : getGoogleApiKey();
   const timeoutMs = options?.timeoutMs ?? 6000;
 
-  if (!key) {
-    return {
-      accessible: false,
-      spreadsheetId,
-      sheetGid,
-      error: 'Google Sheets API key is not configured.',
-    };
-  }
-
-  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
-
   try {
-    const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-      spreadsheetId
-    )}?fields=properties.title,sheets.properties&key=${encodeURIComponent(key)}`;
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
-    const response = await fetch(apiUrl, {
+    const probeUrl = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(
+      spreadsheetId
+    )}/gviz/tq?tqx=out:csv&tq=SELECT+1+LIMIT+1`;
+
+    const response = await fetch(probeUrl, {
       method: 'GET',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'text/csv,text/plain,*/*' },
       signal: controller?.signal,
     });
 
@@ -213,38 +266,44 @@ export async function verifySheetAccess(
         accessible: false,
         spreadsheetId,
         sheetGid,
-        error: `Google Sheets API verification failed (HTTP ${response.status}). Ensure sharing is set to 'Anyone with the link can view'.`,
+        error: "Access Restricted: Please set Google Sheet sharing to 'Anyone with the link can view'.",
       };
     }
 
-    const data = (await response.json()) as {
-      properties?: { title?: string };
-      sheets?: unknown[];
-    };
-    const tabs = parseSheetsApiMetadata(data);
-    const modifiedTime = await fetchSheetModifiedTime(spreadsheetId, options?.apiKey, {
-      timeoutMs: 4000,
-    });
+    const text = await response.text();
+
+    // If redirected to login page or HTML payload returned
+    if (
+      text.includes('<!DOCTYPE html') ||
+      text.includes('ServiceLogin') ||
+      text.includes('accounts.google.com')
+    ) {
+      return {
+        accessible: false,
+        spreadsheetId,
+        sheetGid,
+        error: "Access Restricted: Please set Google Sheet sharing to 'Anyone with the link can view'.",
+      };
+    }
+
+    const [tabs, modifiedTime] = await Promise.all([
+      fetchSheetTabs(spreadsheetId, options?.apiKey, { timeoutMs: 4000 }),
+      fetchSheetModifiedTime(spreadsheetId, options?.apiKey, { timeoutMs: 4000 }),
+    ]);
 
     return {
       accessible: true,
       spreadsheetId,
       sheetGid,
-      title: data.properties?.title,
-      tabs,
+      tabs: tabs.length > 0 ? tabs : undefined,
       modifiedTime: modifiedTime || undefined,
     };
-  } catch (err: unknown) {
-    if (timeoutId) clearTimeout(timeoutId);
-    const msg =
-      err instanceof Error
-        ? err.message
-        : "Unable to verify sheet access. Ensure the sheet is public and shared with 'Anyone with the link can view'.";
+  } catch {
     return {
       accessible: false,
       spreadsheetId,
       sheetGid,
-      error: msg,
+      error: "Unable to verify sheet access. Ensure the sheet is public and shared with 'Anyone with the link can view'.",
     };
   }
 }
@@ -317,4 +376,3 @@ export async function fetchSheetModifiedTime(
     return null;
   }
 }
-

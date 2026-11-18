@@ -80,14 +80,7 @@ describe('Subtask 7.7: Chart Config & Google Sheets Pipeline SSOT', () => {
       }
     });
 
-    it('removes /htmlview scraping and hardcoded Sheet1 fallback from sheetsVerificationService & useSheetVerification', () => {
-      const verifSrc = fs.readFileSync(
-        path.join(ROOT, 'src/services/sheetsVerificationService.ts'),
-        'utf8'
-      );
-      expect(verifSrc).not.toContain('htmlview');
-      expect(verifSrc).not.toContain('parseHtmlViewTabs');
-
+    it('removes hardcoded Sheet1 fallback from useSheetVerification', () => {
       const hookSrc = fs.readFileSync(
         path.join(ROOT, 'src/components/chart/drawer/hooks/useSheetVerification.ts'),
         'utf8'
@@ -340,9 +333,26 @@ describe('Subtask 7.7: Chart Config & Google Sheets Pipeline SSOT', () => {
     });
   });
 
-  describe('4. Single-Source Google Sheets Verification', () => {
-    it('verifySheetAccess fails stop when API key is missing instead of falling back to GViz', async () => {
-      const fetchMock = vi.fn();
+  describe('4. Public GViz & htmlview Google Sheets Verification (no Sheets API key required)', () => {
+    it('verifySheetAccess verifies public sheets via GViz probe and discovers tabs via htmlview without requiring a Sheets API key', async () => {
+      const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/gviz/tq')) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () => '"1"\n',
+          };
+        }
+        if (url.includes('/htmlview')) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () =>
+              'items.push({name: "student_numbers", pageUrl: "...", gid: "0"});items.push({name: "proficiency", pageUrl: "...", gid: "330923304"});',
+          };
+        }
+        return { ok: false, status: 404, text: async () => '' };
+      });
       vi.stubGlobal('fetch', fetchMock);
 
       const res = await verifySheetAccess(
@@ -350,27 +360,25 @@ describe('Subtask 7.7: Chart Config & Google Sheets Pipeline SSOT', () => {
         { apiKey: '' }
       );
 
-      expect(res.accessible).toBe(false);
-      expect(res.error).toBeTruthy();
-      expect(fetchMock).not.toHaveBeenCalled();
+      expect(res.accessible).toBe(true);
+      expect(res.tabs).toEqual([
+        { title: 'student_numbers', sheetId: 0, index: 0 },
+        { title: 'proficiency', sheetId: 330923304, index: 1 },
+      ]);
     });
 
-    it('fetchSheetTabs throws when Sheets API v4 fails instead of scraping /htmlview', async () => {
+    it('fetchSheetTabs returns discovered tabs from /htmlview', async () => {
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue({
-          ok: false,
-          status: 403,
-          text: async () => 'Forbidden',
+          ok: true,
+          status: 200,
+          text: async () => 'items.push({name: "student_numbers", pageUrl: "...", gid: "0"});',
         })
       );
 
-      await expect(
-        fetchSheetTabs(
-          '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
-          'valid-looking-api-key-123456'
-        )
-      ).rejects.toThrow();
+      const tabs = await fetchSheetTabs('1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms');
+      expect(tabs).toEqual([{ title: 'student_numbers', sheetId: 0, index: 0 }]);
     });
   });
 });

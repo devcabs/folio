@@ -72,10 +72,10 @@ export function useSheetVerification({
       setStatusMessage('Verifying link access…');
 
       try {
-        const [accessRes, tabs] = await Promise.all([
-          verifySheetAccess(trimmed),
-          fetchSheetTabs(trimmed),
-        ]);
+        const accessRes = await verifySheetAccess(trimmed);
+        const tabs = accessRes.tabs && accessRes.tabs.length > 0
+          ? accessRes.tabs
+          : await fetchSheetTabs(trimmed);
 
         lastVerifiedUrlRef.current = trimmed;
 

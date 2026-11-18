@@ -529,6 +529,10 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
 
   const companionContent = useMemo(() => {
     if (activeStep === 1) {
+      if (!isTabRefreshed) {
+        return null;
+      }
+
       const activeSheetMatrix =
         matrixSync.fullMatrix && matrixSync.fullMatrix.length > 0
           ? matrixSync.fullMatrix
@@ -569,6 +573,7 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
     return null;
   }, [
     activeStep,
+    isTabRefreshed,
     matrixSync.fullMatrix,
     effectiveMatrix,
     form.range,
