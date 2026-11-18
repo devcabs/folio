@@ -4,7 +4,6 @@ import styles from './SourceImage.module.css';
 
 export interface SourceImageProps {
   src?: string;
-  fallbackSrc?: string;
   srcSet?: string;
   sizes?: string;
   alt?: string;
@@ -28,7 +27,6 @@ export interface SourceImageProps {
  */
 export const SourceImage: React.FC<SourceImageProps> = ({
   src,
-  fallbackSrc,
   srcSet,
   sizes,
   alt = '',
@@ -42,7 +40,7 @@ export const SourceImage: React.FC<SourceImageProps> = ({
   onLoad,
   onError,
 }) => {
-  const { status, isLoading, isLoaded, isError, resolvedSrc, retry } = useImageLoader(src, fallbackSrc);
+  const { status, isLoading, isLoaded, isError, resolvedSrc, retry } = useImageLoader(src);
 
   useEffect(() => {
     if (isLoaded && onLoad) {

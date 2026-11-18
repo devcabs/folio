@@ -1,9 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { DevLinkData } from '../../types/developer';
-import { useSourcePoint } from '../../hooks/useSourcePoint';
+import React, { useState, useEffect } from 'react';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
-import { DevActionAffordance } from '../dev/DevActionAffordance';
-import { normalizePointId } from '../../utils/source';
 import { LinkFolderModal } from './LinkFolderModal';
 import { StatusPill } from '../ui/StatusPill';
 import styles from './SourceFolderAttachment.module.css';
@@ -11,39 +7,45 @@ import styles from './SourceFolderAttachment.module.css';
 export interface SourceFolderAttachmentProps {
   /** Canonical point or node identifier (e.g. 'access', 'milestone-1') */
   pointId: string;
-  /** Custom label override (defaults to live folderTitle or 'Official Google Drive Folder') */
+  /** Custom label override (defaults to folderTitle or 'Official Google Drive Folder') */
   label?: string;
+  /** Optional description for editorial variant */
+  description?: string;
   /** Visual presentation variant */
   variant?: 'compact' | 'editorial';
   /** Accent color token or hex for seal tinting */
   accentColor?: string;
   /** Optional container class name */
   className?: string;
-  /** Optional explicit Google Drive folder URL override (e.g. from AST element.driveUrl or resolved gallery folder) */
+  /** Explicit Google Drive folder URL from GalleryElement AST */
   folderUrl?: string;
-  /** Optional explicit Google Drive folder title override */
+  /** Explicit Google Drive folder title from GalleryElement AST */
   folderTitle?: string;
+  /** Callback to persist folder updates to GalleryElement AST */
+  onUpdateFolder?: (
+    newUrl: string,
+    newTitle: string
+  ) => Promise<{ ok: boolean; error?: string } | void> | void;
 }
 
 /**
  * SourceFolderAttachment Component
- * Folio Engine — Subtask 5.3: Contextual Point Anchor & Integration
+ * Folio Engine — Subtask 7.8: Self-Contained AST Evidence Folder Anchor
  *
  * Canonical, accessible Means of Verification (MOV) anchor component:
- * - Direct 1-tap jump to official Google Drive archives supporting accreditation.
- * - Public State: Calm, editorial badge opening in a new window with strict security.
- * - Developer Mode: Discrete uniform '✎ Edit' button for inline folder reassignment.
- * - Universal Zero Outline Policy: Strict enforcement of outline: none across all states.
- * - Responsive Adaptability: Compact (pill) and Editorial (card callout) variants.
+ * - Reads folderUrl, folderTitle, and description strictly from GalleryElement AST props.
+ * - Zero ContentDB or legacy client-side registry coupling.
  */
 export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
   pointId,
   label,
+  description,
   variant = 'compact',
   accentColor,
   className = '',
-  folderUrl: propFolderUrl,
-  folderTitle: propFolderTitle,
+  folderUrl = '',
+  folderTitle = '',
+  onUpdateFolder,
 }) => {
   const { isDevMode, isDesktop } = useDeveloperMode();
   const isDevActive = isDevMode && isDesktop;
@@ -56,36 +58,9 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
     }
   }, [isDevActive, isLinkModalOpen]);
 
-  const {
-    folderUrl: sourceFolderUrl,
-    folderTitle: sourceFolderTitle,
-    description,
-    updateFolder,
-  } = useSourcePoint(pointId);
-
-  const activeFolderUrl = propFolderUrl || sourceFolderUrl || '';
-  const activeHasFolder = Boolean(activeFolderUrl && activeFolderUrl.trim().length > 0);
-  const displayLabel =
-    label || propFolderTitle || sourceFolderTitle || 'Official Google Drive Folder';
-  const contentKey = `source.${normalizePointId(pointId)}.source`;
-
-  const devLinkPayload: DevLinkData = useMemo(
-    () => ({
-      url: activeFolderUrl,
-      label: activeHasFolder ? displayLabel : '',
-      openInNewTab: true,
-    }),
-    [activeFolderUrl, displayLabel, activeHasFolder]
-  );
-
-  const handleDevSave = useCallback(
-    (_val: string, _type?: string, payload?: DevLinkData) => {
-      if (payload?.url) {
-        updateFolder(payload.url, payload.label);
-      }
-    },
-    [updateFolder]
-  );
+  const activeFolderUrl = folderUrl.trim();
+  const activeHasFolder = activeFolderUrl.length > 0;
+  const displayLabel = label || folderTitle || 'Official Google Drive Folder';
 
   // If no folder is linked and Developer Mode is NOT active, render nothing (calm minimalism)
   if (!activeHasFolder && !isDevActive) {
@@ -112,6 +87,7 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
           icon={driveIconSvg}
           label="Attach Drive Folder"
           title="No Drive folder configured. Use Edit to link an official folder."
+          onClick={() => setIsLinkModalOpen(true)}
         />
       );
     }
@@ -157,27 +133,18 @@ export const SourceFolderAttachment: React.FC<SourceFolderAttachmentProps> = ({
 
   return (
     <div className={`${styles.wrapper} ${className}`.trim()}>
-      <DevActionAffordance
-        pointId={contentKey}
-        type="link"
-        defaultValue={devLinkPayload}
-        currentValue={devLinkPayload}
-        onEditText={() => setIsLinkModalOpen(true)}
-        onSave={handleDevSave}
-      >
-        {renderAnchorContent()}
-      </DevActionAffordance>
+      {renderAnchorContent()}
 
-      <LinkFolderModal
-        isOpen={isLinkModalOpen}
-        pointId={pointId}
-        initialTitle={activeHasFolder ? (propFolderTitle || sourceFolderTitle) : ''}
-        initialUrl={activeFolderUrl}
-        onClose={() => setIsLinkModalOpen(false)}
-        onSuccess={(newUrl, newTitle) => {
-          updateFolder(newUrl, newTitle);
-        }}
-      />
+      {isDevActive && (
+        <LinkFolderModal
+          isOpen={isLinkModalOpen}
+          pointId={pointId}
+          initialTitle={activeHasFolder ? folderTitle : ''}
+          initialUrl={activeFolderUrl}
+          onClose={() => setIsLinkModalOpen(false)}
+          onSuccess={(newUrl, newTitle) => onUpdateFolder?.(newUrl, newTitle)}
+        />
+      )}
     </div>
   );
 };

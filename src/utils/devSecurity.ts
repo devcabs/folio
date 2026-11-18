@@ -1,34 +1,16 @@
-import { getStorageNamespace, getEngineConfig } from '../config/engine.config';
+import { getEngineConfig } from '../config/engine.config';
 /**
  * Security and Cryptographic Primitives for Developer Mode
- * Task 4.5.0: docs/tasks/task4_5_0_developer_mode.md
+ * Task 4.5.0 / Epic 7 Subtask 7.1
  *
- * Implements salted SHA-256 hashing via native Web Crypto API.
- * The raw 4-digit PIN is NEVER stored in cleartext.
+ * Implements pure salted SHA-256 hashing via native Web Crypto API.
+ * Browser storage lockout counters and hardcoded credential fallbacks are purged;
+ * authoritative PIN verification and rate-limiting execute on the Cloudflare Edge.
  */
-
-export const getDevSalt = (ns?: string) => {
-  const config = getEngineConfig();
-  if (config.securitySalt) return config.securitySalt;
-  if (typeof import.meta !== "undefined" && import.meta.env?.VITE_DEV_SALT) {
-    return import.meta.env.VITE_DEV_SALT;
-  }
-  return (ns || getStorageNamespace()) + "_dev_salt_v1";
-};
-export const DEV_SALT = getDevSalt();
-export const EXPECTED_PIN_HASH =
-  '73b1e1cccbe22119e026c333e9de035db2a553f8acecdb5406af95f59bf46178';
 
 export const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 export const LOCKOUT_DURATION_MS = 60 * 1000; // 60 seconds (1 minute)
 export const MAX_ATTEMPTS = 5;
-
-export const getDevUnlockedAtKey = (ns?: string) => (ns || getStorageNamespace()) + '_dev_unlocked_at';
-export const STORAGE_KEY_UNLOCKED_AT = getDevUnlockedAtKey();
-export const getDevLockoutUntilKey = (ns?: string) => (ns || getStorageNamespace()) + '_dev_lockout_until';
-export const STORAGE_KEY_LOCKOUT_UNTIL = getDevLockoutUntilKey();
-export const getDevFailedAttemptsKey = (ns?: string) => (ns || getStorageNamespace()) + '_dev_failed_attempts';
-export const STORAGE_KEY_FAILED_ATTEMPTS = getDevFailedAttemptsKey();
 
 /**
  * Zero-dependency pure-TypeScript SHA-256 implementation.
@@ -133,9 +115,11 @@ export function sha256Fallback(ascii: string): string {
  * Native Web Crypto API execution: SHA-256(`${salt}:${pin}`) with
  * automatic graceful fallback to pure-TypeScript SHA-256.
  */
-export async function hashPin(pin: string, salt?: string): Promise<string> {
-  const effectiveSalt = salt ?? getDevSalt();
-  const message = `${effectiveSalt}:${pin}`;
+export async function hashPin(pin: string, salt: string): Promise<string> {
+  if (!salt) {
+    throw new Error('hashPin requires an explicit security salt');
+  }
+  const message = `${salt}:${pin}`;
   const cryptoObj =
     typeof window !== 'undefined' && window.crypto
       ? window.crypto
@@ -161,24 +145,28 @@ export async function hashPin(pin: string, salt?: string): Promise<string> {
 }
 
 /**
- * Verifies a 4-digit numeric PIN against the salted SHA-256 hash digest.
+ * Verifies a 4-digit numeric PIN against an explicit or configured salted SHA-256 hash digest.
+ * Fails stop with an explicit configuration error if securitySalt or expectedPinHash is missing.
  */
 export async function verifyPin(
   inputPin: string,
   salt?: string,
   expectedHash?: string
 ): Promise<boolean> {
+  const config = getEngineConfig();
+  const effectiveSalt = salt ?? config.securitySalt;
+  const targetHash = expectedHash ?? config.expectedPinHash;
+
+  if (!effectiveSalt || !targetHash) {
+    throw new Error(
+      'PIN verification requires securitySalt and expectedPinHash to be configured.'
+    );
+  }
+
   if (!inputPin || inputPin.length !== 4) {
     return false;
   }
-  const config = getEngineConfig();
-  const effectiveSalt = salt ?? config.securitySalt ?? getDevSalt();
-  const targetHash =
-    expectedHash ??
-    config.expectedPinHash ??
-    (typeof import.meta !== "undefined" && import.meta.env?.VITE_DEV_PIN_HASH
-      ? import.meta.env.VITE_DEV_PIN_HASH
-      : EXPECTED_PIN_HASH);
+
   const computedHash = await hashPin(inputPin, effectiveSalt);
   return computedHash === targetHash;
 }
@@ -211,33 +199,6 @@ export function isDesktopDevice(): boolean {
 }
 
 /**
- * Retrieves the stored session unlock timestamp from sessionStorage.
- */
-export function getSessionUnlockTime(): number | null {
-  if (typeof window === 'undefined' || !window.sessionStorage) return null;
-  const raw = sessionStorage.getItem(STORAGE_KEY_UNLOCKED_AT);
-  if (!raw) return null;
-  const parsed = parseInt(raw, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-/**
- * Stores the session unlock timestamp in sessionStorage.
- */
-export function setSessionUnlockTime(timestamp: number): void {
-  if (typeof window === 'undefined' || !window.sessionStorage) return;
-  sessionStorage.setItem(STORAGE_KEY_UNLOCKED_AT, timestamp.toString());
-}
-
-/**
- * Clears the session unlock timestamp from sessionStorage.
- */
-export function clearSessionUnlockTime(): void {
-  if (typeof window === 'undefined' || !window.sessionStorage) return;
-  sessionStorage.removeItem(STORAGE_KEY_UNLOCKED_AT);
-}
-
-/**
  * Evaluates whether a session timestamp is still active (< 30 minutes).
  */
 export function isSessionValid(unlockedAt: number | null, now: number = Date.now()): boolean {
@@ -256,83 +217,4 @@ export function getRemainingSessionMinutes(
   const elapsed = now - unlockedAt;
   const remainingMs = Math.max(0, SESSION_DURATION_MS - elapsed);
   return Math.ceil(remainingMs / (60 * 1000));
-}
-
-/**
- * Helper to safely access persistent storage (localStorage with sessionStorage fallback).
- * Prevents lockout bypass via page refreshes or opening new browser tabs.
- */
-function getPersistentStorage(): Storage | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    if (window.localStorage) return window.localStorage;
-  } catch {
-    // Fall back if localStorage is disabled in restricted environments
-  }
-  try {
-    if (window.sessionStorage) return window.sessionStorage;
-  } catch {
-    // Fallback if sessionStorage is also disabled
-  }
-  return null;
-}
-
-/**
- * Retrieves the lockout expiration timestamp if active.
- */
-export function getLockoutUntil(): number | null {
-  const storage = getPersistentStorage();
-  if (!storage) return null;
-  const raw = storage.getItem(getDevLockoutUntilKey());
-  if (!raw) return null;
-  const parsed = parseInt(raw, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-/**
- * Stores the lockout expiration timestamp.
- */
-export function setLockoutUntil(timestamp: number): void {
-  const storage = getPersistentStorage();
-  if (!storage) return;
-  storage.setItem(getDevLockoutUntilKey(), timestamp.toString());
-}
-
-/**
- * Clears the lockout expiration timestamp.
- */
-export function clearLockoutUntil(): void {
-  const storage = getPersistentStorage();
-  if (!storage) return;
-  storage.removeItem(getDevLockoutUntilKey());
-}
-
-/**
- * Retrieves current failed attempts count.
- */
-export function getFailedAttempts(): number {
-  const storage = getPersistentStorage();
-  if (!storage) return 0;
-  const raw = storage.getItem(getDevFailedAttemptsKey());
-  if (!raw) return 0;
-  const parsed = parseInt(raw, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-/**
- * Updates failed attempts count.
- */
-export function setFailedAttempts(count: number): void {
-  const storage = getPersistentStorage();
-  if (!storage) return;
-  storage.setItem(getDevFailedAttemptsKey(), count.toString());
-}
-
-/**
- * Resets failed attempts count.
- */
-export function resetFailedAttempts(): void {
-  const storage = getPersistentStorage();
-  if (!storage) return;
-  storage.removeItem(getDevFailedAttemptsKey());
 }

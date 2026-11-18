@@ -36,7 +36,6 @@ export function validateNodePayload(payload: unknown): DiagnosticResult {
   }
 
   const nodePayload = parsed.data as PublicNodePayload;
-  const chartDatasets = nodePayload.chartDatasets || {};
   const seenIds = new Set<string>();
 
   function inspectElement(el: CanvasLeafElement, secTitle: string) {
@@ -51,9 +50,9 @@ export function validateNodePayload(payload: unknown): DiagnosticResult {
     if (el.type === 'chart') {
       if (!el.chartId) {
         errors.push(`[Chart] Chart element "${el.id}" is missing 'chartId'.`);
-      } else if (!chartDatasets[el.chartId]) {
+      } else if (!el.dataset && !el.config) {
         warnings.push(
-          `[Chart] Chart "${el.chartId}" is referenced in canvas section "${secTitle}" but not found in chartDatasets.`
+          `[Chart] Chart "${el.chartId}" is referenced in canvas section "${secTitle}" without embedded dataset or config.`
         );
       }
     }

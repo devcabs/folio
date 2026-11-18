@@ -233,10 +233,6 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
     ? buildEdgeMediaUrl(driveFileId, { width: 1600 })
     : imageSrc;
 
-  const permanentFallbackSrc = driveFileId
-    ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(driveFileId)}&sz=w1600`
-    : undefined;
-
   const content = (
     <div
       ref={dialogRef}
@@ -333,7 +329,6 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
           <div className={styles.lightboxImageWrapper}>
             <SourceImage
               src={highResSrc}
-              fallbackSrc={permanentFallbackSrc}
               alt={imageAlt}
               className={styles.lightboxImage}
               imageClassName={styles.lightboxImage}

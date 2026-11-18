@@ -11,7 +11,8 @@ import {
   compilePublicNodePayload,
   compilePortalManifest,
 } from '../src/services/edgePreBakeService.js';
-import { getDefaultSystemBaselineSnapshot } from '../src/services/historyService.js';
+import { createDefaultCanvasDocument } from '../src/utils/canvasDefaults.js';
+import type { PublishedSnapshot } from '../src/types/history.js';
 import { VALID_NODES } from '../src/types/edge.js';
 
 const colors = {
@@ -41,7 +42,27 @@ async function main() {
 
   // 1. Resolve baseline or active published snapshot
   console.log(`${colors.dim}[1/3] Loading active snapshot...${colors.reset}`);
-  const snapshot = getDefaultSystemBaselineSnapshot(true);
+  const canvases = Object.fromEntries(VALID_NODES.map((id) => [id, createDefaultCanvasDocument(id)]));
+  const snapshot: PublishedSnapshot = {
+    id: 'snap-system-baseline',
+    schemaVersion: 1,
+    title: 'System Baseline',
+    description: 'Clean baseline snapshot',
+    createdAt: new Date().toISOString(),
+    authorSessionId: 'cli-prebake',
+    isActive: true,
+    canvases,
+    contentOverrides: {},
+    summary: {
+      totalSections: 0,
+      totalSubsections: 0,
+      totalLeafElements: 0,
+      totalTextOverrides: 0,
+      totalTextElements: 0,
+      totalPhotoElements: 0,
+      totalChartElements: 0,
+    },
+  };
   console.log(`  ${colors.green}✓${colors.reset} Loaded baseline snapshot: ${colors.bright}${snapshot.title}${colors.reset} (${snapshot.id})`);
 
   // 2. Run AST transformation and bundle payloads
@@ -60,15 +81,6 @@ async function main() {
       value: JSON.stringify(nodePayload),
     });
     transformedNodes.push(nodeId);
-
-    if (nodePayload.chartDatasets) {
-      for (const [chartId, chartDataset] of Object.entries(nodePayload.chartDatasets)) {
-        kvPayloads.push({
-          key: `chart:${chartId}`,
-          value: JSON.stringify(chartDataset),
-        });
-      }
-    }
   }
 
   const manifestPayload = compilePortalManifest(snapshot, targetNodes);

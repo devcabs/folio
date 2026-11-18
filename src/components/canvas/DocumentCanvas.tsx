@@ -15,12 +15,13 @@ import type {
 import type { NodeCode } from '../../types/node';
 import { useDocumentCanvas } from '../../hooks/useNodeCanvas';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
+import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { generateCanvasId, createDefaultSection } from '../../utils/canvasDefaults';
 import { CanvasSection } from './CanvasSection';
 import { CanvasSubsection } from './CanvasSubsection';
 import { CanvasText } from './CanvasText';
 import { CanvasPhoto } from './CanvasPhoto';
-import { CanvasGallery } from './CanvasGallery';
+import { CanvasGallery, type GalleryElementUpdates } from './CanvasGallery';
 import { CanvasChart } from './CanvasChart';
 import { CanvasAddBar } from './CanvasAddBar';
 import { CanvasGhostWireframe } from './CanvasGhostWireframe';
@@ -38,16 +39,6 @@ export interface NodeCanvasProps {
   nodeTitle: string;
   accentColor?: string;
   className?: string;
-}
-
-interface UndoBackupRecord {
-  type: 'section' | 'subsection' | 'leaf';
-  section?: SectionElement;
-  subsection?: SubsectionElement;
-  leaf?: CanvasLeafElement;
-  sectionId?: string;
-  subsectionId?: string;
-  index: number;
 }
 
 interface ActiveCanvasModalState {
@@ -82,7 +73,14 @@ function renderCanvasLeaf(
   accentColor?: string,
   onEditPhoto?: (photo: PhotoElement) => void,
   onEditLeaf?: (leaf: CanvasLeafElement) => void,
-  onUpdateGallery?: (leafId: string, updates: { driveUrl?: string; title?: string }) => void
+  onUpdateGallery?: (
+    leafId: string,
+    updates: GalleryElementUpdates
+  ) => Promise<{ ok: boolean; error?: string } | void> | void,
+  onUpdateChart?: (
+    leafId: string,
+    updates: Partial<ChartElement>
+  ) => Promise<{ ok: boolean; error?: string } | void> | void
 ): React.ReactNode {
   switch (leaf.type) {
     case 'text':
@@ -123,6 +121,7 @@ function renderCanvasLeaf(
           nodeId={nodeId}
           nodeTitle={nodeTitle}
           accentColor={accentColor}
+          onUpdateElement={onUpdateChart}
         />
       );
     default:
@@ -156,7 +155,6 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     addElement,
     restoreSection,
     restoreSubsection,
-    restoreElement,
     moveItem,
     relocateItem,
     removeItem,
@@ -168,8 +166,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
   } = useDocumentCanvas(nodeId);
 
   const sectionNumbers = useDynamicCanvasSectionNumbers(nodeId, document?.sections || []);
+  const { undo } = useUndoRedo();
 
-  const [undoBackup, setUndoBackup] = useState<UndoBackupRecord | null>(null);
   const [showUndoToast, setShowUndoToast] = useState(false);
   const [activeAddBarId, setActiveAddBarId] = useState<string | null>(null);
 
@@ -182,24 +180,13 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     setActiveAddBarId(isOpen ? barId : null);
   }, []);
 
-  // Deletion Handlers with Toast Undo registration
-  const handleDeleteSection = useCallback((section: SectionElement, index: number) => {
-    setUndoBackup({
-      type: 'section',
-      section,
-      index,
-    });
+  // Deletion Handlers with Toast Undo registration (delegated to UndoRedoContext)
+  const handleDeleteSection = useCallback((section: SectionElement, _index: number) => {
     removeItem(section.id);
     setShowUndoToast(true);
   }, [removeItem]);
 
-  const handleDeleteSubsection = useCallback((sectionId: string, subsection: SubsectionElement, index: number) => {
-    setUndoBackup({
-      type: 'subsection',
-      subsection,
-      sectionId,
-      index,
-    });
+  const handleDeleteSubsection = useCallback((sectionId: string, subsection: SubsectionElement, _index: number) => {
     removeItem(subsection.id, sectionId);
     setShowUndoToast(true);
   }, [removeItem]);
@@ -207,40 +194,18 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
   const handleDeleteLeaf = useCallback((
     sectionId: string,
     leaf: CanvasLeafElement,
-    index: number,
+    _index: number,
     subsectionId?: string
   ) => {
-    setUndoBackup({
-      type: 'leaf',
-      leaf,
-      sectionId,
-      subsectionId,
-      index,
-    });
     removeItem(leaf.id, subsectionId || sectionId);
     setShowUndoToast(true);
   }, [removeItem]);
 
-  // Undo Handler restoring the removed item back to its original slot
+  // Undo Handler popping directly from UndoRedoContext
   const handleUndoDelete = useCallback(() => {
-    if (!undoBackup) return;
-
-    if (undoBackup.type === 'section' && undoBackup.section) {
-      restoreSection(undoBackup.section, undoBackup.index);
-    } else if (undoBackup.type === 'subsection' && undoBackup.subsection && undoBackup.sectionId) {
-      restoreSubsection(undoBackup.sectionId, undoBackup.subsection, undoBackup.index);
-    } else if (undoBackup.type === 'leaf' && undoBackup.leaf && undoBackup.sectionId) {
-      restoreElement(
-        undoBackup.sectionId,
-        undoBackup.leaf,
-        undoBackup.index,
-        undoBackup.subsectionId
-      );
-    }
-
-    setUndoBackup(null);
+    undo();
     setShowUndoToast(false);
-  }, [undoBackup, restoreSection, restoreSubsection, restoreElement]);
+  }, [undo]);
 
   // Insertion Trigger: Intercepts additions to route through unified modal or fast-track drawer
   const handleAddElement = useCallback((
@@ -524,13 +489,29 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     setActiveModal(null);
   }, [activeModal, updateItem, handleExecuteAdd]);
 
-  // Gallery Element dynamic update handler
+  // Gallery Element dynamic update handler (fail-stop KV persistence)
   const handleUpdateGallery = useCallback(
-    (itemId: string, updates: { driveUrl?: string; title?: string }) => {
-      updateItem<GalleryElement>(itemId, {
-        driveUrl: updates.driveUrl?.trim() || undefined,
-        title: updates.title?.trim() || undefined,
-      });
+    (itemId: string, updates: GalleryElementUpdates) => {
+      const cleanUpdates: Partial<GalleryElement> = {};
+      if ('driveUrl' in updates) {
+        cleanUpdates.driveUrl = updates.driveUrl?.trim() || undefined;
+      }
+      if ('title' in updates) {
+        cleanUpdates.title = updates.title?.trim() || undefined;
+      }
+      if ('subtitle' in updates) {
+        cleanUpdates.subtitle = updates.subtitle?.trim() || undefined;
+      }
+      if ('description' in updates) {
+        cleanUpdates.description = updates.description?.trim() || undefined;
+      }
+      if ('lastVerified' in updates) {
+        cleanUpdates.lastVerified = updates.lastVerified;
+      }
+      if ('syncedPhotos' in updates) {
+        cleanUpdates.syncedPhotos = updates.syncedPhotos;
+      }
+      return updateItem<GalleryElement>(itemId, cleanUpdates);
     },
     [updateItem]
   );
@@ -724,7 +705,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                                             accentColor,
                                             handleEditPhoto,
                                             handleEditLeaf,
-                                            handleUpdateGallery
+                                            handleUpdateGallery,
+                                            updateItem
                                           )}
                                         </CanvasItemControls>
 
@@ -782,7 +764,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                                 accentColor,
                                 handleEditPhoto,
                                 handleEditLeaf,
-                                handleUpdateGallery
+                                handleUpdateGallery,
+                                updateItem
                               )}
                             </CanvasItemControls>
 
@@ -816,7 +799,6 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
           onAction={handleUndoDelete}
           onDismiss={() => {
             setShowUndoToast(false);
-            setUndoBackup(null);
           }}
         />
       )}
@@ -856,17 +838,20 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
           chartId={activeChartDrawer.chartId}
           nodeId={nodeId as NodeCode}
           onClose={() => setActiveChartDrawer(null)}
-          onDeployed={(config: any) => {
+          onDeployed={async (config, dataset) => {
             if (activeChartDrawer.mode === 'add') {
               const chartLeaf: ChartElement = {
                 id: generateCanvasId('chart'),
                 type: 'chart',
                 chartId: activeChartDrawer.chartId,
-                title: config.titleOverride || 'Indicator Chart',
-                subtitle: config.subtitleOverride,
+                title: config.titleOverride || dataset?.title || 'Indicator Chart',
+                subtitle: config.subtitleOverride ?? dataset?.subtitle,
+                config,
+                dataset,
               };
+              let result: { ok: boolean; error?: string } | undefined;
               if (activeChartDrawer.targetSectionId) {
-                addElement(
+                result = await addElement(
                   activeChartDrawer.targetSectionId,
                   chartLeaf,
                   activeChartDrawer.targetIndex,
@@ -876,7 +861,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                 if (document.sections.length === 0) {
                   const newSec = createDefaultSection(0, nodeId);
                   newSec.elements.push(chartLeaf);
-                  restoreSection(newSec, 0);
+                  result = await restoreSection(newSec, 0);
                 } else {
                   const targetSec = (typeof activeChartDrawer.targetIndex === 'number' && activeChartDrawer.targetIndex === 0)
                     ? document.sections[0]
@@ -884,8 +869,11 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                   const insertIdx = (typeof activeChartDrawer.targetIndex === 'number' && activeChartDrawer.targetIndex === 0)
                     ? 0
                     : undefined;
-                  addElement(targetSec.id, chartLeaf, insertIdx);
+                  result = await addElement(targetSec.id, chartLeaf, insertIdx);
                 }
+              }
+              if (result && !result.ok) {
+                return result;
               }
             }
             setActiveChartDrawer(null);

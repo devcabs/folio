@@ -129,8 +129,8 @@ describe('extractDriveFileId & resolveSingleDrivePhotoUrl (Subtask 2.11)', () =>
       expect(result).not.toBeNull();
       expect(result).toEqual({
         fileId: TEST_FILE_ID,
-        displayUrl: `https://drive.google.com/thumbnail?id=${TEST_FILE_ID}&sz=w1600`,
-        thumbnailUrl: `https://drive.google.com/thumbnail?id=${TEST_FILE_ID}&sz=w320`,
+        displayUrl: `/api/media/drive/${TEST_FILE_ID}?w=1600`,
+        thumbnailUrl: `/api/media/drive/${TEST_FILE_ID}?w=320`,
         rawUrl: input,
       });
     });
@@ -140,8 +140,8 @@ describe('extractDriveFileId & resolveSingleDrivePhotoUrl (Subtask 2.11)', () =>
 
       expect(result).not.toBeNull();
       expect(result?.fileId).toBe(TEST_FILE_ID);
-      expect(result?.displayUrl).toBe(`https://drive.google.com/thumbnail?id=${TEST_FILE_ID}&sz=w1600`);
-      expect(result?.thumbnailUrl).toBe(`https://drive.google.com/thumbnail?id=${TEST_FILE_ID}&sz=w320`);
+      expect(result?.displayUrl).toBe(`/api/media/drive/${TEST_FILE_ID}?w=1600`);
+      expect(result?.thumbnailUrl).toBe(`/api/media/drive/${TEST_FILE_ID}?w=320`);
     });
 
     it('returns null for Google Drive folder URLs', () => {

@@ -1,30 +1,27 @@
 /**
- * Folio Engine — Edge Public Handlers (Node, Manifest, Chart)
+ * Folio Engine — Edge Public Handlers (Node, Manifest)
  * Location: src/edge/handlers/publicHandler.ts
  */
 
-import type {
-  PublicNodePayload,
-  PublicPortalManifestPayload,
-  KVNamespace,
-  ValidNodeId,
-} from '../../types/edge';
-import {
-  computeWeakEtag,
-  VALID_NODES,
-} from '../../types/edge';
-import bakedChartsData from '../../data/baked-charts.json';
-import type { ChartDataset } from '../../types/chart';
+import type { KVNamespace } from '../../types/edge';
+import { computeWeakEtag } from '../../types/edge';
 
 export const CACHE_CONTROL_MANIFEST = 'public, max-age=0, must-revalidate';
 export const CACHE_CONTROL_NODE = 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
 export const CACHE_CONTROL_FALLBACK = 'public, max-age=0, must-revalidate';
 export const CACHE_CONTROL_EDGE = CACHE_CONTROL_NODE;
 
+const NODE_ID_REGEX = /^[a-z0-9_-]{1,64}$/;
+
+const JSON_HEADERS = {
+  'Content-Type': 'application/json; charset=utf-8',
+  'Access-Control-Allow-Origin': '*',
+} as const;
+
 export interface ResponseOptions {
   status?: number;
   etag?: string;
-  source?: 'KV' | 'SUPABASE_FALLBACK' | 'STATIC_FALLBACK';
+  source?: 'KV';
   cacheControl?: string;
   headers?: Record<string, string>;
 }
@@ -46,12 +43,11 @@ export function createEdgeJsonResponse(
   return new Response(payloadString, {
     status,
     headers: {
-      'Content-Type': 'application/json; charset=utf-8',
+      ...JSON_HEADERS,
       'Cache-Control': cacheControl,
       'ETag': etag,
       'X-Engine-Edge-Source': source,
       'Vary': 'Accept-Encoding',
-      'Access-Control-Allow-Origin': '*',
       ...(options.headers || {}),
     },
   });
@@ -87,81 +83,83 @@ export async function handlePublicNodeRoute(
   request: Request,
   nodeIdParam: string,
   kv: KVNamespace | null,
-  _ctx?: any
+  _ctx?: unknown
 ): Promise<Response> {
-  const nodeId = nodeIdParam.toLowerCase();
+  const nodeId = nodeIdParam.trim().toLowerCase();
 
-  // Strict Validation against Canonical 5 Nodes
-  if (!nodeId || !VALID_NODES.includes(nodeId as ValidNodeId)) {
+  if (!nodeId || !NODE_ID_REGEX.test(nodeId)) {
+    return new Response(JSON.stringify({ error: 'Invalid node ID' }), {
+      status: 400,
+      headers: JSON_HEADERS,
+    });
+  }
+
+  if (!kv) {
     return new Response(
-      JSON.stringify({
-        error: 'Invalid node ID',
-        validNodes: VALID_NODES,
-      }),
-      {
-        status: 400,
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
+      JSON.stringify({ error: 'KV namespace binding not configured' }),
+      { status: 503, headers: JSON_HEADERS }
     );
   }
 
-  const kvKey = `node:${nodeId}`;
-
   try {
-    const cachedJson = kv ? await kv.get(kvKey) : null;
-
-    if (cachedJson) {
-      const etag = computeWeakEtag(cachedJson);
-      const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_NODE);
-      if (response304) return response304;
-
-      return createEdgeJsonResponse(cachedJson, {
-        status: 200,
-        etag,
-        source: 'KV',
-        cacheControl: CACHE_CONTROL_NODE,
-      });
+    let activeSnapshotId: string | null = null;
+    const manifestRaw = await kv.get('portal:manifest');
+    if (manifestRaw) {
+      try {
+        const parsedManifest = JSON.parse(manifestRaw) as { activeSnapshotId?: unknown };
+        if (
+          typeof parsedManifest?.activeSnapshotId === 'string' &&
+          parsedManifest.activeSnapshotId
+        ) {
+          activeSnapshotId = parsedManifest.activeSnapshotId;
+        }
+      } catch {
+        // Ignore malformed manifest
+      }
     }
 
-    // Fallback on KV Cold Miss (Self-Healing)
-    const fallbackPayload: PublicNodePayload = {
-      nodeId,
-      snapshotId: 'snapshot-latest',
-      version: 1,
-      updatedAt: new Date().toISOString(),
-      canvas: {
-        nodeId,
-        version: 1,
-        sections: [],
-        updatedAt: new Date().toISOString(),
-      },
-      chartDatasets: {},
-      sourceMetadata: {},
-    };
+    let cachedJson: string | null = null;
+    if (activeSnapshotId) {
+      cachedJson = await kv.get(`node:${activeSnapshotId}:${nodeId}`);
+      if (!cachedJson) {
+        const unversioned = await kv.get(`node:${nodeId}`);
+        if (unversioned) {
+          try {
+            const parsedNode = JSON.parse(unversioned) as { snapshotId?: unknown };
+            if (parsedNode?.snapshotId === activeSnapshotId) {
+              cachedJson = unversioned;
+            }
+          } catch {
+            // Ignore malformed unversioned node
+          }
+        }
+      }
+    } else {
+      cachedJson = await kv.get(`node:${nodeId}`);
+    }
 
-    const fallbackString = JSON.stringify(fallbackPayload);
-    const etag = computeWeakEtag(fallbackString);
+    if (!cachedJson) {
+      return new Response(
+        JSON.stringify({ error: 'Resource not found in Edge KV' }),
+        { status: 404, headers: JSON_HEADERS }
+      );
+    }
 
-    const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_FALLBACK);
+    const etag = computeWeakEtag(cachedJson);
+    const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_NODE);
     if (response304) return response304;
 
-    return createEdgeJsonResponse(fallbackString, {
+    return createEdgeJsonResponse(cachedJson, {
       status: 200,
       etag,
-      source: 'SUPABASE_FALLBACK',
-      cacheControl: CACHE_CONTROL_FALLBACK,
+      source: 'KV',
+      cacheControl: CACHE_CONTROL_NODE,
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown node edge error';
     return new Response(JSON.stringify({ error: errorMsg }), {
       status: 500,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: JSON_HEADERS,
     });
   }
 }
@@ -172,140 +170,40 @@ export async function handlePublicNodeRoute(
 export async function handlePublicManifestRoute(
   request: Request,
   kv: KVNamespace | null,
-  _ctx?: any
+  _ctx?: unknown
 ): Promise<Response> {
-  const kvKey = 'portal:manifest';
+  if (!kv) {
+    return new Response(
+      JSON.stringify({ error: 'KV namespace binding not configured' }),
+      { status: 503, headers: JSON_HEADERS }
+    );
+  }
 
   try {
-    const cachedJson = kv ? await kv.get(kvKey) : null;
+    const cachedJson = await kv.get('portal:manifest');
 
-    if (cachedJson) {
-      const etag = computeWeakEtag(cachedJson);
-      const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_MANIFEST);
-      if (response304) return response304;
-
-      return createEdgeJsonResponse(cachedJson, {
-        status: 200,
-        etag,
-        source: 'KV',
-        cacheControl: CACHE_CONTROL_MANIFEST,
-      });
+    if (!cachedJson) {
+      return new Response(
+        JSON.stringify({ error: 'Resource not found in Edge KV' }),
+        { status: 404, headers: JSON_HEADERS }
+      );
     }
 
-    // Cold Miss Self-Healing Fallback
-    const fallbackManifest: PublicPortalManifestPayload = {
-      activeSnapshotId: 'snapshot-latest',
-      publishedAt: new Date().toISOString(),
-      nodeIds: [...VALID_NODES],
-      schemaVersion: 1,
-    };
-
-    const fallbackString = JSON.stringify(fallbackManifest);
-    const etag = computeWeakEtag(fallbackString);
-
+    const etag = computeWeakEtag(cachedJson);
     const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_MANIFEST);
     if (response304) return response304;
 
-    return createEdgeJsonResponse(fallbackString, {
+    return createEdgeJsonResponse(cachedJson, {
       status: 200,
       etag,
-      source: 'SUPABASE_FALLBACK',
+      source: 'KV',
       cacheControl: CACHE_CONTROL_MANIFEST,
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown manifest edge error';
     return new Response(JSON.stringify({ error: errorMsg }), {
       status: 500,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
-  }
-}
-
-/**
- * Handles GET /api/public/chart/:chartId
- */
-export async function handlePublicChartRoute(
-  request: Request,
-  chartIdParam: string,
-  kv: KVNamespace | null,
-  _ctx?: any
-): Promise<Response> {
-  const chartId = chartIdParam.trim();
-
-  if (!chartId) {
-    return new Response(JSON.stringify({ error: 'Chart ID is required' }), {
-      status: 400,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
-  }
-
-  const kvKey = `chart:${chartId}`;
-
-  try {
-    const cachedJson = kv ? await kv.get(kvKey) : null;
-
-    if (cachedJson) {
-      const etag = computeWeakEtag(cachedJson);
-      const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_NODE);
-      if (response304) return response304;
-
-      return createEdgeJsonResponse(cachedJson, {
-        status: 200,
-        etag,
-        source: 'KV',
-        cacheControl: CACHE_CONTROL_NODE,
-      });
-    }
-
-    // Check baked charts fallback
-    if (Array.isArray(bakedChartsData)) {
-      const foundChart = (bakedChartsData as ChartDataset[]).find(
-        (c) => c && c.chartId && c.chartId.toLowerCase() === chartId.toLowerCase()
-      );
-
-      if (foundChart) {
-        const payloadString = JSON.stringify(foundChart);
-        const etag = computeWeakEtag(payloadString);
-
-        const response304 = checkConditionalGet(request, etag, CACHE_CONTROL_FALLBACK);
-        if (response304) return response304;
-
-        return createEdgeJsonResponse(payloadString, {
-          status: 200,
-          etag,
-          source: 'STATIC_FALLBACK',
-          cacheControl: CACHE_CONTROL_FALLBACK,
-        });
-      }
-    }
-
-    return new Response(
-      JSON.stringify({
-        error: 'Chart not found',
-        chartId,
-      }),
-      {
-        status: 404,
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
-    );
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : 'Unknown chart edge error';
-    return new Response(JSON.stringify({ error: errorMsg }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: JSON_HEADERS,
     });
   }
 }

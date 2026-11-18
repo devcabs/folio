@@ -125,8 +125,6 @@ export function useSheetVerification({
               onAutoSelectTab?.(firstTab.title, String(firstTab.sheetId));
             }
           }
-        } else if (!tabNameRef.current) {
-          setTabName('Sheet1');
         }
       } catch {
         lastVerifiedUrlRef.current = trimmed;

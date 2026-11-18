@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { SourceItem } from '../../types/node';
 import type { SyncedSourceItem } from '../../types/source';
-import { getSourceSource, normalizePointId } from '../../utils/source';
-import { upsertLiveSourceSource } from '../../services/sourceService';
+import type { GalleryElementUpdates } from '../canvas/CanvasGallery';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
-import { useSourcePoint } from '../../hooks/useSourcePoint';
 import { useDrivePhotoSync } from '../../hooks/useDrivePhotoSync';
 import { Toast } from '../feedback/Toast';
 import { EmptyState } from '../feedback/EmptyState';
@@ -31,8 +29,16 @@ export interface SourceGalleryProps {
   driveUrl?: string;
   /** Direct title configured on the gallery element */
   title?: string;
-  /** Callback when gallery element properties (e.g. driveUrl, title) are updated */
-  onUpdateGallery?: (updates: { driveUrl?: string; title?: string }) => void;
+  /** Optional description configured on the gallery element */
+  description?: string;
+  /** ISO timestamp of last Drive verification */
+  lastVerified?: string;
+  /** Hydrated synced photos directly from GalleryElement.syncedPhotos in the Canvas AST */
+  syncedPhotos?: SyncedSourceItem[];
+  /** Callback when gallery element properties (e.g. driveUrl, title, syncedPhotos) are updated */
+  onUpdateGallery?: (
+    updates: GalleryElementUpdates
+  ) => Promise<{ ok: boolean; error?: string } | void> | void;
 }
 
 /**
@@ -60,6 +66,8 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
   galleryId,
   driveUrl,
   title,
+  description,
+  syncedPhotos: propSyncedPhotos,
   onUpdateGallery,
 }) => {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -86,10 +94,23 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
   const effectivePointId = galleryKey || nodeId;
   const isElementLevel = Boolean(galleryKey && galleryKey !== nodeId);
 
-  // Retrieve official Google Drive repository metadata via reactive hook
-  const primarySourcePoint = useSourcePoint(effectivePointId);
+  const currentFolderUrl = (driveUrl && driveUrl.trim()) || '';
+  const currentFolderTitle =
+    title || (isElementLevel ? 'Gallery Folder' : 'Official Google Drive Folder');
+  const hasDriveLink = currentFolderUrl.length > 0;
 
-  // Dynamic Google Drive Photo Sync Engine hook strictly keyed to this gallery (no parent fallback)
+  const handlePersistSyncedPhotos = useCallback(
+    (photos: SyncedSourceItem[], verifiedAt: string) => {
+      if (!onUpdateGallery) return;
+      return onUpdateGallery({
+        syncedPhotos: photos,
+        lastVerified: verifiedAt,
+      });
+    },
+    [onUpdateGallery]
+  );
+
+  // Dynamic Google Drive Photo Sync Engine hook strictly keyed to GalleryElement AST
   const {
     syncedPhotos,
     syncState,
@@ -98,30 +119,14 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
     error: syncError,
     backgroundError,
   } = useDrivePhotoSync(effectivePointId, {
-    folderUrl: driveUrl,
+    folderUrl: currentFolderUrl,
+    syncedPhotos: propSyncedPhotos,
     isElementLevel,
-    autoSync: true,
+    autoSync: isDevActive,
+    onPersistPhotos: handlePersistSyncedPhotos,
   });
 
   const effectiveError = syncError || backgroundError;
-
-  const defaultSource = useMemo(
-    () => (!isElementLevel ? getSourceSource(nodeId) : null),
-    [nodeId, isElementLevel]
-  );
-  const sourcePointId = `source.${normalizePointId(effectivePointId)}.source`;
-
-  const currentFolderUrl =
-    (driveUrl && driveUrl.trim()) ||
-    primarySourcePoint.folderUrl ||
-    (!isElementLevel ? defaultSource?.folderUrl || '' : '');
-
-  const currentFolderTitle =
-    title ||
-    primarySourcePoint.folderTitle ||
-    (!isElementLevel ? defaultSource?.folderTitle || 'Official Google Drive Folder' : 'Gallery Folder');
-
-  const hasDriveLink = Boolean(currentFolderUrl && currentFolderUrl.trim().length > 0);
 
   // Deterministic 5-State Coexistence Resolution (Task 6.3.1)
   const displayItems: SourceItem[] = useMemo(() => {
@@ -176,77 +181,73 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
       const trimmedTitle = newTitle.trim();
       if (!trimmedTitle) return;
 
-      if (syncedPhotos && syncedPhotos.length > 0) {
-        const updatedPhotos: SyncedSourceItem[] = syncedPhotos.map((p) => {
-          if (p.id === photoId || p.driveFileId === photoId) {
-            return {
-              ...p,
-              title: trimmedTitle,
-              date: newDate || p.date,
-              dateStamp: newDate || p.dateStamp,
-              isCustomTitle: true,
-              photo: {
-                ...p.photo,
-                src: p.photo?.src || p.fullImageUrl || p.thumbnailUrl || '',
-                alt: trimmedTitle,
-                caption: newCaption?.trim() || trimmedTitle,
-                showCaption: true,
-              },
-            };
-          }
-          return p;
-        });
+      const updatedPhotos: SyncedSourceItem[] =
+        syncedPhotos && syncedPhotos.length > 0
+          ? syncedPhotos.map((p) => {
+              if (p.id === photoId || p.driveFileId === photoId) {
+                return {
+                  ...p,
+                  title: trimmedTitle,
+                  date: newDate || p.date,
+                  dateStamp: newDate || p.dateStamp,
+                  isCustomTitle: true,
+                  photo: {
+                    ...p.photo,
+                    src: p.photo?.src || p.fullImageUrl || p.thumbnailUrl || '',
+                    alt: trimmedTitle,
+                    caption: newCaption?.trim() || trimmedTitle,
+                    showCaption: true,
+                  },
+                };
+              }
+              return p;
+            })
+          : displayItems.map((item, index) => {
+              const isTarget =
+                item.id === photoId || (item as SyncedSourceItem).driveFileId === photoId;
+              const finalTitle = isTarget ? trimmedTitle : item.title;
+              const finalDate =
+                isTarget && newDate
+                  ? newDate
+                  : (item as SyncedSourceItem).date || item.dateStamp || '2026-10-09';
+              return {
+                id: item.id,
+                pointId: effectivePointId,
+                driveFileId: (item as SyncedSourceItem).driveFileId || item.id,
+                originalFileName: (item as SyncedSourceItem).originalFileName || `${item.id}.jpg`,
+                title: finalTitle,
+                isCustomTitle: isTarget ? true : ((item as SyncedSourceItem).isCustomTitle ?? false),
+                orderIndex: index,
+                date: finalDate,
+                dateStamp: finalDate,
+                thumbnailUrl: item.photo?.src || item.imageSrc || '',
+                fullImageUrl: item.photo?.src || item.imageSrc || '',
+                imageSrc: item.photo?.src || item.imageSrc || '',
+                photo: {
+                  src: item.photo?.src || item.imageSrc || '',
+                  alt: finalTitle,
+                  caption: isTarget
+                    ? newCaption?.trim() || finalTitle
+                    : item.photo?.caption || finalTitle,
+                  showCaption: true,
+                },
+              };
+            });
 
-        await upsertLiveSourceSource({
-          pointId: effectivePointId,
-          folderUrl: currentFolderUrl,
-          folderTitle: currentFolderTitle,
-          syncedPhotos: updatedPhotos,
-          updatedBy: 'Coordinator',
-        });
-
-        setToastMessage(`Updated photo: "${trimmedTitle}".`);
-        setToastType('success');
-      } else {
-        const updatedPhotos: SyncedSourceItem[] = displayItems.map((item, index) => {
-          const isTarget = item.id === photoId || (item as SyncedSourceItem).driveFileId === photoId;
-          const finalTitle = isTarget ? trimmedTitle : item.title;
-          const finalDate = (isTarget && newDate) ? newDate : ((item as SyncedSourceItem).date || item.dateStamp || '2026-10-09');
-          return {
-            id: item.id,
-            pointId: effectivePointId,
-            driveFileId: (item as SyncedSourceItem).driveFileId || item.id,
-            originalFileName: (item as SyncedSourceItem).originalFileName || `${item.id}.jpg`,
-            title: finalTitle,
-            isCustomTitle: isTarget ? true : ((item as SyncedSourceItem).isCustomTitle ?? false),
-            orderIndex: index,
-            date: finalDate,
-            dateStamp: finalDate,
-            thumbnailUrl: item.photo?.src || item.imageSrc || '',
-            fullImageUrl: item.photo?.src || item.imageSrc || '',
-            imageSrc: item.photo?.src || item.imageSrc || '',
-            photo: {
-              src: item.photo?.src || item.imageSrc || '',
-              alt: finalTitle,
-              caption: isTarget ? (newCaption?.trim() || finalTitle) : (item.photo?.caption || finalTitle),
-              showCaption: true,
-            },
-          };
-        });
-
-        await upsertLiveSourceSource({
-          pointId: effectivePointId,
-          folderUrl: currentFolderUrl,
-          folderTitle: currentFolderTitle,
-          syncedPhotos: updatedPhotos,
-          updatedBy: 'Coordinator',
-        });
-
-        setToastMessage(`Updated photo: "${trimmedTitle}".`);
-        setToastType('success');
+      const persistResult = await onUpdateGallery?.({ syncedPhotos: updatedPhotos });
+      if (
+        persistResult &&
+        typeof persistResult === 'object' &&
+        'ok' in persistResult &&
+        !persistResult.ok
+      ) {
+        throw new Error(persistResult.error || 'Failed to save photo title to draft KV.');
       }
+
+      setToastMessage(`Updated photo: "${trimmedTitle}".`);
+      setToastType('success');
     },
-    [syncedPhotos, displayItems, effectivePointId, currentFolderUrl, currentFolderTitle]
+    [syncedPhotos, displayItems, effectivePointId, onUpdateGallery]
   );
 
   // Stable event callbacks for lightbox orchestration
@@ -504,9 +505,14 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
             <SourceFolderAttachment
               pointId={effectivePointId}
               label={currentFolderTitle}
+              description={description}
               folderUrl={currentFolderUrl}
+              folderTitle={currentFolderTitle}
               variant="compact"
               accentColor={accentColor}
+              onUpdateFolder={(newUrl, newTitle) =>
+                onUpdateGallery?.({ driveUrl: newUrl, title: newTitle })
+              }
             />
           </div>
 
@@ -529,19 +535,16 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
       )}
 
       {/* Dedicated Link Folder Modal for Drive Source */}
-      {sourcePointId && (
-        <LinkFolderModal
-          isOpen={isSourceModalOpen}
-          pointId={effectivePointId}
-          initialTitle={currentFolderTitle}
-          initialUrl={currentFolderUrl}
-          onClose={() => setIsSourceModalOpen(false)}
-          onSuccess={(newUrl, newTitle) => {
-            primarySourcePoint.updateFolder(newUrl, newTitle);
-            onUpdateGallery?.({ driveUrl: newUrl, title: newTitle });
-          }}
-        />
-      )}
+      <LinkFolderModal
+        isOpen={isSourceModalOpen}
+        pointId={effectivePointId}
+        initialTitle={currentFolderTitle}
+        initialUrl={currentFolderUrl}
+        onClose={() => setIsSourceModalOpen(false)}
+        onSuccess={(newUrl, newTitle) =>
+          onUpdateGallery?.({ driveUrl: newUrl, title: newTitle })
+        }
+      />
 
       {/* Dedicated Edit Photo Modal for Coordinator Custom Titles & Captions */}
       {editingPhoto && (

@@ -1,4 +1,4 @@
-import { getEngineConfig, setEngineConfig, type EngineConfig } from "./config/engine.config";
+import { getEngineConfig, setEngineConfig, getActiveNodes, type EngineConfig } from "./config/engine.config";
 import { verifyEngineWiring } from "./diagnostics/verifyEngineSetup";
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import type { RoadmapSectionHandle, RoadmapScrollZone } from './components/roadmap/RoadmapSection';
@@ -16,12 +16,13 @@ import { PageNotFound } from './components/feedback/PageNotFound';
 import { useHashRoute } from './hooks/use-hash-route';
 import { useDiscreteStepNavigation } from './hooks/use-discrete-step-navigation';
 import { useAutoTableOfContents } from './hooks/use-auto-toc';
+import { useContent } from './hooks/useContent';
 import { cinematicScrollTo } from './utils/smooth-scroll';
-import rawNodes from './data/sample-nodes.json';
 import type { NodeItem, NodeCode } from './types/node';
 
 import { MigrationProvider } from './context/MigrationContext';
 import { DeveloperModeProvider } from './context/DeveloperModeContext';
+import { PortalChromeProvider } from './context/PortalChromeContext';
 import { UndoRedoProvider } from './context/UndoRedoContext';
 import {
   DevPinModal,
@@ -30,10 +31,7 @@ import {
   DevExitConfirmModal,
   DevMigrationModal,
 } from './components/dev';
-import { hydrateHistoryFromIndexedDB } from './services/historyService';
 import styles from './App.module.css';
-
-const sampleNodes = rawNodes as NodeItem[];
 
 const DEFAULT_NODE_SECTIONS: NavItem[] = [
   { id: 'node-overview', label: 'Overview', href: '#node-overview' },
@@ -41,7 +39,7 @@ const DEFAULT_NODE_SECTIONS: NavItem[] = [
 
 const AppContent: React.FC = () => {
   const engineConfig = getEngineConfig();
-  const nodes = engineConfig.nodes && engineConfig.nodes.length > 0 ? engineConfig.nodes : sampleNodes;
+  const nodes = getActiveNodes();
   const validNodeIds = useMemo(() => nodes.map((n: NodeItem) => n.id as NodeCode), [nodes]);
 
   const { route, nodeId, pageId, targetStage, navigateToNode, navigateToHome } =
@@ -55,6 +53,10 @@ const AppContent: React.FC = () => {
 
   const activeNodeCode = nodeId || pageId;
   const currentNode = activeNodeCode ? nodes.find((n: NodeItem) => n.id === activeNodeCode) : null;
+  const { text: resolvedNodeTitle } = useContent(
+    currentNode ? `node.${currentNode.id}.title` : '__inactive__.title',
+    currentNode?.title ?? ''
+  );
 
   const handleStageChange = useCallback((stage: number, zone: RoadmapScrollZone) => {
     setActiveStage(stage);
@@ -75,13 +77,6 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     setNodeSections([]);
   }, [route, activeNodeCode]);
-
-  // Early IndexedDB History Hydration for undo/redo resilience
-  useEffect(() => {
-    hydrateHistoryFromIndexedDB().catch((err) => {
-      console.warn('[App] History hydration notice:', err);
-    });
-  }, []);
 
   const isNodeRoute = route === 'node' || (route as string) === 'page';
 
@@ -250,7 +245,7 @@ const AppContent: React.FC = () => {
               items={[
                 { label: 'Overview', onClick: () => navigateToHome() },
                 { label: 'Milestones', onClick: () => navigateToHome(currentNode.nodeNumber ?? 1) },
-                { label: currentNode.title, isCurrent: true },
+                { label: resolvedNodeTitle, isCurrent: true },
               ]}
             />
           </div>
@@ -263,7 +258,7 @@ const AppContent: React.FC = () => {
                 items={effectiveNodeSections}
                 accentColor={currentNode.accentColor}
                 nodeNumber={currentNode.nodeNumber ?? 1}
-                nodeTitle={currentNode.title}
+                nodeTitle={resolvedNodeTitle}
                 onBack={handleBackFromNode}
               />
             </div>
@@ -272,12 +267,12 @@ const AppContent: React.FC = () => {
               {/* Node Overview & Page Title */}
               <section id="node-overview" className={styles.overviewSection} aria-label="Node Overview">
                 <PageTitle
-                  kicker={`Stage 0${currentNode.nodeNumber ?? 1}: ${currentNode.title}`}
+                  kicker={`Stage 0${currentNode.nodeNumber ?? 1}: ${resolvedNodeTitle}`}
                   kickerPointId={`node.${currentNode.id}.kicker`}
                   title={currentNode.subtitle ?? currentNode.title}
                   titlePointId={`node.${currentNode.id}.title`}
                   subtitle={currentNode.summary}
-                  subtitlePointId={`node.${currentNode.id}.subtitle`}
+                  subtitlePointId={`node.${currentNode.id}.summary`}
                   accentColor={currentNode.accentColor}
                 />
               </section>
@@ -286,7 +281,7 @@ const AppContent: React.FC = () => {
               <div id="node-canvas" data-toc="false">
                 <DocumentCanvas
                   nodeId={currentNode.id}
-                  nodeTitle={currentNode.title}
+                  nodeTitle={resolvedNodeTitle}
                   accentColor={currentNode.accentColor}
                 />
               </div>
@@ -410,9 +405,11 @@ export const App: React.FC<AppProps> = ({ config }) => {
   return (
     <MigrationProvider engineConfig={activeConfig}>
       <DeveloperModeProvider>
-        <UndoRedoProvider>
-          <AppContent />
-        </UndoRedoProvider>
+        <PortalChromeProvider>
+          <UndoRedoProvider>
+            <AppContent />
+          </UndoRedoProvider>
+        </PortalChromeProvider>
       </DeveloperModeProvider>
     </MigrationProvider>
   );

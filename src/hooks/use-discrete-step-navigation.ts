@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import type { RoadmapScrollZone } from '../components/roadmap/RoadmapSection';
+import { isScrollLocked } from '../utils/scrollLock';
 
 export interface UseDiscreteStepNavigationOptions {
   enabled: boolean;
@@ -154,9 +155,25 @@ export function useDiscreteStepNavigation({
       );
     };
 
+    const shouldYieldToOverlay = (target: EventTarget | null): boolean => {
+      if (isScrollLocked()) return true;
+      if (
+        typeof Element !== 'undefined' &&
+        target instanceof Element &&
+        typeof target.closest === 'function' &&
+        target.closest('[aria-modal="true"], [role="dialog"], [role="alertdialog"]')
+      ) {
+        return true;
+      }
+      return false;
+    };
+
     // 1. Mousewheel / Trackpad Gesture Handler
     const handleWheel = (e: WheelEvent) => {
-      if (isInteractiveInput(e.target)) return;
+      if (isInteractiveInput(e.target) || shouldYieldToOverlay(e.target)) {
+        wheelAccumulatorRef.current = 0;
+        return;
+      }
 
       // Strictly prevent browser's default document scrolling
       e.preventDefault();
@@ -188,7 +205,7 @@ export function useDiscreteStepNavigation({
 
     // 2. Mobile Touch Swipe Handlers
     const handleTouchStart = (e: TouchEvent) => {
-      if (isInteractiveInput(e.target)) return;
+      if (isInteractiveInput(e.target) || shouldYieldToOverlay(e.target)) return;
       if (e.touches.length === 1) {
         touchStartYRef.current = e.touches[0].clientY;
         touchStartXRef.current = e.touches[0].clientX;
@@ -197,7 +214,7 @@ export function useDiscreteStepNavigation({
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (isInteractiveInput(e.target)) return;
+      if (isInteractiveInput(e.target) || shouldYieldToOverlay(e.target)) return;
       // Prevent browser's native pull-to-refresh, rubber-band, or momentum scroll
       e.preventDefault();
     };
@@ -206,6 +223,7 @@ export function useDiscreteStepNavigation({
       if (!touchActiveRef.current) return;
       touchActiveRef.current = false;
 
+      if (shouldYieldToOverlay(e.target)) return;
       if (isTransitioningRef.current) return;
       if (e.changedTouches.length === 0) return;
 
@@ -226,7 +244,7 @@ export function useDiscreteStepNavigation({
 
     // 3. Keyboard Page Navigation
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isInteractiveInput(e.target)) return;
+      if (isInteractiveInput(e.target) || shouldYieldToOverlay(e.target)) return;
 
       if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === 'ArrowRight') {
         e.preventDefault();

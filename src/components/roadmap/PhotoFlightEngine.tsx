@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import type { NodeItem } from '../../types/node';
-import defaultNodes from '../../data/sample-nodes.json';
+import { getActiveNodes } from '../../config/engine.config';
 import {
   NODE_PHOTO_CONFIGS,
   DEFAULT_DEST_MAX_WIDTH_VW,
@@ -53,7 +53,7 @@ export const PhotoFlightEngine: React.FC<PhotoFlightEngineProps> = ({
   onExploreNode,
   className,
 }) => {
-  const effectiveNodes = nodes && nodes.length > 0 ? nodes : (defaultNodes as NodeItem[]);
+  const effectiveNodes = nodes && nodes.length > 0 ? nodes : getActiveNodes();
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const rafIdRef = useRef<number | null>(null);

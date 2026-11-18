@@ -4,11 +4,6 @@ import type { NodeCode } from '../../types/node';
 import { Drawer, type DrawerTabItem } from '../ui/Drawer';
 import { Button } from '../ui';
 import { Toast } from '../feedback/Toast';
-import {
-  saveChartConfigDetailed,
-  setCachedChartConfig,
-  formatSaveErrorMessage,
-} from '../../services/chartSourceService';
 import { parseTabularDataset, transposeMatrix } from '../../services/sheetsDataService';
 import { parseRangeNotation } from '../../utils/chartSanitizer';
 import { NODE_ACCENT_TOKENS } from '../../utils/chartColors';
@@ -35,8 +30,18 @@ export interface ChartConfigDrawerProps {
   nodeId: NodeCode;
   initialConfig?: SheetChartConfig;
   previewMatrix?: (string | number | null)[][];
-  onDeployed?: (config: SheetChartConfig) => void;
+  onDeployed?: (
+    config: SheetChartConfig,
+    dataset?: ChartDataset
+  ) => Promise<{ ok: boolean; error?: string } | void> | void;
   mode?: 'add' | 'edit';
+}
+
+function formatDrawerSaveError(err: unknown, action: 'save' | 'deploy'): string {
+  if (err instanceof Error && err.message) {
+    return `Failed to ${action} chart configuration: ${err.message}`;
+  }
+  return `Failed to ${action} chart configuration: ${String(err || 'Unknown error.')}`;
 }
 
 export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
@@ -291,15 +296,43 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
 
     try {
       await verification.executeVerification(form.sheetUrl);
-      matrixSync.executeSync();
+      await matrixSync.executeSync();
       userManuallySelectedRangeRef.current = false;
       setToast({ message: 'Google Sheet source and tabs resynced.', type: 'info' });
-    } catch {
-      setToast({ message: 'Failed to resync Google Sheet source.', type: 'error' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to resync Google Sheet source.';
+      setToast({ message: msg, type: 'error' });
     }
   }, [form.sheetUrl, verification, matrixSync]);
 
-  // Save chart configuration directly without advancing or closing
+  const compileDatasetFromConfig = useCallback(
+    (cfg: SheetChartConfig): ChartDataset | undefined => {
+      if (previewDataset) return previewDataset;
+      if (!cfg.cachedDataset || cfg.cachedDataset.length === 0) return undefined;
+      try {
+        const stringMatrix = cfg.cachedDataset.map((row) =>
+          Array.isArray(row)
+            ? row.map((cell) => (cell === null || cell === undefined ? '' : String(cell)))
+            : []
+        );
+        return parseTabularDataset({
+          chartId,
+          title: cfg.titleOverride || '',
+          subtitle: cfg.subtitleOverride,
+          unit: cfg.unitOverride,
+          chartType: cfg.defaultType,
+          nodeId,
+          visualConfig: cfg.visualConfig,
+          rawMatrix: stringMatrix,
+        });
+      } catch {
+        return undefined;
+      }
+    },
+    [previewDataset, chartId, nodeId]
+  );
+
+  // Save chart configuration directly to Canvas AST in draft KV without closing
   const handleSave = useCallback(async () => {
     if (!form.sheetUrl.trim()) {
       setToast({ message: 'Google Sheet URL is required.', type: 'error' });
@@ -330,29 +363,16 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
     };
 
     try {
-      const result = await saveChartConfigDetailed(config);
-      if (result.savedToCloud) {
-        setCachedChartConfig(config);
-        form.markAsSaved(config);
-        setToast({ message: 'Chart configuration saved.', type: 'success' });
-        onDeployed?.(config);
-      } else if (result.savedLocally) {
-        setCachedChartConfig(config);
-        form.markAsSaved(config);
-        onDeployed?.(config);
-        setToast({
-          message: formatSaveErrorMessage(result, 'save'),
-          type: result.error ? 'error' : 'info',
-        });
-      } else {
-        setToast({
-          message: formatSaveErrorMessage(result, 'save'),
-          type: 'error',
-        });
+      const compiledDataset = compileDatasetFromConfig(config);
+      const result = await onDeployed?.(config, compiledDataset);
+      if (result && typeof result === 'object' && 'ok' in result && !result.ok) {
+        throw new Error(result.error || 'Draft canvas KV write failed.');
       }
+      form.markAsSaved(config);
+      setToast({ message: 'Chart configuration saved.', type: 'success' });
     } catch (err) {
       setToast({
-        message: formatSaveErrorMessage(err, 'save'),
+        message: formatDrawerSaveError(err, 'save'),
         type: 'error',
       });
     } finally {
@@ -369,10 +389,11 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
     matrixSync.liveMatrix,
     matrixSync.fetchedMatrix,
     initialConfig?.cachedDataset,
+    compileDatasetFromConfig,
     onDeployed,
   ]);
 
-  // Deploy to Supabase action
+  // Persist chart configuration to Canvas AST in Cloudflare KV draft:workspace and close
   const handleDeploy = useCallback(async () => {
     if (!form.sheetUrl.trim()) {
       setToast({ message: 'Google Sheet URL is required.', type: 'error' });
@@ -403,30 +424,20 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
     };
 
     try {
-      const result = await saveChartConfigDetailed(config);
-      if (result.savedToCloud) {
-        setCachedChartConfig(config);
-        form.markAsSaved(config);
-        const successMsg = mode === 'add' ? 'Chart added to canvas and saved to draft.' : 'Chart saved to draft successfully.';
-        setToast({ message: successMsg, type: 'success' });
-        showToast(successMsg, 'success');
-        onDeployed?.(config);
-        onClose();
-      } else {
-        if (result.savedLocally) {
-          setCachedChartConfig(config);
-          form.markAsSaved(config);
-          onDeployed?.(config);
-          onClose();
-        }
-        setToast({
-          message: formatSaveErrorMessage(result, 'deploy'),
-          type: 'error',
-        });
+      const compiledDataset = compileDatasetFromConfig(config);
+      const result = await onDeployed?.(config, compiledDataset);
+      if (result && typeof result === 'object' && 'ok' in result && !result.ok) {
+        throw new Error(result.error || 'Draft canvas KV write failed.');
       }
+      form.markAsSaved(config);
+      const successMsg = mode === 'add' ? 'Chart added to canvas and saved to draft.' : 'Chart saved to draft successfully.';
+      setToast({ message: successMsg, type: 'success' });
+      showToast(successMsg, 'success');
+      onClose();
     } catch (err) {
+      // Fail-stop: keep drawer open and display error
       setToast({
-        message: formatSaveErrorMessage(err, 'deploy'),
+        message: formatDrawerSaveError(err, 'deploy'),
         type: 'error',
       });
     } finally {
@@ -443,6 +454,7 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
     matrixSync.liveMatrix,
     matrixSync.fetchedMatrix,
     initialConfig?.cachedDataset,
+    compileDatasetFromConfig,
     mode,
     onDeployed,
     onClose,

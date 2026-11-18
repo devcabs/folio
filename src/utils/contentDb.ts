@@ -1,199 +1,75 @@
 /**
- * Content Database & Dynamic Text Registry Engine
+ * Content Database & Direct Cloudflare KV Content Overrides
  * Folio Engine
  *
- * Implements a reactive, client-side dual-channel content repository.
- * Strictly separates uncommitted drafts (isDevMode = true) from canonical live
- * published text (isDevMode = false), preventing cross-talk and leaks to public visitors.
+ * Epic 7 Subtask 7.2:
+ * - Zero module-level shadow stores or tombstones.
+ * - Zero browser storage reads or writes.
+ * - Direct Cloudflare KV reads (GET /api/public/manifest, GET /api/draft) and
+ *   fail-stop mutations (PUT /api/draft with Authorization: Bearer <lockToken> & expectedUpdatedAt).
  */
 
-import {
-  setDraftDirty,
-} from '../services/draftService';
-import { getStorage } from './storage';
 import { getStorageNamespace } from '../config/engine.config';
+import type { PublicPortalManifestPayload } from '../types/edge';
 
 export const getLiveContentStorageKey = (ns?: string) => (ns || getStorageNamespace()) + '_live_content_overrides';
 export const STORAGE_KEY_LIVE_CONTENT = getLiveContentStorageKey();
 export const getDraftContentStorageKey = (ns?: string) => (ns || getStorageNamespace()) + '_draft_content_overrides';
 export const STORAGE_KEY_DRAFT_CONTENT = getDraftContentStorageKey();
-export const getLegacyContentStorageKey = (ns?: string) => (ns || getStorageNamespace()) + '_content_overrides';
-export const STORAGE_KEY_LEGACY_CONTENT = getLegacyContentStorageKey();
 export const STORAGE_KEY_CONTENT_OVERRIDES = STORAGE_KEY_LIVE_CONTENT;
 
 export const EVENT_LIVE_CONTENT_CHANGE = 'engine-live-content-change';
 export const EVENT_DRAFT_CONTENT_CHANGE = 'engine-draft-content-change';
 
-let liveMemoryCache: Record<string, string> | null = null;
-let draftMemoryCache: Record<string, string> | null = null;
-let cachedLiveNamespace: string | null = null;
-let cachedDraftNamespace: string | null = null;
-const inMemoryLiveStores = new Map<string, Record<string, string>>();
-const inMemoryDraftStores = new Map<string, Record<string, string>>();
-const draftTombstones = new Set<string>();
-
-function loadLiveCache(): Record<string, string> {
-  const currentNs = getStorageNamespace();
-  if (cachedLiveNamespace !== currentNs) {
-    liveMemoryCache = null;
-    cachedLiveNamespace = currentNs;
-  }
-  if (liveMemoryCache !== null) return liveMemoryCache;
-  const storage = getStorage();
-  if (!storage) {
-    liveMemoryCache = inMemoryLiveStores.get(currentNs) || {};
-    return liveMemoryCache;
-  }
-  try {
-    // Check canonical live key first
-    let raw = storage.getItem(getLiveContentStorageKey());
-    // Backward compatibility fallback to legacy key
-    if (!raw) {
-      raw = storage.getItem(getLegacyContentStorageKey());
-    }
-    liveMemoryCache = raw ? JSON.parse(raw) : {};
-  } catch {
-    liveMemoryCache = {};
-  }
-  return liveMemoryCache as Record<string, string>;
+export interface DraftContentMutationOptions {
+  lockToken?: string | null;
+  expectedUpdatedAt?: string | null;
 }
 
-function loadDraftCache(): Record<string, string> {
-  const currentNs = getStorageNamespace();
-  if (cachedDraftNamespace !== currentNs) {
-    draftMemoryCache = null;
-    draftTombstones.clear();
-    cachedDraftNamespace = currentNs;
-  }
-  if (draftMemoryCache !== null) return draftMemoryCache;
-  const storage = getStorage();
-  if (!storage) {
-    draftMemoryCache = inMemoryDraftStores.get(currentNs) || {};
-    return draftMemoryCache;
-  }
-  try {
-    const raw = storage.getItem(getDraftContentStorageKey());
-    draftMemoryCache = raw ? JSON.parse(raw) : {};
-  } catch {
-    draftMemoryCache = {};
-  }
-  return draftMemoryCache as Record<string, string>;
+export interface DraftContentMutationResult {
+  contentOverrides: Record<string, string>;
+  updatedAt: string | null;
 }
 
-function saveLiveCache(): void {
-  const currentNs = getStorageNamespace();
-  if (liveMemoryCache) {
-    inMemoryLiveStores.set(currentNs, { ...liveMemoryCache });
-  }
-  const storage = getStorage();
-  if (!storage || !liveMemoryCache) return;
-  try {
-    storage.setItem(getLiveContentStorageKey(), JSON.stringify(liveMemoryCache));
-  } catch {
-    // Storage quota exceeded or disabled
-  }
-}
-
-function saveDraftCache(): void {
-  const currentNs = getStorageNamespace();
-  if (draftMemoryCache) {
-    inMemoryDraftStores.set(currentNs, { ...draftMemoryCache });
-  }
-  const storage = getStorage();
-  if (!storage || !draftMemoryCache) return;
-  try {
-    storage.setItem(getDraftContentStorageKey(), JSON.stringify(draftMemoryCache));
-    setDraftDirty(true);
-  } catch {
-    // Storage quota exceeded or disabled
-  }
-}
-
-function notifySubscribers(key: string, value: string | null, isDevMode = false): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const eventName = isDevMode ? EVENT_DRAFT_CONTENT_CHANGE : EVENT_LIVE_CONTENT_CHANGE;
-    window.dispatchEvent(
-      new CustomEvent(eventName, {
-        detail: { key, value },
-      })
-    );
-  } catch {
-    // dispatch failure in non-browser env
-  }
+export interface DraftWorkspaceResponse {
+  contentOverrides?: Record<string, string>;
+  updatedAt?: string;
+  [key: string]: unknown;
 }
 
 /**
- * Retrieves the current text for a given key with strict channel isolation.
- * Public visitors (isDevMode = false) strictly read canonical live overrides;
- * Coordinators (isDevMode = true) read draft overrides, falling back to live before hardcoded defaults.
+ * Pure helper: resolves a text value from an overrides map, falling back to defaultValue.
  */
-export function getContent(key: string, defaultValue: string, isDevMode = false): string {
-  const cache = isDevMode ? loadDraftCache() : loadLiveCache();
-  if (Object.prototype.hasOwnProperty.call(cache, key) && typeof cache[key] === 'string') {
-    return cache[key];
-  }
-  // In dev mode, if not in draft, check live cache before falling back to default
-  if (isDevMode) {
-    if (draftTombstones.has(key)) {
-      return defaultValue;
-    }
-    const liveCache = loadLiveCache();
-    if (Object.prototype.hasOwnProperty.call(liveCache, key) && typeof liveCache[key] === 'string') {
-      return liveCache[key];
-    }
+export function resolveContent(
+  overrides: Record<string, string>,
+  key: string,
+  defaultValue: string
+): string {
+  if (Object.prototype.hasOwnProperty.call(overrides, key) && typeof overrides[key] === 'string') {
+    return overrides[key];
   }
   return defaultValue;
 }
 
 /**
- * Checks whether a specific content key currently has a custom override saved.
+ * Pure helper: checks whether a key is overridden in an overrides map.
  */
-export function hasContentOverride(key: string, isDevMode = false): boolean {
-  const cache = isDevMode ? loadDraftCache() : loadLiveCache();
-  if (Object.prototype.hasOwnProperty.call(cache, key)) {
-    return true;
-  }
-  if (isDevMode) {
-    if (draftTombstones.has(key)) {
-      return false;
-    }
-    const liveCache = loadLiveCache();
-    return Object.prototype.hasOwnProperty.call(liveCache, key);
-  }
-  return false;
+export function hasContentOverrideInMap(overrides: Record<string, string>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(overrides, key) && typeof overrides[key] === 'string';
 }
 
 /**
- * Persists an edited text override strictly isolated to the specified channel.
+ * Pure helper: resolves structured JSON content from an overrides map, falling back to defaultValue.
  */
-export function setContent(key: string, value: string, isDevMode = false): void {
-  if (isDevMode) {
-    if (draftTombstones.has(key)) {
-      draftTombstones.delete(key);
-    }
-    const cache = loadDraftCache();
-    cache[key] = value;
-    saveDraftCache();
-    notifySubscribers(key, value, true);
-  } else {
-    const cache = loadLiveCache();
-    cache[key] = value;
-    saveLiveCache();
-    notifySubscribers(key, value, false);
-  }
-}
-
-/**
- * Retrieves structured content (link, image, file, or object) from the DB.
- * Gracefully parses JSON if serialized, falling back to defaultValue.
- */
-export function getContentObject<T>(key: string, defaultValue: T, isDevMode = false): T {
-  const raw = getContent(key, '', isDevMode);
+export function resolveContentObject<T>(
+  overrides: Record<string, string>,
+  key: string,
+  defaultValue: T
+): T {
+  const raw = resolveContent(overrides, key, '');
   if (!raw) return defaultValue;
   try {
     const parsed = JSON.parse(raw);
-    // Gracefully handle image object defaults when override is string or partial object
     if (
       defaultValue &&
       typeof defaultValue === 'object' &&
@@ -208,7 +84,6 @@ export function getContentObject<T>(key: string, defaultValue: T, isDevMode = fa
     }
     return parsed as T;
   } catch {
-    // If raw could not be parsed as JSON, but defaultValue has 'src' (e.g. raw URL string stored in DB)
     if (
       defaultValue &&
       typeof defaultValue === 'object' &&
@@ -225,132 +100,243 @@ export function getContentObject<T>(key: string, defaultValue: T, isDevMode = fa
   }
 }
 
+async function parseErrorDetail(res: Response): Promise<string> {
+  try {
+    const text = await res.text();
+    if (!text) return `HTTP ${res.status}`;
+    try {
+      const parsed = JSON.parse(text) as { error?: string; message?: string };
+      return parsed.error || parsed.message || `HTTP ${res.status}`;
+    } catch {
+      return `${text} (HTTP ${res.status})`;
+    }
+  } catch {
+    return `HTTP ${res.status}`;
+  }
+}
+
 /**
- * Persists a structured object into the DB by serializing it to JSON.
+ * Fetches Public Mode contentOverrides directly from Cloudflare KV portal:manifest.
+ * Fails stop (throws) on non-2xx HTTP status or network error.
  */
-export function setContentObject<T>(key: string, value: T, isDevMode = false): void {
+export async function fetchPublicManifestOverrides(): Promise<Record<string, string>> {
+  if (typeof fetch !== 'function') {
+    throw new Error('Fetch API is unavailable to read portal:manifest.');
+  }
+  const res = await fetch('/api/public/manifest', { method: 'GET' });
+  if (!res.ok) {
+    throw new Error(`Manifest KV read failed (HTTP ${res.status})`);
+  }
+  const manifest = (await res.json()) as PublicPortalManifestPayload;
+  return manifest.contentOverrides ? { ...manifest.contentOverrides } : {};
+}
+
+/**
+ * Fetches Dev Mode contentOverrides directly from Cloudflare KV draft:workspace.
+ * Fails stop (throws) on non-2xx HTTP status or network error.
+ */
+export async function fetchDraftWorkspaceOverrides(
+  lockToken?: string | null
+): Promise<DraftContentMutationResult> {
+  if (typeof fetch !== 'function') {
+    throw new Error('Fetch API is unavailable to read draft:workspace.');
+  }
+  const headers: Record<string, string> = {};
+  if (lockToken) {
+    headers['Authorization'] = `Bearer ${lockToken}`;
+  }
+  const res = await fetch('/api/draft', { method: 'GET', headers });
+  if (!res.ok) {
+    const detail = await parseErrorDetail(res);
+    throw new Error(`Draft workspace KV read failed: ${detail} (HTTP ${res.status})`);
+  }
+  const draft = (await res.json()) as DraftWorkspaceResponse;
+  return {
+    contentOverrides: draft.contentOverrides ? { ...draft.contentOverrides } : {},
+    updatedAt: typeof draft.updatedAt === 'string' ? draft.updatedAt : null,
+  };
+}
+
+/**
+ * Persists the full contentOverrides map to Cloudflare KV draft:workspace via PUT /api/draft.
+ * Fails stop (throws) on HTTP error, concurrency conflict (409), auth failure (401), or network error.
+ */
+export async function putDraftContentOverrides(
+  contentOverrides: Record<string, string>,
+  options: DraftContentMutationOptions = {}
+): Promise<DraftContentMutationResult> {
+  if (typeof fetch !== 'function') {
+    throw new Error('Fetch API is unavailable to write draft:workspace.');
+  }
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (options.lockToken) {
+    headers['Authorization'] = `Bearer ${options.lockToken}`;
+  }
+
+  const body: Record<string, unknown> = { contentOverrides };
+  if (options.expectedUpdatedAt) {
+    body.expectedUpdatedAt = options.expectedUpdatedAt;
+  }
+
+  const res = await fetch('/api/draft', {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await parseErrorDetail(res);
+    throw new Error(`Draft content KV write failed: ${detail} (HTTP ${res.status})`);
+  }
+
+  let updatedAt: string | null = null;
+  let returnedOverrides = { ...contentOverrides };
+  try {
+    const data = (await res.json()) as DraftWorkspaceResponse;
+    if (typeof data.updatedAt === 'string') {
+      updatedAt = data.updatedAt;
+    }
+    if (data.contentOverrides && typeof data.contentOverrides === 'object') {
+      returnedOverrides = { ...data.contentOverrides };
+    }
+  } catch {
+    // Response had empty body on 200/204
+  }
+
+  return {
+    contentOverrides: returnedOverrides,
+    updatedAt,
+  };
+}
+
+/**
+ * Updates a single content override key in Cloudflare KV draft:workspace via PUT /api/draft.
+ */
+export async function updateDraftContentOverride(
+  key: string,
+  value: string,
+  currentOverrides: Record<string, string>,
+  options: DraftContentMutationOptions = {}
+): Promise<DraftContentMutationResult> {
+  const nextOverrides = {
+    ...currentOverrides,
+    [key]: value,
+  };
+  return putDraftContentOverrides(nextOverrides, options);
+}
+
+/**
+ * Removes a single content override key from Cloudflare KV draft:workspace via PUT /api/draft.
+ */
+export async function removeDraftContentOverride(
+  key: string,
+  currentOverrides: Record<string, string>,
+  options: DraftContentMutationOptions = {}
+): Promise<DraftContentMutationResult> {
+  const nextOverrides = { ...currentOverrides };
+  delete nextOverrides[key];
+  return putDraftContentOverrides(nextOverrides, options);
+}
+
+/**
+ * Direct KV mutation for a single key in Dev Mode (reads latest draft or writes directly to PUT /api/draft).
+ * Fails stop (throws) if called in Public Mode or if the KV write fails.
+ */
+export async function setContent(
+  key: string,
+  value: string,
+  isDevMode = false,
+  options: DraftContentMutationOptions = {}
+): Promise<void> {
+  if (!isDevMode) {
+    throw new Error('Cannot mutate content overrides in Public Mode.');
+  }
+  await updateDraftContentOverride(key, value, { [key]: value }, options);
+}
+
+/**
+ * Direct KV reset for a single key in Dev Mode via PUT /api/draft.
+ * Fails stop (throws) if called in Public Mode or if the KV write fails.
+ */
+export async function resetContent(
+  key: string,
+  isDevMode = false,
+  options: DraftContentMutationOptions = {}
+): Promise<void> {
+  if (!isDevMode) {
+    throw new Error('Cannot reset content overrides in Public Mode.');
+  }
+  await removeDraftContentOverride(key, {}, options);
+}
+
+/**
+ * Synchronous fallback helper for legacy non-React callers; prefer useContent() / PortalChromeContext.
+ */
+export function getContent(_key: string, defaultValue: string, _isDevMode = false): string {
+  return defaultValue;
+}
+
+/**
+ * Synchronous fallback helper for legacy non-React callers; prefer useContentObject() / PortalChromeContext.
+ */
+export function getContentObject<T>(_key: string, defaultValue: T, _isDevMode = false): T {
+  return defaultValue;
+}
+
+/**
+ * Synchronous fallback helper for legacy non-React callers; prefer useContent() / PortalChromeContext.
+ */
+export function hasContentOverride(_key: string, _isDevMode = false): boolean {
+  return false;
+}
+
+/**
+ * Synchronous fallback helper for legacy non-React callers; prefer useContentObject().
+ */
+export async function setContentObject<T>(
+  key: string,
+  value: T,
+  isDevMode = false,
+  options: DraftContentMutationOptions = {}
+): Promise<void> {
   const serialized = typeof value === 'string' ? value : JSON.stringify(value);
-  setContent(key, serialized, isDevMode);
+  await setContent(key, serialized, isDevMode, options);
 }
 
 /**
- * Resets a content key back to its default value by removing the override.
+ * @deprecated Removed in Epic 7.2; returns empty map without module-level cache.
  */
-export function resetContent(key: string, isDevMode = false): void {
-  if (isDevMode) {
-    const cache = loadDraftCache();
-    delete cache[key];
-    draftTombstones.add(key);
-    saveDraftCache();
-    notifySubscribers(key, null, true);
-  } else {
-    const cache = loadLiveCache();
-    if (Object.prototype.hasOwnProperty.call(cache, key)) {
-      delete cache[key];
-      saveLiveCache();
-      notifySubscribers(key, null, false);
-    }
-  }
+export function getAllContentOverrides(_isDevMode = false): Record<string, string> {
+  return {};
 }
 
 /**
- * Returns a copy of all current content overrides for the targeted channel.
+ * @deprecated Removed in Epic 7.2; no-op without module-level tombstones.
  */
-export function getAllContentOverrides(isDevMode = false): Record<string, string> {
-  if (isDevMode) {
-    const live = loadLiveCache();
-    const draft = loadDraftCache();
-    const merged: Record<string, string> = {};
-
-    // Copy live entries unless explicitly tombstoned in draft
-    for (const [key, value] of Object.entries(live)) {
-      if (!draftTombstones.has(key)) {
-        merged[key] = value;
-      }
-    }
-
-    // Layer active draft overrides
-    for (const [key, value] of Object.entries(draft)) {
-      merged[key] = value;
-    }
-
-    return merged;
-  }
-  return { ...loadLiveCache() };
-}
+export function clearDraftTombstones(): void {}
 
 /**
- * Clears all in-memory draft tombstones.
- * Called when drafts are discarded, reset, or synchronized with published state.
+ * @deprecated Removed in Epic 7.2; no-op without module-level shadow stores.
  */
-export function clearDraftTombstones(): void {
-  draftTombstones.clear();
-}
+export function resetAllContentOverrides(_isDevMode = false): void {}
 
 /**
- * Resets all content overrides back to system defaults.
+ * @deprecated Removed in Epic 7.2; no-op without module-level shadow stores.
  */
-export function resetAllContentOverrides(isDevMode = false): void {
-  const storage = getStorage();
-  if (isDevMode) {
-    draftTombstones.clear();
-    inMemoryDraftStores.delete(getStorageNamespace());
-    draftMemoryCache = {};
-    if (storage) {
-      try {
-        storage.removeItem(getDraftContentStorageKey());
-      } catch {
-        // ignore
-      }
-    }
-    notifySubscribers('*', null, true);
-  } else {
-    inMemoryLiveStores.delete(getStorageNamespace());
-    liveMemoryCache = {};
-    if (storage) {
-      try {
-        storage.removeItem(getLiveContentStorageKey());
-        storage.removeItem(getLegacyContentStorageKey());
-      } catch {
-        // ignore
-      }
-    }
-    notifySubscribers('*', null, false);
-  }
-}
+export function setAllContentOverrides(_overrides: Record<string, string>, _isDevMode = false): void {}
 
 /**
- * Replaces all content overrides and notifies all reactive subscribers.
- * Used during historical snapshot restoration.
+ * @deprecated Removed in Epic 7.2; no-op without module-level shadow stores.
  */
-export function setAllContentOverrides(overrides: Record<string, string>, isDevMode = false): void {
-  if (isDevMode) {
-    draftTombstones.clear();
-    draftMemoryCache = { ...overrides };
-    saveDraftCache();
-    notifySubscribers('*', null, true);
-  } else {
-    liveMemoryCache = { ...overrides };
-    saveLiveCache();
-    notifySubscribers('*', null, false);
-  }
-}
+export function invalidateContentCache(): void {}
 
 /**
- * Invalidates the in-memory cache and forces next read from storage.
- */
-export function invalidateContentCache(): void {
-  liveMemoryCache = null;
-  draftMemoryCache = null;
-  notifySubscribers('*', null, false);
-  notifySubscribers('*', null, true);
-}
-
-/**
- * Reads content overrides strictly from the canonical live/published channel.
+ * @deprecated Removed in Epic 7.2; returns empty map without module-level cache.
  */
 export function getLiveContentOverrides(): Record<string, string> {
-  return { ...loadLiveCache() };
+  return {};
 }
 
 export interface SetContentOverridesOptions {
@@ -358,137 +344,19 @@ export interface SetContentOverridesOptions {
 }
 
 /**
- * Persists content overrides strictly to the canonical live/published channel.
- * When options.memoryOnly is true, updates the in-memory cache and dispatches change events
- * without writing to localStorage, ensuring read-only storage purity for public visitors.
+ * @deprecated Removed in Epic 7.2; no-op without module-level shadow stores.
  */
 export function setLiveContentOverrides(
-  overrides: Record<string, string>,
-  options?: SetContentOverridesOptions
-): void {
-  const currentNs = getStorageNamespace();
-  cachedLiveNamespace = currentNs;
-  liveMemoryCache = { ...overrides };
-  inMemoryLiveStores.set(currentNs, { ...overrides });
-  if (!options?.memoryOnly) {
-    saveLiveCache();
-  }
-  notifySubscribers('*', null, false);
-}
+  _overrides: Record<string, string>,
+  _options?: SetContentOverridesOptions
+): void {}
 
 /**
- * Subscribes to content changes strictly scoped by channel.
+ * @deprecated Removed in Epic 7.2; PortalChromeContext drives React updates directly.
  */
 export function subscribeToContentChange(
-  callback: (detail: { key: string; value: string | null }) => void,
-  isDevMode = false
+  _callback: (detail: { key: string; value: string | null }) => void,
+  _isDevMode = false
 ): () => void {
-  if (typeof window === 'undefined') return () => { };
-
-  const eventName = isDevMode ? EVENT_DRAFT_CONTENT_CHANGE : EVENT_LIVE_CONTENT_CHANGE;
-
-  const handler = (e: Event) => {
-    const customEvent = e as CustomEvent<{ key: string; value: string | null }>;
-    if (customEvent.detail) {
-      callback(customEvent.detail);
-    }
-  };
-
-  const storageHandler = (e: StorageEvent) => {
-    const targetKey = isDevMode ? getDraftContentStorageKey() : getLiveContentStorageKey();
-    if (e.key === targetKey || e.key === null) {
-      if (isDevMode) {
-        draftMemoryCache = null;
-      } else {
-        liveMemoryCache = null;
-      }
-      callback({ key: '*', value: null });
-    }
-  };
-
-  window.addEventListener(eventName, handler);
-  window.addEventListener('storage', storageHandler);
-  return () => {
-    window.removeEventListener(eventName, handler);
-    window.removeEventListener('storage', storageHandler);
-  };
+  return () => {};
 }
-
-interface ContentSubscriberEntry {
-  key: string;
-  isDevMode: boolean;
-  callback: () => void;
-}
-
-const keySubscribers = new Set<ContentSubscriberEntry>();
-let contentWindowListenersAttached = false;
-
-function ensureContentWindowListeners(): void {
-  if (typeof window === 'undefined' || contentWindowListenersAttached) return;
-
-  const handleLiveWindowChange = (event: Event) => {
-    const detail = (event as CustomEvent<{ key: string }>).detail;
-    const changedKey = detail?.key || '*';
-    keySubscribers.forEach((sub) => {
-      if (changedKey === '*' || changedKey === sub.key) {
-        sub.callback();
-      }
-    });
-  };
-
-  const handleDraftWindowChange = (event: Event) => {
-    const detail = (event as CustomEvent<{ key: string }>).detail;
-    const changedKey = detail?.key || '*';
-    keySubscribers.forEach((sub) => {
-      if (sub.isDevMode && (changedKey === '*' || changedKey === sub.key)) {
-        sub.callback();
-      }
-    });
-  };
-
-  const handleStorageChange = (e: StorageEvent) => {
-    const liveKey = getLiveContentStorageKey();
-    const legacyKey = getLegacyContentStorageKey();
-    const draftKey = getDraftContentStorageKey();
-    if (e.key === liveKey || e.key === legacyKey || e.key === null) {
-      liveMemoryCache = null;
-      keySubscribers.forEach((sub) => sub.callback());
-    } else if (e.key === draftKey) {
-      draftMemoryCache = null;
-      keySubscribers.forEach((sub) => {
-        if (sub.isDevMode) sub.callback();
-      });
-    }
-  };
-
-  window.addEventListener(EVENT_LIVE_CONTENT_CHANGE, handleLiveWindowChange);
-  window.addEventListener(EVENT_DRAFT_CONTENT_CHANGE, handleDraftWindowChange);
-  window.addEventListener('storage', handleStorageChange);
-  contentWindowListenersAttached = true;
-}
-
-/**
- * Subscribes a listener to updates for a specific content key.
- * Used by useSyncExternalStore for granular, zero-overhead store subscriptions.
- */
-export function subscribeContentKey(
-  key: string,
-  callback: () => void,
-  isDevMode = false
-): () => void {
-  ensureContentWindowListeners();
-  const entry: ContentSubscriberEntry = { key, isDevMode, callback };
-  keySubscribers.add(entry);
-  return () => {
-    keySubscribers.delete(entry);
-  };
-}
-
-/**
- * Snapshot getter for useSyncExternalStore.
- * Guarantees stable raw string snapshots from in-memory cache.
- */
-export function getContentSnapshot(key: string, defaultValue: string, isDevMode = false): string {
-  return getContent(key, defaultValue, isDevMode);
-}
-

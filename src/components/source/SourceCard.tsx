@@ -86,8 +86,8 @@ export const SourceCard: React.FC<SourceCardProps> = ({
     aspectRatio === 'square'
       ? styles.aspectSquare
       : aspectRatio === 'auto'
-      ? styles.aspectAuto
-      : styles.aspectLandscape;
+        ? styles.aspectAuto
+        : styles.aspectLandscape;
 
   const cardAriaLabel = isClickable
     ? hasOverlay
@@ -114,10 +114,6 @@ export const SourceCard: React.FC<SourceCardProps> = ({
 
   const cardSizes = '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px';
 
-  const permanentFallbackSrc = driveFileId
-    ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(driveFileId)}&sz=w1600`
-    : undefined;
-
   return (
     <figure
       className={`${styles.sourceFigure} ${hideCaption ? styles.collageItem : ''} ${disabled ? styles.disabled : ''} ${className}`}
@@ -137,7 +133,6 @@ export const SourceCard: React.FC<SourceCardProps> = ({
             src={cardSrc}
             srcSet={cardSrcSet}
             sizes={cardSizes}
-            fallbackSrc={permanentFallbackSrc}
             alt={photo.alt || item.title}
             imageClassName={styles.sourceImage}
             loading="lazy"

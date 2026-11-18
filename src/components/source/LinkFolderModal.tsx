@@ -2,13 +2,11 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { isValidDriveFolderUrl } from '../../utils/source';
-import { upsertLiveSourceSource } from '../../services/sourceService';
 import {
   verifyDriveFolderUrl,
   extractDriveFolderId,
   type DriveVerificationResult,
 } from '../../services/driveVerificationService';
-import { syncFolderPhotos } from '../../services/drivePhotoSyncService';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUnsavedChangesPrompt } from '../../hooks/useUnsavedChangesPrompt';
 import { Toast } from '../feedback/Toast';
@@ -20,7 +18,10 @@ export interface LinkFolderModalProps {
   initialTitle?: string;
   initialUrl?: string;
   onClose: () => void;
-  onSuccess?: (updatedUrl: string, updatedTitle: string) => void;
+  onSuccess?: (
+    updatedUrl: string,
+    updatedTitle: string
+  ) => Promise<{ ok: boolean; error?: string } | void> | void;
 }
 
 /**
@@ -146,49 +147,33 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
         setVerificationResult(currentResult);
       }
 
-      // Gate Check: Block save if folder is invalid format or points to an individual file
-      if (
-        currentResult.status === 'not_a_folder' ||
-        currentResult.status === 'invalid_format'
-      ) {
-        setErrorMessage(currentResult.message || 'Invalid folder format.');
-        setIsProcessing(false);
-        setProcessingStage('idle');
-        return;
-      }
-
-      // Gate Check: If marked restricted, warn coordinator and block saving
-      if (currentResult.status === 'restricted') {
+      // Gate Check: Fail stop unless Google Drive API explicitly verified the folder as valid
+      if (currentResult.status !== 'valid') {
         setErrorMessage(
           currentResult.message ||
-            'Access restricted. Set Google Drive folder permissions to "Anyone with the link can view".'
+            'Folder could not be verified. Set Google Drive folder permissions to "Anyone with the link can view" and ensure the API key is configured.'
         );
         setIsProcessing(false);
         setProcessingStage('idle');
         return;
       }
 
-      // Gate Passed: Proceed to persist
+      // Gate Passed: Proceed to persist directly onto GalleryElement AST (PUT /api/draft)
       setProcessingStage('saving');
       const finalTitle =
         folderTitle.trim() || currentResult.folderTitle || 'Official Google Drive Folder';
 
-      await upsertLiveSourceSource({
-        pointId,
-        folderUrl: trimmedUrl,
-        folderTitle: finalTitle,
-        updatedBy: 'Administrator',
-      });
-
-      // Task 6.3.4: Automated Initial Photo Sync Pipeline
-      try {
-        void syncFolderPhotos(pointId, trimmedUrl, []);
-      } catch {
-        // Non-blocking: background sync will be picked up on next view
+      const persistResult = await onSuccess?.(trimmedUrl, finalTitle);
+      if (
+        persistResult &&
+        typeof persistResult === 'object' &&
+        'ok' in persistResult &&
+        !persistResult.ok
+      ) {
+        throw new Error(persistResult.error || 'Failed to persist folder link to draft KV.');
       }
 
       setToastMessage('Folder link updated successfully.');
-      onSuccess?.(trimmedUrl, finalTitle);
       onClose();
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to update folder link.');

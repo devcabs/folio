@@ -23,7 +23,6 @@ export {
 export {
   handlePublicNodeRoute,
   handlePublicManifestRoute,
-  handlePublicChartRoute,
   createEdgeJsonResponse,
   checkConditionalGet,
   CACHE_CONTROL_EDGE,
@@ -31,7 +30,6 @@ export {
 } from './edge/handlers/publicHandler';
 export {
   handleDriveMediaRoute,
-  renderPlaceholderSvg,
   parseRequestedWidth,
 } from './edge/handlers/mediaHandler';
 

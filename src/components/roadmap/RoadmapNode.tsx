@@ -136,7 +136,7 @@ export const RoadmapNode = React.memo<RoadmapNodeProps>(
             {/* 2.1 Benchmark Category Badge */}
             <span className={styles.depedBadge}>
               <EditableText
-                pointId={`node.${page.id}.tagline`}
+                pointId={`node.${page.id}.kicker`}
                 defaultText={categoryBadgeText}
                 as="span"
                 inline={true}

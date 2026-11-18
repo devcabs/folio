@@ -25,7 +25,7 @@ export interface CanvasSubsectionProps {
  */
 export const CanvasSubsection: React.FC<CanvasSubsectionProps> = memo(({
   subsection,
-  nodeId,
+  nodeId: _nodeId,
   accentColor,
   isDevMode: _isDevMode,
   className,
@@ -33,7 +33,6 @@ export const CanvasSubsection: React.FC<CanvasSubsectionProps> = memo(({
   onEdit,
 }) => {
   const domId = subsection.id.startsWith('subsec-') ? subsection.id : `subsec-${subsection.id}`;
-  const titlePointId = subsection.titlePointId || `node.${nodeId}.subsec.${subsection.id}.title`;
 
   return (
     <div
@@ -44,7 +43,6 @@ export const CanvasSubsection: React.FC<CanvasSubsectionProps> = memo(({
     >
       <SectionTitle
         title={subsection.title}
-        titlePointId={titlePointId}
         as="h3"
         accentColor={accentColor}
         defaultNumbered={false}

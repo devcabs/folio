@@ -1,9 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createInMemoryAdapter, type StorageAdapter } from '../src/utils/storageAdapter';
 import {
-  createInMemoryAdapter as createInMemoryAdapterFromIndex,
   ContentMigrationSchema,
   CodeMigrationSchema,
   MigrationEntrySchema,
@@ -19,8 +17,6 @@ import {
   DevModeBadge,
   MigrationProvider,
   DeveloperModeProvider,
-  setSessionUnlockTime,
-  clearSessionUnlockTime,
   hashPin,
   useDeveloperMode,
   type ContentMigration,
@@ -29,6 +25,9 @@ import {
   type PendingMigrationReport,
   type EngineConfig,
 } from '../src/index';
+
+const setSessionUnlockTime = (_ts: number) => {};
+const clearSessionUnlockTime = () => {};
 import { DevMigrationModal } from '../src/components/dev/DevMigrationModal';
 import {
   FOLIO_MIGRATION_LEDGER,
@@ -43,66 +42,26 @@ import {
 import {
   getMigrationLedger,
   getContentVersionWatermark,
-  setContentVersionWatermark,
   getPendingMigrations,
   generateAiMigrationPrompt,
 } from '../src/services/migrationService';
-import {
-  resolveContentWatermark,
-  updateWatermark,
-  FOLIO_CONTENT_VERSION_KEY,
-} from '../src/utils/watermarkResolver';
+import { resolveContentWatermark } from '../src/utils/watermarkResolver';
+import { getSessionId } from '../src/services/devLockService';
 
-/**
- * Migration & Storage Isolation Test Suite
- *
- * Structural Test Conventions (Subtask 1.8):
- * 1. Every `describe` block that touches watermark state MUST declare an isolated
- *    `let storage: StorageAdapter` reset via `beforeEach(() => { storage = createInMemoryAdapter(); })`.
- * 2. All storage interactions MUST go through the injected `storage` adapter.
- * 3. Direct global browser storage references are strictly forbidden in test files.
- */
-
-describe('storage isolation & deterministic ordering', () => {
-  it('storage adapter is isolated between test cases', () => {
-    const a = createInMemoryAdapter();
-    const b = createInMemoryAdapter();
-    a.setItem('key', 'value-a');
-    expect(b.getItem('key')).toBeNull(); // No shared state
-  });
-
-  it('exports createInMemoryAdapter from public package index', () => {
-    const adapter = createInMemoryAdapterFromIndex();
-    adapter.setItem(FOLIO_CONTENT_VERSION_KEY, '0.1.3');
-    expect(adapter.getItem(FOLIO_CONTENT_VERSION_KEY)).toBe('0.1.3');
-  });
-});
-
-describe('watermark resolution', () => {
-  let storage: StorageAdapter;
-
+describe('watermark resolution (EngineConfig.contentVersion SSOT)', () => {
   beforeEach(() => {
-    storage = createInMemoryAdapter();
+    resetEngineConfig();
   });
 
-  it('sets watermark to 0.1.3 in isolated storage without leaking to subsequent tests', () => {
-    setContentVersionWatermark('0.1.3', storage);
-
-    expect(getContentVersionWatermark(undefined, storage)).toBe('0.1.3');
-    expect(resolveContentWatermark(undefined, storage)).toBe('0.1.3');
+  it('resolves watermark from EngineConfig.contentVersion without browser storage', () => {
+    setEngineConfig({ contentVersion: '0.1.3' });
+    expect(getContentVersionWatermark()).toBe('0.1.3');
+    expect(resolveContentWatermark('0.1.3')).toBe('0.1.3');
   });
 
-  it('starts at 0.0.0 baseline even when executed after a test that wrote 0.1.3', () => {
-    expect(getContentVersionWatermark(undefined, storage)).toBe('0.0.0');
-    expect(resolveContentWatermark(undefined, storage)).toBe('0.0.0');
-  });
-
-  it('passes injected storage adapter across updateWatermark and getPendingMigrations', () => {
-    updateWatermark('0.1.2', storage);
-    expect(getContentVersionWatermark({ contentVersion: '0.1.1' }, storage)).toBe('0.1.2');
-
-    const report = getPendingMigrations(undefined, storage);
-    expect(report.contentVersionWatermark).toBe('0.1.2');
+  it('starts at 0.0.0 baseline when contentVersion is unset', () => {
+    expect(getContentVersionWatermark()).toBe('0.0.0');
+    expect(resolveContentWatermark(undefined)).toBe('0.0.0');
   });
 });
 
@@ -228,10 +187,8 @@ describe('Task 1.10: Migration Data Contracts & Configuration', () => {
 });
 
 describe('Task 1.11: Migration Ledger & Runtime Service', () => {
-  let storage: StorageAdapter;
-
   beforeEach(() => {
-    storage = createInMemoryAdapter();
+    resetEngineConfig();
   });
 
   it('verifies every entry in FOLIO_MIGRATION_LEDGER conforms to MigrationEntrySchema with valid semver', () => {
@@ -276,7 +233,7 @@ describe('Task 1.11: Migration Ledger & Runtime Service', () => {
   });
 
   it('returns pending content changes introduced after the resolved watermark', () => {
-    const reportFrom011 = getPendingMigrations('0.1.1', storage);
+    const reportFrom011 = getPendingMigrations('0.1.1');
     expect(PendingMigrationReportSchema.safeParse(reportFrom011).success).toBe(true);
 
     expect(reportFrom011.contentVersionWatermark).toBe('0.1.1');
@@ -295,7 +252,7 @@ describe('Task 1.11: Migration Ledger & Runtime Service', () => {
       ])
     );
 
-    const reportFrom012 = getPendingMigrations('0.1.2', storage);
+    const reportFrom012 = getPendingMigrations('0.1.2');
     expect(reportFrom012.unappliedVersions).not.toContain('0.1.2');
     expect(reportFrom012.unappliedVersions).toContain('0.1.3');
     expect(reportFrom012.pendingContentChanges.map((c) => c.id)).not.toContain(
@@ -307,7 +264,7 @@ describe('Task 1.11: Migration Ledger & Runtime Service', () => {
   });
 
   it('formats actionable AI migration prompt with affected entities and instructions', () => {
-    const report = getPendingMigrations('0.1.1', storage);
+    const report = getPendingMigrations('0.1.1');
     const prompt = generateAiMigrationPrompt(report);
 
     expect(prompt).toContain('# AI Migration Prompt');
@@ -326,17 +283,16 @@ describe('Task 1.11: Migration Ledger & Runtime Service', () => {
     expect(prompt).toContain('<!-- Generated by @devcabs/folio-engine migrationService -->');
   });
 
-  it('persists acknowledged watermark via injected storage adapter and clears pending flags', () => {
-    storage.setItem(FOLIO_CONTENT_VERSION_KEY, '0.1.1');
+  it('clears pending flags when EngineConfig.contentVersion matches currentEngineVersion', () => {
+    setEngineConfig({ contentVersion: '0.1.1' });
 
-    const initialReport = getPendingMigrations(undefined, storage);
+    const initialReport = getPendingMigrations();
     expect(initialReport.hasPendingContentChanges).toBe(true);
     expect(initialReport.unappliedVersions.length).toBeGreaterThan(0);
 
-    setContentVersionWatermark(initialReport.currentEngineVersion, storage);
-    expect(storage.getItem(FOLIO_CONTENT_VERSION_KEY)).toBe(initialReport.currentEngineVersion);
+    setEngineConfig({ contentVersion: initialReport.currentEngineVersion });
 
-    const afterAckReport = getPendingMigrations(undefined, storage);
+    const afterAckReport = getPendingMigrations();
     expect(afterAckReport.contentVersionWatermark).toBe(initialReport.currentEngineVersion);
     expect(afterAckReport.hasPendingContentChanges).toBe(false);
     expect(afterAckReport.pendingContentChanges).toEqual([]);
@@ -727,13 +683,12 @@ function setupMockDom(): MockDomHandle {
 }
 
 describe('Task 1.12: Dev Mode Notification & Review Modal', () => {
-  let storage: StorageAdapter;
   let dom: MockDomHandle;
   let clipboardWriteMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     resetEngineConfig();
-    storage = createInMemoryAdapter();
     dom = setupMockDom();
     clipboardWriteMock = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(global, 'navigator', {
@@ -747,27 +702,30 @@ describe('Task 1.12: Dev Mode Notification & Review Modal', () => {
   });
 
   afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
     clearSessionUnlockTime();
     dom.cleanup();
     resetEngineConfig();
+    vi.unstubAllGlobals();
   });
 
   it('triggers sticky action toast with Review button when dev mode unlocks with pending migrations', () => {
-    storage.setItem(FOLIO_CONTENT_VERSION_KEY, '0.1.1');
+    setEngineConfig({ contentVersion: '0.1.1' });
     setSessionUnlockTime(Date.now());
 
     const container = dom.document.createElement('div');
     dom.document.body.appendChild(container);
     const root = createRoot(container);
 
-    const expectedReport = getPendingMigrations('0.1.1', storage);
+    const expectedReport = getPendingMigrations('0.1.1');
 
     React.act(() => {
       root.render(
         React.createElement(
           MigrationProvider,
-          { storage },
-          React.createElement(DeveloperModeProvider, null, React.createElement('div'))
+          {},
+          React.createElement(DeveloperModeProvider, { initialUnlockedAt: Date.now() }, React.createElement('div'))
         )
       );
     });
@@ -796,22 +754,22 @@ describe('Task 1.12: Dev Mode Notification & Review Modal', () => {
   });
 
   it('renders pending migration warning pill in DevModeBadge', () => {
-    storage.setItem(FOLIO_CONTENT_VERSION_KEY, '0.1.1');
+    setEngineConfig({ contentVersion: '0.1.1' });
     setSessionUnlockTime(Date.now());
 
     const container = dom.document.createElement('div');
     dom.document.body.appendChild(container);
     const root = createRoot(container);
 
-    const expectedReport = getPendingMigrations('0.1.1', storage);
+    const expectedReport = getPendingMigrations('0.1.1');
     const expectedCount = expectedReport.pendingContentChanges.length;
 
     React.act(() => {
       root.render(
         React.createElement(
           MigrationProvider,
-          { storage },
-          React.createElement(DeveloperModeProvider, null, React.createElement(DevModeBadge))
+          {},
+          React.createElement(DeveloperModeProvider, { initialUnlockedAt: Date.now() }, React.createElement(DevModeBadge))
         )
       );
     });
@@ -833,23 +791,23 @@ describe('Task 1.12: Dev Mode Notification & Review Modal', () => {
 
   it('opens DevMigrationModal on toast action or badge click', () => {
     expect(DevMigrationModalFromIndex).toBe(DevMigrationModal);
-    storage.setItem(FOLIO_CONTENT_VERSION_KEY, '0.1.1');
+    setEngineConfig({ contentVersion: '0.1.1' });
     setSessionUnlockTime(Date.now());
 
     const container = dom.document.createElement('div');
     dom.document.body.appendChild(container);
     const root = createRoot(container);
 
-    const expectedReport = getPendingMigrations('0.1.1', storage);
+    const expectedReport = getPendingMigrations('0.1.1');
 
     React.act(() => {
       root.render(
         React.createElement(
           MigrationProvider,
-          { storage },
+          {},
           React.createElement(
             DeveloperModeProvider,
-            null,
+            { initialUnlockedAt: Date.now() },
             React.createElement(DevModeBadge),
             React.createElement(DevMigrationModal)
           )
@@ -923,24 +881,24 @@ describe('Task 1.12: Dev Mode Notification & Review Modal', () => {
   });
 
   it('copies AI migration prompt to clipboard and updates watermark on Mark as Migrated', async () => {
-    storage.setItem(FOLIO_CONTENT_VERSION_KEY, '0.1.1');
+    setEngineConfig({ contentVersion: '0.1.1' });
     setSessionUnlockTime(Date.now());
 
     const container = dom.document.createElement('div');
     dom.document.body.appendChild(container);
     const root = createRoot(container);
 
-    const expectedReport = getPendingMigrations('0.1.1', storage);
+    const expectedReport = getPendingMigrations('0.1.1');
     const expectedPrompt = generateAiMigrationPrompt(expectedReport);
 
     React.act(() => {
       root.render(
         React.createElement(
           MigrationProvider,
-          { storage },
+          {},
           React.createElement(
             DeveloperModeProvider,
-            null,
+            { initialUnlockedAt: Date.now() },
             React.createElement(DevModeBadge),
             React.createElement(DevMigrationModal)
           )
@@ -986,12 +944,10 @@ describe('Task 1.12: Dev Mode Notification & Review Modal', () => {
     )[0];
     expect(markButton).toBeDefined();
 
-    React.act(() => {
+    await React.act(async () => {
       markButton.click();
+      await Promise.resolve();
     });
-
-    // Storage watermark updated to currentEngineVersion
-    expect(storage.getItem(FOLIO_CONTENT_VERSION_KEY)).toBe(expectedReport.currentEngineVersion);
 
     // Modal closed
     expect(
@@ -1025,7 +981,7 @@ describe('Task 1.12: Dev Mode Notification & Review Modal', () => {
     const latestVersion = ledger[ledger.length - 1].version;
 
     // 1. Up-to-date watermark -> no toast and no warning pill
-    storage.setItem(FOLIO_CONTENT_VERSION_KEY, latestVersion);
+    setEngineConfig({ contentVersion: latestVersion });
     setSessionUnlockTime(Date.now());
 
     const container1 = dom.document.createElement('div');
@@ -1036,8 +992,8 @@ describe('Task 1.12: Dev Mode Notification & Review Modal', () => {
       root1.render(
         React.createElement(
           MigrationProvider,
-          { storage },
-          React.createElement(DeveloperModeProvider, null, React.createElement(DevModeBadge))
+          {},
+          React.createElement(DeveloperModeProvider, { initialUnlockedAt: Date.now() }, React.createElement(DevModeBadge))
         )
       );
     });
@@ -1061,9 +1017,12 @@ describe('Task 1.12: Dev Mode Notification & Review Modal', () => {
 
     // 2. Outdated watermark + PIN unlock transition -> fires [Review] toast
     clearSessionUnlockTime();
-    storage.setItem(FOLIO_CONTENT_VERSION_KEY, '0.1.0');
     const pinHash = await hashPin('1234', 'migration_test_salt');
-    setEngineConfig({ securitySalt: 'migration_test_salt', expectedPinHash: pinHash });
+    setEngineConfig({
+      contentVersion: '0.1.0',
+      securitySalt: 'migration_test_salt',
+      expectedPinHash: pinHash,
+    });
 
     let devRef: ReturnType<typeof useDeveloperMode> | null = null;
     const DevProbe: React.FC = () => {
@@ -1079,8 +1038,8 @@ describe('Task 1.12: Dev Mode Notification & Review Modal', () => {
       root2.render(
         React.createElement(
           MigrationProvider,
-          { storage },
-          React.createElement(DeveloperModeProvider, null, React.createElement(DevProbe))
+          {},
+          React.createElement(DeveloperModeProvider, { initialUnlockedAt: null }, React.createElement(DevProbe))
         )
       );
     });
@@ -1094,8 +1053,56 @@ describe('Task 1.12: Dev Mode Notification & Review Modal', () => {
     ).toBe(0);
 
     await React.act(async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+          if (String(url).includes('/api/lock')) {
+            if (!init?.method || init.method === 'GET') {
+              return new Response(
+                JSON.stringify({
+                  ok: true,
+                  locked: true,
+                  canAcquire: false,
+                  isSelfSession: true,
+                  currentLock: {
+                    sessionId: getSessionId(),
+                    coordinatorLabel: 'Coordinator',
+                    acquiredAt: new Date().toISOString(),
+                    lastHeartbeatAt: new Date().toISOString(),
+                    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+                  },
+                }),
+                { status: 200, headers: { 'Content-Type': 'application/json' } }
+              );
+            }
+            return new Response(
+              JSON.stringify({
+                ok: true,
+                success: true,
+                locked: true,
+                lockToken: 'mock-lock-token',
+                sessionId: getSessionId(),
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              baseSnapshotId: null,
+              dirty: false,
+              revision: 1,
+              updatedAt: new Date().toISOString(),
+              canvases: {},
+              contentOverrides: {},
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        })
+      );
       const ok = await devRef!.submitPin('1234');
       expect(ok).toBe(true);
+      await vi.advanceTimersByTimeAsync(500);
     });
 
     expect(devRef!.isDevMode).toBe(true);
@@ -1279,12 +1286,10 @@ describe('Task 1.14: Hard Deploy Gate & Auto-Changelog Compilation', () => {
 describe('Task 1.15: End-to-End Verification & Quality Gates', () => {
   const repoRoot = path.resolve(__dirname, '..');
   const tsxCli = path.join(repoRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
-  let storage: StorageAdapter;
   const tempDirs: string[] = [];
 
   beforeEach(() => {
     resetEngineConfig();
-    storage = createInMemoryAdapter();
   });
 
   afterEach(() => {
@@ -1295,30 +1300,17 @@ describe('Task 1.15: End-to-End Verification & Quality Gates', () => {
     }
   });
 
-  it('validates watermark storage get/set/clear lifecycle with isolated StorageAdapter', () => {
-    // Initial get falls back to 0.0.0
-    expect(storage.getItem(FOLIO_CONTENT_VERSION_KEY)).toBeNull();
-    expect(getContentVersionWatermark(undefined, storage)).toBe('0.0.0');
+  it('validates single-source EngineConfig.contentVersion watermark lifecycle', () => {
+    expect(getContentVersionWatermark()).toBe('0.0.0');
 
-    // Set updates stored watermark monotonically
-    setContentVersionWatermark('0.1.3', storage);
-    expect(storage.getItem(FOLIO_CONTENT_VERSION_KEY)).toBe('0.1.3');
-    expect(getContentVersionWatermark(undefined, storage)).toBe('0.1.3');
+    setEngineConfig({ contentVersion: '0.1.3' });
+    expect(getContentVersionWatermark()).toBe('0.1.3');
 
-    // removeItem clears key and reverts watermark + pending diffs
-    storage.removeItem(FOLIO_CONTENT_VERSION_KEY);
-    expect(storage.getItem(FOLIO_CONTENT_VERSION_KEY)).toBeNull();
-    expect(getContentVersionWatermark(undefined, storage)).toBe('0.0.0');
-    const afterRemoveReport = getPendingMigrations(undefined, storage);
-    expect(afterRemoveReport.hasPendingContentChanges).toBe(true);
-    expect(afterRemoveReport.unappliedVersions.length).toBeGreaterThanOrEqual(4);
-
-    // clear() resets all stored keys cleanly
-    setContentVersionWatermark('0.1.4', storage);
-    expect(getContentVersionWatermark(undefined, storage)).toBe('0.1.4');
-    storage.clear?.();
-    expect(storage.getItem(FOLIO_CONTENT_VERSION_KEY)).toBeNull();
-    expect(getContentVersionWatermark(undefined, storage)).toBe('0.0.0');
+    resetEngineConfig();
+    expect(getContentVersionWatermark()).toBe('0.0.0');
+    const afterResetReport = getPendingMigrations();
+    expect(afterResetReport.hasPendingContentChanges).toBe(true);
+    expect(afterResetReport.unappliedVersions.length).toBeGreaterThanOrEqual(4);
   });
 
   it('throws on invalid bump target and exits non-zero when deploy gate encounters missing/invalid version', () => {

@@ -11,13 +11,15 @@ import { handlePublishRoute } from './handlers/publishHandler';
 import {
   handlePublicNodeRoute,
   handlePublicManifestRoute,
-  handlePublicChartRoute,
 } from './handlers/publicHandler';
 import { handleDriveMediaRoute } from './handlers/mediaHandler';
+import { handleLockRoute } from './handlers/lockHandler';
+import { handleDraftRoute } from './handlers/draftHandler';
+import { handleHistoryRoute } from './handlers/historyHandler';
 
 export interface FolioEdgeOptions {
   /**
-   * Custom KV binding name on env (defaults to 'KV_ENGINE_PUBLIC', falls back to 'KV_MASID_PUBLIC')
+   * Custom KV binding name on env (defaults to 'KV_ENGINE_PUBLIC')
    */
   kvBinding?: string;
   /**
@@ -43,7 +45,7 @@ export function resolveKVNamespace(env: any, options?: FolioEdgeOptions): KVName
   if (options?.kvBinding && env[options.kvBinding]) {
     return env[options.kvBinding] as KVNamespace;
   }
-  return (env.KV_ENGINE_PUBLIC || env.KV_MASID_PUBLIC || null) as KVNamespace | null;
+  return (env.KV_ENGINE_PUBLIC || null) as KVNamespace | null;
 }
 
 /**
@@ -58,7 +60,7 @@ export function handleCorsPreflight(options?: FolioEdgeOptions): Response {
     status: 204,
     headers: {
       'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, If-None-Match',
       'Access-Control-Max-Age': '86400',
     },
@@ -74,7 +76,6 @@ export function handleCorsPreflight(options?: FolioEdgeOptions): Response {
  * - GET     /api/public/node/:nodeId -> Public node AST and datasets
  * - GET     /api/public/node-alias/:id -> Legacy route alias for node endpoint
  * - GET     /api/public/manifest -> Portal active snapshot manifest
- * - GET     /api/public/chart/:chartId -> Public vector chart dataset
  * - GET     /api/media/drive/:fileId -> Dynamic Google Drive media stream proxy
  * - *       All other routes -> Falls through to env.ASSETS.fetch (SPA index.html / assets)
  */
@@ -96,6 +97,21 @@ export async function handleFolioEdgeRequest(
     }
 
     const kv = resolveKVNamespace(env, options);
+
+    // GET | POST | PATCH | DELETE /api/lock
+    if (pathname === '/api/lock') {
+      return handleLockRoute(request, env, kv);
+    }
+
+    // GET | PUT | DELETE /api/draft & POST /api/draft/init
+    if (pathname === '/api/draft' || pathname === '/api/draft/init') {
+      return handleDraftRoute(request, env, kv);
+    }
+
+    // GET /api/history, GET /api/history/:id, POST /api/history/restore
+    if (pathname === '/api/history' || pathname.startsWith('/api/history/')) {
+      return handleHistoryRoute(request, env, kv);
+    }
 
     // POST /api/publish
     if (pathname === '/api/publish') {
@@ -142,21 +158,6 @@ export async function handleFolioEdgeRequest(
         : legacyNodePrefix;
       const nodeId = pathname.slice(prefix.length);
       return handlePublicNodeRoute(request, nodeId, kv, ctx);
-    }
-
-    // GET /api/public/chart/:chartId
-    if (pathname.startsWith('/api/public/chart/')) {
-      if (method !== 'GET') {
-        return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-          status: 405,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-          },
-        });
-      }
-      const chartId = pathname.slice('/api/public/chart/'.length);
-      return handlePublicChartRoute(request, chartId, kv, ctx);
     }
 
     // GET /api/media/drive/:fileId

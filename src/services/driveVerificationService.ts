@@ -9,29 +9,9 @@
  * 2. Graceful Fallback: Handles offline, quota, or network restrictions without blocking coordinators.
  */
 
-import { GOOGLE_DRIVE_FOLDER_REGEX } from '../utils/source';
+import { extractDriveFolderId } from '../utils/source';
 
-export interface DriveVerificationResult {
-  status: 'valid' | 'restricted' | 'not_a_folder' | 'unverified' | 'invalid_format';
-  folderId?: string;
-  folderTitle?: string;
-  mimeType?: string;
-  message?: string;
-  apiError?: {
-    statusCode?: number;
-    reason?: string;
-    rawMessage?: string;
-  };
-}
-
-/**
- * Extracts canonical Google Drive folder ID from a URL.
- */
-export function extractDriveFolderId(url: string): string | null {
-  if (!url || typeof url !== 'string') return null;
-  const match = url.trim().match(GOOGLE_DRIVE_FOLDER_REGEX);
-  return match && match[1] ? match[1] : null;
-}
+export { extractDriveFolderId };
 
 /**
  * Safely accesses configured Google Drive API Key.
@@ -45,6 +25,19 @@ function getGoogleApiKey(): string | null {
     return key.trim();
   }
   return null;
+}
+
+export interface DriveVerificationResult {
+  status: 'valid' | 'restricted' | 'not_a_folder' | 'unverified' | 'invalid_format';
+  folderId?: string;
+  folderTitle?: string;
+  mimeType?: string;
+  message?: string;
+  apiError?: {
+    statusCode?: number;
+    reason?: string;
+    rawMessage?: string;
+  };
 }
 
 /**
@@ -175,28 +168,6 @@ export async function verifyDriveFolderUrl(url: string): Promise<DriveVerificati
             rawMessage: errorMessage,
           },
         };
-      }
-
-      // Secondary probe for public folders if files.get returned 404 (e.g. shared link without metadata permission):
-      // Try querying if child files or images are listable under this parent folder
-      if (response.status === 404) {
-        try {
-          const listEndpoint = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
-            `'${folderId}' in parents and trashed = false`
-          )}&pageSize=1&fields=files(id)&supportsAllDrives=true&includeItemsFromAllDrives=true&key=${encodeURIComponent(
-            apiKey
-          )}`;
-          const listResp = await fetch(listEndpoint, { method: 'GET', headers });
-          if (listResp.ok) {
-            return {
-              status: 'valid',
-              folderId,
-              message: 'Publicly accessible folder verified.',
-            };
-          }
-        } catch {
-          // Probe failed
-        }
       }
 
       if (response.status === 403) {

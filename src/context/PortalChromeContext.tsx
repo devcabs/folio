@@ -1,0 +1,175 @@
+/**
+ * Folio Engine — Portal Chrome Context (SSOT)
+ * Location: src/context/PortalChromeContext.tsx
+ * Specification: docs/task/7.2-content-db-and-portal-chrome-ssot.md
+ *
+ * Holds active portal chrome contentOverrides in React state hydrated directly from:
+ * - Public Mode (isDevMode = false): GET /api/public/manifest (portal:manifest)
+ * - Dev Mode (isDevMode = true): GET /api/draft (draft:workspace)
+ *
+ * Zero module-level caches, zero localStorage, strict fail-stop with <TopErrorBanner />.
+ */
+
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useDeveloperMode } from '../hooks/useDeveloperMode';
+import {
+  fetchPublicManifestOverrides,
+  fetchDraftWorkspaceOverrides,
+  updateDraftContentOverride,
+  removeDraftContentOverride,
+} from '../utils/contentDb';
+import { TopErrorBanner } from '../components/feedback/TopErrorBanner';
+
+export interface PortalChromeContextValue {
+  contentOverrides: Record<string, string>;
+  isHydrating: boolean;
+  hydrationError: string | null;
+  error: string | null;
+  draftUpdatedAt: string | null;
+  retry: () => void;
+  updateOverride: (key: string, value: string) => Promise<void>;
+  removeOverride: (key: string) => Promise<void>;
+}
+
+export const PortalChromeContext = createContext<PortalChromeContextValue | null>(null);
+
+export interface PortalChromeProviderProps {
+  children?: React.ReactNode;
+  /** Optional override for isolated testing */
+  isDevModeOverride?: boolean;
+  /** Optional lockToken override for isolated testing */
+  lockTokenOverride?: string | null;
+}
+
+export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
+  children,
+  isDevModeOverride,
+  lockTokenOverride,
+}) => {
+  const { isDevMode: contextDevMode, lockToken: contextLockToken } = useDeveloperMode();
+  const isDevMode = isDevModeOverride ?? contextDevMode;
+  const lockToken = lockTokenOverride !== undefined ? lockTokenOverride : (contextLockToken ?? null);
+
+  const [contentOverrides, setContentOverrides] = useState<Record<string, string>>({});
+  const [isHydrating, setIsHydrating] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || typeof fetch !== 'function') {
+      return false;
+    }
+    return true;
+  });
+  const [hydrationError, setHydrationError] = useState<string | null>(null);
+  const [draftUpdatedAt, setDraftUpdatedAt] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState<number>(0);
+
+  const overridesRef = useRef(contentOverrides);
+  overridesRef.current = contentOverrides;
+  const draftUpdatedAtRef = useRef(draftUpdatedAt);
+  draftUpdatedAtRef.current = draftUpdatedAt;
+
+  const retry = useCallback(() => {
+    setRetryCount((c) => c + 1);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof fetch !== 'function') {
+      setIsHydrating(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsHydrating(true);
+    setHydrationError(null);
+
+    const hydrate = async () => {
+      try {
+        if (isDevMode) {
+          const result = await fetchDraftWorkspaceOverrides(lockToken);
+          if (isCancelled) return;
+          setContentOverrides(result.contentOverrides);
+          setDraftUpdatedAt(result.updatedAt);
+        } else {
+          const overrides = await fetchPublicManifestOverrides();
+          if (isCancelled) return;
+          setContentOverrides(overrides);
+          setDraftUpdatedAt(null);
+        }
+        setHydrationError(null);
+      } catch (err) {
+        if (isCancelled) return;
+        const message = err instanceof Error ? err.message : 'Failed to load portal chrome from KV.';
+        setHydrationError(message);
+      } finally {
+        if (!isCancelled) {
+          setIsHydrating(false);
+        }
+      }
+    };
+
+    hydrate();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isDevMode, lockToken, retryCount]);
+
+  const updateOverride = useCallback(
+    async (key: string, value: string): Promise<void> => {
+      if (!isDevMode) {
+        throw new Error('Cannot mutate content overrides in Public Mode.');
+      }
+      const result = await updateDraftContentOverride(key, value, overridesRef.current, {
+        lockToken,
+        expectedUpdatedAt: draftUpdatedAtRef.current,
+      });
+      setContentOverrides(result.contentOverrides);
+      if (result.updatedAt !== null) {
+        setDraftUpdatedAt(result.updatedAt);
+      }
+    },
+    [isDevMode, lockToken]
+  );
+
+  const removeOverride = useCallback(
+    async (key: string): Promise<void> => {
+      if (!isDevMode) {
+        throw new Error('Cannot reset content overrides in Public Mode.');
+      }
+      const result = await removeDraftContentOverride(key, overridesRef.current, {
+        lockToken,
+        expectedUpdatedAt: draftUpdatedAtRef.current,
+      });
+      setContentOverrides(result.contentOverrides);
+      if (result.updatedAt !== null) {
+        setDraftUpdatedAt(result.updatedAt);
+      }
+    },
+    [isDevMode, lockToken]
+  );
+
+  const value: PortalChromeContextValue = {
+    contentOverrides,
+    isHydrating,
+    hydrationError,
+    error: hydrationError,
+    draftUpdatedAt,
+    retry,
+    updateOverride,
+    removeOverride,
+  };
+
+  return (
+    <PortalChromeContext.Provider value={value}>
+      {hydrationError && (
+        <TopErrorBanner
+          message={hydrationError}
+          onRetry={retry}
+        />
+      )}
+      {children}
+    </PortalChromeContext.Provider>
+  );
+};
+
+export function usePortalChrome(): PortalChromeContextValue | null {
+  return useContext(PortalChromeContext);
+}

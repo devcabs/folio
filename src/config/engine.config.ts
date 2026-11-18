@@ -96,6 +96,20 @@ export function resetEngineConfig(): void {
   activeEngineConfig = createDefaultEngineConfig();
 }
 
+/**
+ * Returns the active node definitions strictly from EngineConfig.nodes.
+ */
+export function getActiveNodes(): NodeItem[] {
+  return Array.isArray(activeEngineConfig.nodes) ? [...activeEngineConfig.nodes] : [];
+}
+
+/**
+ * Returns the active node IDs strictly from EngineConfig.nodes.
+ */
+export function getActiveNodeIds(): string[] {
+  return getActiveNodes().map((node) => node.id);
+}
+
 export function getStorageNamespace(): string {
   return activeEngineConfig.appNamespace || "folio";
 }

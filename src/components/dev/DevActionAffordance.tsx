@@ -7,7 +7,9 @@ import type {
   DevFileData,
 } from '../../types/developer';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
-import { setContent, resetContent, getContent, getContentObject } from '../../utils/contentDb';
+import { useContent } from '../../hooks/useContent';
+import { resolveContentObject } from '../../utils/contentDb';
+import { usePortalChrome } from '../../context/PortalChromeContext';
 import { Button } from '../ui/Button';
 import { UniversalEditModal } from './UniversalEditModal';
 import styles from './DevActionAffordance.module.css';
@@ -31,7 +33,13 @@ export const DevActionAffordance: React.FC<DevActionAffordanceProps> = ({
   onNumberedChange,
   editTriggerId,
 }) => {
-  const { isDevMode, isDesktop, setHasUnpublishedChanges } = useDeveloperMode();
+  const { isDevMode, isDesktop, setHasUnpublishedChanges, showToast } = useDeveloperMode();
+  const portalChrome = usePortalChrome();
+  const contentHook = useContent(
+    pointId || '__noop__',
+    typeof defaultValue === 'string' ? defaultValue : '',
+    isDevMode
+  );
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isButtonHovered, setIsButtonHovered] = useState(false);
 
@@ -52,8 +60,8 @@ export const DevActionAffordance: React.FC<DevActionAffordanceProps> = ({
       ? currentValue
       : pointId
         ? typeof defaultValue === 'object'
-          ? getContentObject(pointId, defaultValue, isDevMode)
-          : getContent(pointId, typeof defaultValue === 'string' ? defaultValue : '', isDevMode)
+          ? resolveContentObject(portalChrome?.contentOverrides ?? {}, pointId, defaultValue)
+          : contentHook.text
         : '';
   const effectiveDefault = defaultValue !== undefined ? defaultValue : effectiveCurrent;
 
@@ -66,26 +74,36 @@ export const DevActionAffordance: React.FC<DevActionAffordanceProps> = ({
     }
   };
 
-  const handleSaveModal = (
+  const handleSaveModal = async (
     newValue: string,
     _editType?: DevEditType,
     _payload?: DevLinkData | DevImageData | DevFileData
   ) => {
-    if (onSave) {
-      onSave(newValue);
-    } else if (pointId) {
-      setContent(pointId, newValue, true);
+    try {
+      if (onSave) {
+        onSave(newValue);
+      } else if (pointId) {
+        await contentHook.setText(newValue);
+      }
+      setHasUnpublishedChanges(true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to save content override to KV.';
+      showToast(msg, 'error');
     }
-    setHasUnpublishedChanges(true);
   };
 
-  const handleResetModal = () => {
-    if (onReset) {
-      onReset();
-    } else if (pointId) {
-      resetContent(pointId, true);
+  const handleResetModal = async () => {
+    try {
+      if (onReset) {
+        onReset();
+      } else if (pointId) {
+        await contentHook.resetText();
+      }
+      setHasUnpublishedChanges(true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to reset content override in KV.';
+      showToast(msg, 'error');
     }
-    setHasUnpublishedChanges(true);
   };
 
   const initialEditType: DevEditType =

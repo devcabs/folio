@@ -1,6 +1,7 @@
 import React from 'react';
 import { ParametricShape } from '../ui/ParametricShape';
 import type { NodeCode } from '../../types/node';
+import { getActiveNodes } from '../../config/engine.config';
 import { CURRENT_ENGINE_VERSION } from '../../migrations/ledger';
 import styles from './AppFooter.module.css';
 
@@ -12,14 +13,6 @@ export interface AppFooterProps {
   onNodeClick?: (nodeCode: NodeCode, e?: React.MouseEvent) => void;
 }
 
-const NODE_ITEMS: { code: NodeCode; label: string; href: string }[] = [
-  { code: 'access', label: '01. Access', href: '/node/access/' },
-  { code: 'equity', label: '02. Equity', href: '/node/equity/' },
-  { code: 'quality', label: '03. Quality', href: '/node/quality/' },
-  { code: 'resiliency', label: '04. Resiliency', href: '/node/resiliency/' },
-  { code: 'governance', label: '05. Governance', href: '/node/governance/' },
-];
-
 export const AppFooter: React.FC<AppFooterProps> = ({
   orgName = 'the host application',
   version,
@@ -27,6 +20,11 @@ export const AppFooter: React.FC<AppFooterProps> = ({
   onOverviewClick,
   onNodeClick,
 }) => {
+  const nodeItems = getActiveNodes().map((node, index) => ({
+    code: node.id as NodeCode,
+    label: `${String(node.nodeNumber ?? index + 1).padStart(2, '0')}. ${node.title}`,
+    href: `/node/${node.id}/`,
+  }));
   const cleanVersion = (version || CURRENT_ENGINE_VERSION || '0.1.6').replace(/^v/i, '');
   const versionText = `Folio V${cleanVersion}`;
 
@@ -62,11 +60,11 @@ export const AppFooter: React.FC<AppFooterProps> = ({
             </a>
           </div>
 
-          {/* Column 2: 5 Nodes with clean path routing */}
+          {/* Column 2: Active Nodes with clean path routing */}
           <div className={styles.navColumn}>
             <h3 className={styles.columnHeading}>Nodes</h3>
             <ul className={styles.columnList}>
-              {NODE_ITEMS.map((item) => (
+              {nodeItems.map((item) => (
                 <li key={item.code}>
                   <a
                     href={item.href}

@@ -24,7 +24,6 @@ import {
   UndoRedoProvider,
 } from "../../src/context/UndoRedoContext";
 import {
-  getDevSalt,
   hashPin,
   verifyPin,
   isDesktopDevice,
@@ -117,22 +116,18 @@ describe("Task 18.8: Coordinator Chrome, Modals & Workflows", () => {
   });
 
   describe("Configurable PIN Salt & Cryptographic Parameterization", () => {
-    it("defaults to engine namespace salt without institutional hardcoding", () => {
-      expect(getDevSalt()).toBe("folio_dev_salt_v1");
+    it("exports security timing constants without institutional hardcoding", () => {
       expect(SESSION_DURATION_MS).toBe(30 * 60 * 1000);
       expect(LOCKOUT_DURATION_MS).toBe(60 * 1000);
       expect(MAX_ATTEMPTS).toBe(5);
     });
 
-    it("dynamically parameterizes salt via setEngineConfig", async () => {
-      setEngineConfig({ securitySalt: "tenant_custom_salt_xyz" });
-      expect(getDevSalt()).toBe("tenant_custom_salt_xyz");
-
+    it("dynamically parameterizes salt via explicit salt argument", async () => {
       const hash1 = await hashPin("1234", "salt_a");
       const hash2 = await hashPin("1234", "salt_b");
       expect(hash1).not.toBe(hash2);
 
-      const customHash = await hashPin("9999");
+      const customHash = await hashPin("9999", "tenant_custom_salt_xyz");
       expect(customHash).toBeDefined();
       expect(customHash.length).toBe(64); // SHA-256 hex digest length
     });

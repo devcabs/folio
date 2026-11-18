@@ -20,6 +20,7 @@ export function useLiveMatrixSync({
 }: UseLiveMatrixSyncProps) {
   const [fetchedMatrix, setFetchedMatrix] = useState<(string | number | null)[][]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const executeSync = useCallback(
     async (
@@ -28,6 +29,7 @@ export function useLiveMatrixSync({
       targetGid = sheetGid
     ) => {
       const trimmedUrl = targetUrl.trim();
+      setSyncError(null);
       if (!trimmedUrl || !extractSpreadsheetId(trimmedUrl)) {
         setFetchedMatrix([]);
         return;
@@ -43,8 +45,11 @@ export function useLiveMatrixSync({
           timeoutMs: 8000,
         });
         setFetchedMatrix(matrix || []);
-      } catch {
+      } catch (err: unknown) {
         setFetchedMatrix([]);
+        const msg = err instanceof Error ? err.message : 'Failed to fetch live Google Sheet data.';
+        setSyncError(msg);
+        throw err;
       } finally {
         setIsSyncing(false);
       }
@@ -63,6 +68,9 @@ export function useLiveMatrixSync({
 
   // Slices the full sheet matrix dynamically according to the active range notation
   const liveMatrix = useMemo<(string | number | null)[][]>(() => {
+    if (syncError) {
+      return [];
+    }
     if (fetchedMatrix && fetchedMatrix.length > 0) {
       const bbox = parseRangeNotation(range);
       if (!bbox) return fetchedMatrix;
@@ -90,9 +98,9 @@ export function useLiveMatrixSync({
       return previewMatrix;
     }
     return [];
-  }, [fetchedMatrix, previewMatrix, range]);
+  }, [fetchedMatrix, previewMatrix, range, syncError]);
 
-  const activeMatrix = liveMatrix.length > 0 ? liveMatrix : previewMatrix || [];
+  const activeMatrix = syncError ? [] : (liveMatrix.length > 0 ? liveMatrix : previewMatrix || []);
   const headerRow = activeMatrix[0] || [];
 
   const detectedColumns = useMemo(() => {
@@ -109,6 +117,7 @@ export function useLiveMatrixSync({
     fetchedMatrix,
     fullMatrix,
     isSyncing,
+    syncError,
     liveMatrix,
     activeMatrix,
     detectedColumns,

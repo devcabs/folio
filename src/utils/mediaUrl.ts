@@ -112,8 +112,8 @@ export function resolveSingleDrivePhotoUrl(input: string): ResolvedSinglePhoto |
 
   return {
     fileId,
-    displayUrl: `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`,
-    thumbnailUrl: `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w320`,
+    displayUrl: buildEdgeMediaUrl(fileId, { width: 1600 }),
+    thumbnailUrl: buildEdgeMediaUrl(fileId, { width: 320 }),
     rawUrl: input.trim(),
   };
 }

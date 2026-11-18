@@ -7,6 +7,7 @@
  */
 
 import type { PagesFunctionEventContext } from '../../src/types/edge';
+import { resolveKVNamespace } from '../../src/edge/router';
 import {
   handlePublishRoute,
   type PublishRequestBody,
@@ -19,6 +20,6 @@ export async function onRequestPost(
   context: PagesFunctionEventContext<any>
 ): Promise<Response> {
   const { request, env } = context;
-  const kv = env?.KV_ENGINE_PUBLIC || env?.KV_MASID_PUBLIC || null;
+  const kv = resolveKVNamespace(env);
   return handlePublishRoute(request, env, kv, context);
 }

@@ -27,11 +27,8 @@ import {
   subscribeToHistoryChange,
   fetchPublishedHistoryFromCloud,
   restoreSnapshotToDraft,
-  hydrateHistoryFromIndexedDB,
-  getDefaultSystemBaselineSnapshot,
-  getLocalFallbackSnapshots,
-  getActivePublishedId,
 } from '../../services/historyService';
+import { useDeveloperMode } from '../../context/DeveloperModeContext';
 import styles from './HistoryHubModal.module.css';
 
 export interface HistoryHubModalProps {
@@ -225,9 +222,11 @@ export const HistoryHubDrawer: React.FC<HistoryHubDrawerProps> = ({
   onClose,
   onRestored,
 }) => {
+  const { lockToken } = useDeveloperMode();
   const [snapshots, setSnapshots] = useState<Array<PublishedSnapshot | UnifiedPortalSnapshot>>([]);
   const [activeLiveId, setActiveLiveId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
 
@@ -246,39 +245,18 @@ export const HistoryHubDrawer: React.FC<HistoryHubDrawerProps> = ({
     if (isInitial) {
       setIsLoading(true);
     }
+    setLoadError(null);
 
     try {
-      if (isInitial) {
-        await hydrateHistoryFromIndexedDB().catch(() => { });
-      }
       const cloudSnapshots = await fetchPublishedHistoryFromCloud();
-      if (cloudSnapshots.length > 0) {
-        setSnapshots(cloudSnapshots);
-        const active = cloudSnapshots.find((s) => s.isActive);
-        if (active) {
-          setActiveLiveId(active.id);
-        } else {
-          setActiveLiveId(getActivePublishedId());
-        }
-      } else {
-        const fallbacks = getLocalFallbackSnapshots();
-        setSnapshots(fallbacks);
-        const active = fallbacks.find((s) => s.isActive);
-        if (active) {
-          setActiveLiveId(active.id);
-        } else {
-          setActiveLiveId(getActivePublishedId());
-        }
-      }
-    } catch {
-      const fallbacks = getLocalFallbackSnapshots();
-      setSnapshots(fallbacks);
-      const active = fallbacks.find((s) => s.isActive);
-      if (active) {
-        setActiveLiveId(active.id);
-      } else {
-        setActiveLiveId(getActivePublishedId());
-      }
+      setSnapshots(cloudSnapshots);
+      const active = cloudSnapshots.find((s) => s.isActive);
+      setActiveLiveId(active ? active.id : null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load revision history from Cloudflare KV.';
+      setLoadError(msg);
+      setSnapshots([]);
+      setActiveLiveId(null);
     } finally {
       inFlightRef.current = false;
       setIsLoading(false);
@@ -303,36 +281,35 @@ export const HistoryHubDrawer: React.FC<HistoryHubDrawerProps> = ({
     []
   );
 
-  const handleConfirmRestore = useCallback(() => {
+  const handleConfirmRestore = useCallback(async () => {
     if (!pendingRestoreSnapshot) return;
     const target = pendingRestoreSnapshot;
     setPendingRestoreSnapshot(null);
 
-    const success = restoreSnapshotToDraft(target);
-    const itemTitle = getItemPrimaryText(target);
-
-    if (success) {
+    try {
+      await restoreSnapshotToDraft(target.id, undefined, lockToken);
+      const itemTitle = getItemPrimaryText(target);
       onRestored?.(itemTitle);
       onClose();
-    } else {
-      setToastMessage('Failed to restore draft.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to restore draft.';
+      setToastMessage(msg);
       setToastType('error');
     }
-  }, [pendingRestoreSnapshot, onRestored, onClose]);
+  }, [pendingRestoreSnapshot, lockToken, onRestored, onClose]);
 
-  const handleConfirmRestoreDefault = useCallback(() => {
+  const handleConfirmRestoreDefault = useCallback(async () => {
     setIsConfirmDefaultOpen(false);
-    const baseline = getDefaultSystemBaselineSnapshot(false);
-    const success = restoreSnapshotToDraft(baseline);
-
-    if (success) {
+    try {
+      await restoreSnapshotToDraft('snap-system-baseline', undefined, lockToken);
       onRestored?.('System Baseline');
       onClose();
-    } else {
-      setToastMessage('Failed to restore default baseline.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to restore default baseline.';
+      setToastMessage(msg);
       setToastType('error');
     }
-  }, [onRestored, onClose]);
+  }, [lockToken, onRestored, onClose]);
 
   if (!isOpen) return null;
 
@@ -378,6 +355,18 @@ export const HistoryHubDrawer: React.FC<HistoryHubDrawerProps> = ({
           <div className={styles.timelineList}>
             {isLoading && snapshots.length === 0 ? (
               <div className={styles.emptyState}>Loading history...</div>
+            ) : loadError ? (
+              <div className={styles.errorState} role="alert">
+                <p className={styles.errorText}>{loadError}</p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  type="button"
+                  onClick={() => loadHistory(true)}
+                >
+                  Retry
+                </Button>
+              </div>
             ) : snapshots.length === 0 ? (
               <div className={styles.emptyState}>No saved configurations yet.</div>
             ) : (

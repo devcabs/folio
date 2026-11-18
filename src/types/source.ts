@@ -60,9 +60,7 @@ export type SyncState =
 export interface SyncFolderPhotosResult {
   items: SyncedSourceItem[];
   stats: DriveReconciliationStats;
-  source: LiveSourceSource;
-  cloudSynced?: boolean;
-  cloudError?: string;
+  lastVerified: string;
 }
 
 export interface DriveSyncOptions {
@@ -73,10 +71,17 @@ export interface DriveSyncOptions {
 export interface UseDrivePhotoSyncOptions {
   /** Explicit Google Drive folder URL override (e.g. from AST element.driveUrl) */
   folderUrl?: string;
+  /** Hydrated synced photos directly from GalleryElement.syncedPhotos in the Canvas AST */
+  syncedPhotos?: SyncedSourceItem[];
   /** Whether this sync hook is operating on an element-level gallery rather than node page */
   isElementLevel?: boolean;
   /** Whether to automatically attempt background sync on mount when folder is present and un-synced (default: true) */
   autoSync?: boolean;
+  /** Callback to persist reconciled photos directly onto GalleryElement in the Canvas AST (PUT /api/draft) */
+  onPersistPhotos?: (
+    photos: SyncedSourceItem[],
+    lastVerified: string
+  ) => Promise<{ ok: boolean; error?: string } | void> | void;
 }
 
 export interface UseDrivePhotoSyncResult {

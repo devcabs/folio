@@ -5,10 +5,9 @@
  * Aligned with: docs/00_WORKFLOW.md, docs/03_ARCHITECTURE.md, docs/07_CODING_STANDARDS.md
  *
  * Implements:
- * 1. Synchronous Local-First Storage (`localStorage` under `folio_canvas_${nodeId}`).
- * 2. Cross-Component Event Bus (`engine-canvas-change`).
+ * 1. Stateless AST transformation functions for NodeCanvasDocument.
+ * 2. Cross-Component Event Bus (`engine-draft-canvas-change`).
  * 3. Immutable tree operations with strict section auto-numbering.
- * 4. Resilient schema recovery and optional cloud persistence bridge.
  */
 
 import type {
@@ -17,22 +16,11 @@ import type {
   CanvasLeafElement,
   SectionElement,
   SubsectionElement,
-  PhotoElement,
-  TextElement,
-  GalleryElement,
   NodeCanvasDocument,
 } from '../types/canvas';
 import { createDefaultCanvasDocument } from '../utils/canvasDefaults';
-import {
-  getDraftCanvasKey,
-  setDraftDirty,
-  getInMemoryDraftCanvas,
-  setInMemoryDraftCanvas,
-  triggerDebouncedCloudDraftSync,
-} from './draftService';
-import { getStorage } from '../utils/storage';
+import { dispatchDraftChange } from './draftService';
 import { getStorageNamespace } from '../config/engine.config';
-import { getSupabaseConfig, isTableAvailable, markTableMissing } from '../utils/supabase-config';
 
 export const getCanvasLiveStoragePrefix = (ns?: string) => (ns || getStorageNamespace()) + '_live_canvas_';
 export const CANVAS_LIVE_STORAGE_PREFIX = getCanvasLiveStoragePrefix();
@@ -47,8 +35,7 @@ export const EVENT_LIVE_CANVAS_CHANGE = 'engine-live-canvas-change';
 export const EVENT_DRAFT_CANVAS_CHANGE = 'engine-draft-canvas-change';
 export const CANVAS_SCHEMA_VERSION = 2;
 
-export const NODE_IDS = ['access', 'equity', 'quality', 'resiliency', 'governance'] as const;
-export type NodeId = (typeof NODE_IDS)[number];
+export type NodeId = string;
 
 export interface SaveCanvasOptions {
   silent?: boolean;
@@ -70,276 +57,23 @@ export interface CanvasLayoutService {
   saveNodeCanvas(doc: NodeCanvasDocument, isDevMode?: boolean): SaveResult;
   resetNodeCanvas(nodeId: string, isDevMode?: boolean): NodeCanvasDocument;
   subscribeToCanvasChange(nodeId: string, callback: (doc: NodeCanvasDocument) => void, isDevMode?: boolean): () => void;
-  deployNodeCanvasToCloud(nodeId: string): Promise<{ success: boolean; error?: string }>;
 }
 
 /**
- * Derives the canonical live localStorage key for a specific node.
+ * Derives the canonical live storage key for a specific node.
  */
 export function getCanvasStorageKey(nodeId: string): string {
   return `${getCanvasLiveStoragePrefix()}${nodeId}`;
 }
 
 /**
- * Derives the draft localStorage key for a specific node.
+ * Derives the draft storage key for a specific node.
  */
 export function getDraftCanvasStorageKey(nodeId: string): string {
   return `${getCanvasDraftStoragePrefix()}${nodeId}`;
 }
 
-/**
- * Seamlessly migrates legacy folio_canvas_* and folio_content_overrides keys to folio_live_*.
- * Guarantees zero data loss for existing tenant configurations upon system update.
- */
-export function migrateLegacyStorageKeys(): void {
-  const storage = getStorage();
-  if (!storage) return;
-
-  for (const nodeId of NODE_IDS) {
-    const legacyKey = `${getCanvasLegacyStoragePrefix()}${nodeId}`;
-    const liveKey = `${getCanvasLiveStoragePrefix()}${nodeId}`;
-    if (!storage.getItem(liveKey) && storage.getItem(legacyKey)) {
-      storage.setItem(liveKey, storage.getItem(legacyKey)!);
-    }
-  }
-
-  const legacyContent = getStorageNamespace() + '_content_overrides';
-  const liveContent = getStorageNamespace() + '_live_content_overrides';
-  if (!storage.getItem(liveContent) && storage.getItem(legacyContent)) {
-    storage.setItem(liveContent, storage.getItem(legacyContent)!);
-  }
-}
-
-/**
- * Recursively folds ContentDB overrides into a single Canvas child element (leaf or subsection).
- * Populates empty or modified AST properties from non-empty ContentDB entries.
- */
-function foldInChildElement(
-  el: CanvasChildElement,
-  overrides: Record<string, string>,
-  consumedKeys: string[]
-): boolean {
-  let modified = false;
-
-  if (el.type === 'subsection') {
-    const sub = el as SubsectionElement;
-    const subTitleKey = sub.titlePointId || (sub as unknown as { pointId?: string }).pointId;
-    if (subTitleKey && overrides[subTitleKey]) {
-      const val = overrides[subTitleKey].trim();
-      if (val.length > 0) {
-        sub.title = val;
-        modified = true;
-      }
-      consumedKeys.push(subTitleKey);
-    }
-
-    if (Array.isArray(sub.elements)) {
-      for (const leaf of sub.elements) {
-        if (foldInChildElement(leaf, overrides, consumedKeys)) {
-          modified = true;
-        }
-      }
-    }
-    return modified;
-  }
-
-  // Leaf elements
-  const leaf = el as CanvasLeafElement;
-  const leafPointId = 'pointId' in leaf ? (leaf as { pointId?: string }).pointId : undefined;
-  if (leafPointId && overrides[leafPointId]) {
-    if (leaf.type === 'photo') {
-      try {
-        const parsed = JSON.parse(overrides[leafPointId]);
-        const photo = leaf as PhotoElement;
-        if (parsed.src && typeof parsed.src === 'string' && parsed.src.trim().length > 0) {
-          photo.src = parsed.src.trim();
-          modified = true;
-        }
-        if (parsed.alt && typeof parsed.alt === 'string' && parsed.alt.trim().length > 0) {
-          photo.alt = parsed.alt.trim();
-          modified = true;
-        }
-        if (parsed.caption && typeof parsed.caption === 'string' && parsed.caption.trim().length > 0) {
-          photo.caption = parsed.caption.trim();
-          modified = true;
-        }
-        if (parsed.driveUrl && typeof parsed.driveUrl === 'string' && parsed.driveUrl.trim().length > 0) {
-          photo.driveUrl = parsed.driveUrl.trim();
-          modified = true;
-        }
-      } catch {
-        // Ignore non-JSON payload
-      }
-      consumedKeys.push(leafPointId);
-    } else if (leaf.type === 'text') {
-      const val = overrides[leafPointId].trim();
-      if (val.length > 0) {
-        (leaf as TextElement).content = val;
-        modified = true;
-      }
-      consumedKeys.push(leafPointId);
-    } else if (leaf.type === 'gallery') {
-      const gal = leaf as GalleryElement;
-      const raw = overrides[leafPointId].trim();
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object') {
-          if (typeof parsed.title === 'string' && parsed.title.trim().length > 0) {
-            gal.title = parsed.title.trim();
-            modified = true;
-          }
-          if (typeof parsed.driveUrl === 'string' && parsed.driveUrl.trim().length > 0) {
-            gal.driveUrl = parsed.driveUrl.trim();
-            modified = true;
-          }
-        } else if (raw.length > 0) {
-          gal.title = raw;
-          modified = true;
-        }
-      } catch {
-        if (raw.length > 0) {
-          gal.title = raw;
-          modified = true;
-        }
-      }
-      consumedKeys.push(leafPointId);
-    }
-  }
-
-  // Also check gallery titlePointId if distinct
-  if (leaf.type === 'gallery') {
-    const gal = leaf as GalleryElement;
-    if (gal.titlePointId && gal.titlePointId !== leafPointId && overrides[gal.titlePointId]) {
-      const val = overrides[gal.titlePointId].trim();
-      if (val.length > 0) {
-        gal.title = val;
-        modified = true;
-      }
-      consumedKeys.push(gal.titlePointId);
-    }
-  }
-
-  return modified;
-}
-
-/**
- * @deprecated Deprecated in Subtask 3.7: Canvas AST is the sole authority for all canvas elements.
- * Flat ContentDB overrides for canvas operations are superseded by direct AST mutations.
- * Folds ContentDB overrides into a single NodeCanvasDocument for legacy migration only.
- */
-export function foldCanvasOverridesIntoDocument(
-  doc: NodeCanvasDocument,
-  overrides: Record<string, string>
-): { modified: boolean; consumedKeys: string[] } {
-  let modified = false;
-  const consumedKeys: string[] = [];
-
-  if (!doc.sections || !Array.isArray(doc.sections)) {
-    return { modified: false, consumedKeys };
-  }
-
-  for (const section of doc.sections) {
-    // 1. Fold-in section titles
-    const secTitleKey = section.titlePointId || (section as unknown as { pointId?: string }).pointId;
-    if (secTitleKey && overrides[secTitleKey]) {
-      const val = overrides[secTitleKey].trim();
-      if (val.length > 0) {
-        section.title = val;
-        modified = true;
-      }
-      consumedKeys.push(secTitleKey);
-    }
-
-    // 2. Fold-in section numbering
-    if (secTitleKey) {
-      const numKey = `${secTitleKey}.isNumbered`;
-      if (overrides[numKey]) {
-        section.isNumbered = overrides[numKey] === 'true';
-        modified = true;
-        consumedKeys.push(numKey);
-      }
-    }
-
-    // 3. Fold-in child elements
-    if (Array.isArray(section.elements)) {
-      for (const child of section.elements) {
-        if (foldInChildElement(child, overrides, consumedKeys)) {
-          modified = true;
-        }
-      }
-    }
-  }
-
-  return { modified, consumedKeys };
-}
-
-/**
- * One-time idempotent migration that merges non-empty ContentDB overrides into the Canvas AST.
- * Deletes consumed ContentDB keys to prevent legacy overrides from lingering.
- */
-export function migrateCanvasOverridesIntoAst(channel: 'live' | 'draft'): void {
-  const storage = getStorage();
-  if (!storage) return;
-
-  const isDevMode = channel === 'draft';
-  const contentKey = isDevMode ? (getStorageNamespace() + '_draft_content_overrides') : (getStorageNamespace() + '_live_content_overrides');
-  const rawOverrides = storage.getItem(contentKey);
-  if (!rawOverrides) return;
-
-  let overrides: Record<string, string>;
-  try {
-    overrides = JSON.parse(rawOverrides);
-  } catch {
-    return;
-  }
-
-  const allConsumedKeys: string[] = [];
-
-  for (const nodeId of NODE_IDS) {
-    const doc = isDevMode ? getNodeCanvas(nodeId, true) : getLiveNodeCanvas(nodeId);
-    if (!doc) continue;
-
-    // Skip if already migrated at or above target schema version
-    if ((doc.version ?? 1) >= CANVAS_SCHEMA_VERSION) continue;
-
-    const { modified, consumedKeys } = foldCanvasOverridesIntoDocument(doc, overrides);
-    allConsumedKeys.push(...consumedKeys);
-
-    if (modified || (doc.version ?? 1) < CANVAS_SCHEMA_VERSION) {
-      doc.version = CANVAS_SCHEMA_VERSION;
-      if (isDevMode) {
-        saveNodeCanvas(doc, true);
-      } else {
-        saveLiveNodeCanvas(doc);
-      }
-    }
-  }
-
-  // Delete consumed override keys from ContentDB
-  if (allConsumedKeys.length > 0) {
-    for (const key of allConsumedKeys) {
-      delete overrides[key];
-    }
-    storage.setItem(contentKey, JSON.stringify(overrides));
-  }
-}
-
-// Deprecated automatic module-level migrateCanvasOverridesIntoAst('live') for public visitors.
-// Edge KV is the unconditional single source of truth for public visitors; migrations execute on-demand during authoring.
-
-/**
- * Validates document schema structure defensively.
- */
-function isValidCanvasDocument(data: unknown, nodeId: string): data is NodeCanvasDocument {
-  if (typeof data !== 'object' || data === null) return false;
-  const doc = data as Record<string, unknown>;
-  return (
-    doc.nodeId === nodeId &&
-    typeof doc.version === 'number' &&
-    Array.isArray(doc.sections) &&
-    (doc.updatedAt === undefined || typeof doc.updatedAt === 'string')
-  );
-}
+// Legacy ContentDB folding and AST migration removed in Subtask 7.3 (Canvas AST is SSOT).
 
 /**
  * Enforces sequential section numbering ("01", "02", "03"...) immutably.
@@ -862,98 +596,17 @@ export function findCanvasItemLocation(
 }
 
 /**
- * Synchronous retrieval of a node canvas document strictly from the live/published channel.
- */
-export function getLiveNodeCanvas(nodeId: string): NodeCanvasDocument {
-  const storage = getStorage();
-  const key = `${getCanvasLiveStoragePrefix()}${nodeId}`;
-
-  if (storage) {
-    try {
-      const raw = storage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (isValidCanvasDocument(parsed, nodeId)) {
-          return {
-            ...parsed,
-            sections: renumberSections(parsed.sections),
-          };
-        }
-      }
-    } catch {
-      // Gracefully recover to default on corrupted JSON
-    }
-  }
-
-  return createDefaultCanvasDocument(nodeId);
-}
-
-/**
- * Persists a canvas document strictly to the live/published channel.
- */
-export function saveLiveNodeCanvas(
-  doc: NodeCanvasDocument,
-  options?: SaveCanvasOptions
-): SaveResult {
-  const docToSave: NodeCanvasDocument = {
-    ...doc,
-    sections: renumberSections(doc.sections),
-    updatedAt: new Date().toISOString(),
-  };
-
-  const storage = getStorage();
-  let ok = true;
-  let error: 'quota' | 'unknown' | undefined;
-
-  if (storage) {
-    try {
-      storage.setItem(`${getCanvasLiveStoragePrefix()}${doc.nodeId}`, JSON.stringify(docToSave));
-    } catch (err: unknown) {
-      console.error('Storage quota exceeded while saving live canvas document:', err);
-      ok = false;
-      error = 'quota';
-    }
-  } else {
-    ok = false;
-    error = 'unknown';
-  }
-
-  if (ok && !options?.silent && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-    const detail: CanvasChangeEventDetail = {
-      nodeId: doc.nodeId,
-      document: docToSave,
-    };
-    window.dispatchEvent(new CustomEvent(EVENT_LIVE_CANVAS_CHANGE, { detail }));
-  }
-
-  return { ok, error, document: docToSave };
-}
-
-/**
  * Synchronous retrieval of a node canvas document.
  * Reads strictly from in-memory draft sandbox if Developer Mode is active (isDevMode === true);
  * for public visitors (isDevMode === false), returns an empty baseline shell.
  * Cloudflare Edge KV is the unconditional single source of truth for public visitors.
  */
-export function getNodeCanvas(nodeId: string, isDevMode = false): NodeCanvasDocument {
-  // Developer Mode: Read strictly from in-memory draft channel (Zero-LocalStorage policy)
-  if (isDevMode) {
-    const memoryDraft = getInMemoryDraftCanvas(nodeId);
-    if (memoryDraft && isValidCanvasDocument(memoryDraft, nodeId)) {
-      return {
-        ...memoryDraft,
-        sections: renumberSections(memoryDraft.sections),
-      };
-    }
-    return createDefaultCanvasDocument(nodeId);
-  }
-
-  // Public Mode: Return baseline shell; Edge KV is the sole authority
+export function getNodeCanvas(nodeId: string, _isDevMode = false): NodeCanvasDocument {
   return createDefaultCanvasDocument(nodeId);
 }
 
 /**
- * Persists canvas document to storage (draft or live) and broadcasts change via scoped CustomEvent.
+ * Persists canvas document to draft channel and broadcasts change via scoped CustomEvent.
  */
 export function saveNodeCanvas(
   doc: NodeCanvasDocument,
@@ -966,24 +619,11 @@ export function saveNodeCanvas(
     updatedAt: new Date().toISOString(),
   };
 
-  const storage = getStorage();
   let ok = true;
   let error: 'quota' | 'unknown' | undefined;
 
   if (isDevMode) {
-    // Draft mutations are purely in-memory with debounced background cloud sync.
-    // Zero localStorage writes for draft documents!
-    setInMemoryDraftCanvas(doc.nodeId, docToSave);
-    setDraftDirty(true);
-    triggerDebouncedCloudDraftSync();
-  } else if (storage) {
-    try {
-      storage.setItem(`${getCanvasLiveStoragePrefix()}${doc.nodeId}`, JSON.stringify(docToSave));
-    } catch (err: unknown) {
-      console.error('Storage quota exceeded while saving canvas document:', err);
-      ok = false;
-      error = 'quota';
-    }
+    dispatchDraftChange(true, true);
   } else {
     ok = false;
     error = 'unknown';
@@ -1017,29 +657,13 @@ export function dispatchAggregateCanvasChange(isDevMode = false): void {
 }
 
 /**
- * Resets storage for a node back to factory defaults and broadcasts change via scoped CustomEvent.
+ * Resets a node canvas back to factory defaults and broadcasts change via scoped CustomEvent.
  */
 export function resetNodeCanvas(nodeId: string, isDevMode = false): NodeCanvasDocument {
   const freshDoc = createDefaultCanvasDocument(nodeId);
-  const storage = getStorage();
 
   if (isDevMode) {
-    setInMemoryDraftCanvas(nodeId, freshDoc);
-    setDraftDirty(true);
-    triggerDebouncedCloudDraftSync();
-    if (storage) {
-      try {
-        storage.removeItem(getDraftCanvasKey(nodeId));
-      } catch {
-        // Ignore
-      }
-    }
-  } else if (storage) {
-    try {
-      storage.removeItem(`${getCanvasLiveStoragePrefix()}${nodeId}`);
-    } catch {
-      // Ignore
-    }
+    dispatchDraftChange(true, true);
   }
 
   if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
@@ -1073,8 +697,6 @@ export function subscribeToCanvasChange(
       customEvent.detail &&
       (customEvent.detail.nodeId === nodeId || customEvent.detail.nodeId === '*')
     ) {
-      // Public mode defense: Ignore wildcard aggregate events carrying no document payload,
-      // preventing getNodeCanvas(nodeId, false) from clobbering Edge KV state with empty defaults.
       if (!isDevMode && customEvent.detail.nodeId === '*' && !customEvent.detail.document) {
         return;
       }
@@ -1087,85 +709,10 @@ export function subscribeToCanvasChange(
     }
   };
 
-  const storageHandler = (e: StorageEvent) => {
-    if (!isDevMode) return;
-    const targetKey = getDraftCanvasStorageKey(nodeId);
-    if ((e.key === targetKey || e.key === null) && e.newValue) {
-      try {
-        const parsed = JSON.parse(e.newValue);
-        if (isValidCanvasDocument(parsed, nodeId)) {
-          callback({ ...parsed, sections: renumberSections(parsed.sections) });
-        }
-      } catch {
-        // ignore JSON parse errors
-      }
-    }
-  };
-
   window.addEventListener(eventName, handler);
-  window.addEventListener('storage', storageHandler);
   return () => {
     window.removeEventListener(eventName, handler);
-    window.removeEventListener('storage', storageHandler);
   };
-}
-
-/**
- * Deploys the active canvas document to cloud storage (Supabase).
- */
-export async function deployNodeCanvasToCloud(
-  nodeId: string
-): Promise<{ success: boolean; error?: string }> {
-  const doc = getLiveNodeCanvas(nodeId);
-  const config = getSupabaseConfig();
-
-  if (!config) {
-    // Offline or development mode: simulated success
-    return { success: true };
-  }
-
-  if (!isTableAvailable('pillar_canvas')) {
-    return { success: false, error: 'Table pillar_canvas unavailable in this session' };
-  }
-
-  try {
-    const res = await fetch(`${config.url}/rest/v1/node_canvas`, {
-      method: 'POST',
-      headers: {
-        apikey: config.anonKey,
-        Authorization: `Bearer ${config.anonKey}`,
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates,return=representation',
-      },
-      body: JSON.stringify({
-        node_id: nodeId,
-        document: doc,
-        updated_at: doc.updatedAt,
-      }),
-    });
-
-    if (res.status === 404) {
-      markTableMissing('pillar_canvas');
-      return {
-        success: false,
-        error: `Cloud sync responded with status ${res.status}`,
-      };
-    }
-
-    if (!res.ok) {
-      return {
-        success: false,
-        error: `Cloud sync responded with status ${res.status}`,
-      };
-    }
-
-    return { success: true };
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  }
 }
 
 export const canvasLayoutService: CanvasLayoutService = {
@@ -1173,5 +720,4 @@ export const canvasLayoutService: CanvasLayoutService = {
   saveNodeCanvas,
   resetNodeCanvas,
   subscribeToCanvasChange,
-  deployNodeCanvasToCloud,
 };

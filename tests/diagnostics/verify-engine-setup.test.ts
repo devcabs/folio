@@ -10,7 +10,6 @@ import {
 } from '../../src/config/engine.config';
 import { parseRoute } from '../../src/hooks/use-hash-route';
 import { getCanvasLiveStoragePrefix } from '../../src/services/canvasLayoutService';
-import { getMatrixCacheKey } from '../../src/hooks/useSheetChartData';
 import type { PublicNodePayload } from '../../src/types/edge';
 
 describe('Folio Engine: Integration Assurance & Diagnostic Verification', () => {
@@ -49,21 +48,18 @@ describe('Folio Engine: Integration Assurance & Diagnostic Verification', () => 
                 type: 'chart',
                 chartId: 'kpi_chart_enrollment',
                 title: 'Enrollment Rate',
+                dataset: {
+                  chartId: 'kpi_chart_enrollment',
+                  title: 'Enrollment Rate',
+                  asOfDate: '2026-11-01',
+                  chartType: 'bar',
+                  sanitizedCsvContent: 'Year,Value\n2025,100\n2026,120',
+                },
               },
             ],
           },
         ],
       },
-      chartDatasets: {
-        kpi_chart_enrollment: {
-          chartId: 'kpi_chart_enrollment',
-          title: 'Enrollment Rate',
-          asOfDate: '2026-11-01',
-          chartType: 'bar',
-          sanitizedCsvContent: 'Year,Value\n2025,100\n2026,120',
-        },
-      },
-      sourceMetadata: {},
     });
 
     it('passes clean valid payloads with zero errors and zero warnings', () => {
@@ -83,9 +79,9 @@ describe('Folio Engine: Integration Assurance & Diagnostic Verification', () => 
       expect(result.errors.some((e) => e.includes('nodeId'))).toBe(true);
     });
 
-    it('warns when a chart is referenced in canvas AST but missing from chartDatasets', () => {
+    it('warns when a chart is referenced in canvas AST without embedded dataset or config', () => {
       const payload = createSamplePayload();
-      delete payload.chartDatasets.kpi_chart_enrollment;
+      delete (payload.canvas.sections[0].elements[1] as { dataset?: unknown }).dataset;
       const result = validateNodePayload(payload);
       expect(result.ok).toBe(true);
       expect(result.warnings.some((w) => w.includes('kpi_chart_enrollment'))).toBe(true);
@@ -163,12 +159,10 @@ describe('Folio Engine: Integration Assurance & Diagnostic Verification', () => 
       setEngineConfig({ appNamespace: 'tenant_custom' });
       expect(getStorageNamespace()).toBe('tenant_custom');
       expect(getCanvasLiveStoragePrefix()).toBe('tenant_custom_live_canvas_');
-      expect(getMatrixCacheKey('enrollment_kpi')).toBe('tenant_custom_chart_matrix_enrollment_kpi');
 
       setEngineConfig({ appNamespace: 'tenant_second' });
       expect(getStorageNamespace()).toBe('tenant_second');
       expect(getCanvasLiveStoragePrefix()).toBe('tenant_second_live_canvas_');
-      expect(getMatrixCacheKey('enrollment_kpi')).toBe('tenant_second_chart_matrix_enrollment_kpi');
     });
   });
 });

@@ -28,6 +28,9 @@ export interface DevLockStatusResponse {
   canAcquire: boolean;
   currentLock?: DevSessionLock;
   isSelfSession: boolean;
+  lockoutUntil?: number | null;
+  attemptsRemaining?: number;
+  error?: string;
 }
 
 export interface DeveloperModeContextType {
@@ -69,6 +72,8 @@ export interface DeveloperModeContextType {
   // Phase 9.1 Developer Lock Extensions
   /** Unique session ID generated for this browser instance */
   sessionId: string;
+  /** Opaque edge coordinator lock token held in React state */
+  lockToken?: string | null;
   /** Whether Dev Mode entry is blocked because another coordinator holds the lock */
   isLockBlocked: boolean;
   /** Active lock metadata if blocked */

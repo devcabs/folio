@@ -17,7 +17,6 @@ import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { useUnsavedChangesPrompt } from '../../hooks/useUnsavedChangesPrompt';
 import { getContent, setContent, resetContent } from '../../utils/contentDb';
-import { uploadMediaAsset } from '../../services/mediaService';
 import { resolveSingleDrivePhotoUrl } from '../../utils/mediaUrl';
 import styles from './UniversalEditModal.module.css';
 
@@ -286,11 +285,6 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   const isNumberedKey = pointId ? `${pointId}.isNumbered` : '';
   const [isNumberedDraft, setIsNumberedDraft] = useState<boolean>(true);
 
-  // Upload status for document attachments
-  const [isUploading, setIsUploading] = useState<boolean>(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-
-  const docFileInputRef = useRef<HTMLInputElement>(null);
   const initialFocusRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
   // Automatically dismiss modal if developer mode is exited
@@ -328,11 +322,8 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
       setImageDraft(parsed.image);
       setFileDraft(parsed.file);
 
-      if (isSectionItem && isNumberedKey) {
-        const storedNumbered = getContent(isNumberedKey, '', isDevMode);
-        if (storedNumbered !== '') {
-          setIsNumberedDraft(storedNumbered === 'true');
-        } else if (isNumbered !== undefined) {
+      if (isSectionItem) {
+        if (isNumbered !== undefined) {
           setIsNumberedDraft(isNumbered);
         } else if (defaultNumbered !== undefined) {
           setIsNumberedDraft(defaultNumbered);
@@ -426,37 +417,6 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
     }
   }, []);
 
-  // File picker handler for generic document upload
-  const handleDocumentFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    let format: DevFileData['format'] = 'other';
-    if (ext === 'pdf') format = 'pdf';
-    else if (ext === 'doc' || ext === 'docx') format = 'doc';
-    else if (ext === 'xls' || ext === 'xlsx' || ext === 'csv') format = 'sheet';
-
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
-      const publicUrl = await uploadMediaAsset(file, 'documents');
-      setFileDraft((prev) => ({
-        ...prev,
-        name: file.name,
-        url: publicUrl,
-        format,
-        size: `${(file.size / 1024).toFixed(1)} KB`,
-      }));
-    } catch (err: unknown) {
-      console.error('[UniversalEditModal] Document upload failed:', err);
-      setUploadError(err instanceof Error ? err.message : 'Document upload failed');
-    } finally {
-      setIsUploading(false);
-    }
-  }, []);
-
   // Submit Handler
   const handleSave = () => {
     if (isCanvasDomain && onSubmit) {
@@ -488,11 +448,8 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
         break;
     }
 
-    // Persist section numbering strictly in draft sandbox (only for non-canvas portal sections)
-    if (isSectionItem && isNumberedKey && !isCanvasElement) {
-      setContent(isNumberedKey, String(isNumberedDraft), true);
-      onNumberedChange?.(isNumberedDraft);
-    } else if (isSectionItem && onNumberedChange) {
+    // Notify parent of section numbering change (Canvas AST is SSOT; zero ContentDB .isNumbered writes)
+    if (isSectionItem && onNumberedChange) {
       onNumberedChange(isNumberedDraft);
     }
 
@@ -571,8 +528,7 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
       }
     }
 
-    if (isSectionItem && isNumberedKey) {
-      resetContent(isNumberedKey, true);
+    if (isSectionItem) {
       const fallback = defaultNumbered !== undefined ? defaultNumbered : true;
       setIsNumberedDraft(fallback);
       onNumberedChange?.(fallback);
@@ -618,7 +574,7 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      onConfirm={isUploading ? undefined : handleSave}
+      onConfirm={handleSave}
       title={modalHeaderTitle}
       maxWidth="500px"
       ariaLabel={modalHeaderTitle}
@@ -1078,24 +1034,8 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
             </div>
 
             <div className={styles.fileRow}>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => docFileInputRef.current?.click()}
-              >
-                Upload Document
-              </Button>
-              <input
-                ref={docFileInputRef}
-                type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.csv"
-                className={styles.hiddenFileInput}
-                onChange={handleDocumentFileSelect}
-                aria-label="Upload document file"
-              />
               <span className={styles.fileStatus}>
-                {fileDraft.url ? (fileDraft.url.startsWith('data:') ? 'Local file selected' : 'Document linked') : 'No file chosen'}
+                {fileDraft.url ? 'Document URL linked' : 'Enter an external or Google Drive document URL above'}
               </span>
             </div>
           </div>
@@ -1117,17 +1057,11 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
           </div>
 
           <div className={styles.actionGroupRight}>
-            {uploadError && (
-              <span style={{ fontSize: '0.8125rem', color: 'var(--color-danger, #e11d48)', marginRight: '8px' }}>
-                {uploadError}
-              </span>
-            )}
             <Button
               type="button"
               variant="secondary"
               size="sm"
               onClick={onClose}
-              disabled={isUploading}
             >
               Cancel
             </Button>
@@ -1136,9 +1070,8 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
               variant="primary"
               size="sm"
               onClick={handleSave}
-              disabled={isUploading}
             >
-              {isUploading ? 'Uploading...' : submitButtonLabel}
+              {submitButtonLabel}
             </Button>
           </div>
         </div>

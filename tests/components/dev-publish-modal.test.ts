@@ -3,7 +3,6 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DevPublishModal } from '../../src/components/dev/DevPublishModal';
 import * as historyService from '../../src/services/historyService';
-import * as draftService from '../../src/services/draftService';
 import { DeveloperModeProvider } from '../../src/context/DeveloperModeContext';
 import type { PublishedSnapshot } from '../../src/types/history';
 
@@ -252,12 +251,6 @@ describe('Subtask 2.7: DevPublishModal 3-Tier Status & Retry Affordance', () => 
       origin: 'http://localhost:3000',
     };
 
-    vi.spyOn(draftService, 'checkDraftStaleness').mockReturnValue({
-      isStale: false,
-      baseId: 'pub-test-base',
-      currentActiveId: 'pub-test-base',
-    });
-
     container = (global as any).document.createElement('div');
     (global as any).document.body.appendChild(container);
     root = createRoot(container);
@@ -347,7 +340,7 @@ describe('Subtask 2.7: DevPublishModal 3-Tier Status & Retry Affordance', () => 
       'Fixing navigation header spacing',
       undefined,
       undefined,
-      { forcePublish: true }
+      expect.objectContaining({ forcePublish: true })
     );
     expect(onPublished).toHaveBeenCalledWith(mockSnapshot, true);
     expect(onClose).toHaveBeenCalled();
@@ -356,7 +349,6 @@ describe('Subtask 2.7: DevPublishModal 3-Tier Status & Retry Affordance', () => 
   it('displays error message and provides Retry button on publication failure', async () => {
     const onClose = vi.fn();
     const onPublished = vi.fn();
-    draftService.setDraftDirty(true);
 
     vi.spyOn(historyService, 'publishNewSnapshot').mockResolvedValue({
       success: false,
@@ -393,10 +385,9 @@ describe('Subtask 2.7: DevPublishModal 3-Tier Status & Retry Affordance', () => 
 
     expect(historyService.publishNewSnapshot).toHaveBeenCalledTimes(1);
 
-    // Modal remains open displaying the real error and preserving dirty draft
+    // Modal remains open displaying the real error
     expect(onClose).not.toHaveBeenCalled();
     expect(onPublished).not.toHaveBeenCalled();
-    expect(draftService.isDraftDirty()).toBe(true);
     const bodyText = collectText((global as any).document.body);
     expect(bodyText).toContain('Cloudflare KV deployment failed: 502 Bad Gateway');
     expect(bodyText).toContain('Retry');

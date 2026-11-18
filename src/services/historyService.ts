@@ -1,113 +1,37 @@
 /**
- * Folio Engine - Unified History Hub Service
+ * Folio Engine - Revision History & Atomic Publish Service (Cloudflare KV SSOT)
  * Location: src/services/historyService.ts
- * Specification: docs/tasks/task9_3_unified_history_hub.md
- * Aligned with: docs/00_WORKFLOW.md, docs/03_ARCHITECTURE.md, docs/07_CODING_STANDARDS.md
+ * Specification: docs/task/7.5-revision-history-and-publish-pipeline-ssot.md
  *
- * Implements:
- * 1. Full Snapshot Bundling (all 5 nodes + Content DB overrides).
- * 2. Dual-Tier Timeline (Named Milestones, Rolling Auto-Saves, Safety Backups).
- * 3. 20-Checkpoint Auto-Save Rotation with Inactivity Debouncing.
- * 4. Safe Pre-Restore Safety Checkpoint Guarantee.
- * 5. Full JSON Backup Export & Verified Import.
+ * Epic 7 Subtask 7.5:
+ * - Pure Cloudflare KV SSOT — zero browser storage, zero module caches, zero legacy cloud DB.
+ * - Direct fail-stop HTTP calls to /api/history, /api/history/restore, and /api/publish.
  */
 
 import type {
   UnifiedPortalSnapshot,
-  HistoryManifest,
-  SnapshotType,
   PublishedSnapshot,
   PublishSnapshotResult,
+  HistoryIndexEntry,
 } from '../types/history';
-import type { SheetChartConfig } from '../types/chart';
-import type { SyncedSourceMetadata } from '../types/edge';
 import type { NodeCanvasDocument, SubsectionElement } from '../types/canvas';
-import { createDefaultCanvasDocument } from '../utils/canvasDefaults';
-import { saveToIndexedDB, loadFromIndexedDB, notifyIndexedDBError } from './historyStorage';
+import type { DraftWorkspacePayload } from '../types/edge';
 import {
-  getNodeCanvas,
-  getLiveNodeCanvas,
-  saveNodeCanvas,
-  saveLiveNodeCanvas,
-  renumberSections,
   dispatchAggregateCanvasChange,
-  migrateCanvasOverridesIntoAst,
-  EVENT_LIVE_CANVAS_CHANGE,
-  EVENT_DRAFT_CANVAS_CHANGE,
-  NODE_IDS,
-  type CanvasChangeEventDetail,
   type NodeId,
 } from './canvasLayoutService';
-import { getStorage } from '../utils/storage';
-import { getEngineConfig, getStorageNamespace } from '../config/engine.config';
-import { getSupabaseConfig, isTableAvailable, markTableMissing, markTableAvailable } from '../utils/supabase-config';
-export { NODE_IDS, type NodeId };
-export function getActiveNodeIds(): string[] {
-  const config = getEngineConfig();
-  if (config.nodes && config.nodes.length > 0) {
-    return config.nodes.map((n) => n.id);
-  }
-  return [...NODE_IDS];
-}
-export { getSupabaseConfig, isTableAvailable, markTableMissing, markTableAvailable };
-import {
-  getAllContentOverrides,
-  setAllContentOverrides,
-  setLiveContentOverrides,
-  clearDraftTombstones,
-} from '../utils/contentDb';
+import { getActiveNodeIds } from '../config/engine.config';
 import { getSessionId } from './devLockService';
-import {
-  setDraftModeActive,
-  setDraftDirty,
-  getDraftCanvasKey,
-  syncDraftWithPublished,
-  checkDraftStaleness,
-  setInMemoryDraftCanvas,
-  triggerDebouncedCloudDraftSync,
-  type DraftStalenessCheck,
-} from './draftService';
-import { getSessionUnlockTime, isSessionValid } from '../utils/devSecurity';
-import { getCachedChartConfig, getAllCachedChartConfigs } from './chartSourceService';
-import { getAllLiveSources, getSourceSourceSync } from './sourceService';
-import { normalizePointId } from '../utils/source';
+import { dispatchDraftChange, getDraftWorkspace } from './draftService';
 
-export interface EngineSyncBroadcastMessage {
-  type: 'MASID_PUBLISH_BROADCAST';
-  snapshotId: string;
-  timestamp: string;
-  canvases: Record<string, NodeCanvasDocument>;
-  contentOverrides: Record<string, string>;
-  activePublishedId: string;
-}
+export { type NodeId, getActiveNodeIds };
+export { initDraftSession, discardDraftSession } from './draftService';
 
-export interface HydrationState {
-  isHydrating: boolean;
-  hasConfirmedData: boolean;
-  source: 'cache' | 'cloud' | 'baseline';
-  activePublishedId: string | null;
-}
-
-export const getBroadcastChannelName = (ns?: string) => (ns || getStorageNamespace()) + '_portal_sync';
-export const BROADCAST_CHANNEL_NAME = getBroadcastChannelName();
-export const getHistoryManifestKey = (ns?: string) => (ns || getStorageNamespace()) + '_history_manifest';
-export const STORAGE_KEY_HISTORY_MANIFEST = getHistoryManifestKey();
-export const getLiveActivePublishedIdKey = (ns?: string) => (ns || getStorageNamespace()) + '_live_active_published_id';
-export const STORAGE_KEY_LIVE_ACTIVE_PUBLISHED_ID = getLiveActivePublishedIdKey();
-export const LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID = getStorageNamespace() + '_active_published_id';
-export const STORAGE_KEY_ACTIVE_PUBLISHED_ID = LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID;
 export const EVENT_HISTORY_CHANGE = 'engine-history-change';
 export const HISTORY_SCHEMA_VERSION = 1;
-export const MAX_AUTOSAVES = 20;
-export const AUTOSAVE_DEBOUNCE_MS = 60_000;
-
-// Runtime in-memory manifest cache for zero-data-loss session resilience
-let inMemoryManifest: HistoryManifest | null = null;
-let lastAutoSaveTimestamp = 0;
 
 /**
  * Computes scannable metrics summary strictly against the Canvas AST hierarchy.
- * Omits legacy flat content overrides tracking to eliminate phantom diffs.
  */
 export function computeMetricsSummary(
   canvases: Record<string, NodeCanvasDocument>,
@@ -120,12 +44,15 @@ export function computeMetricsSummary(
   let totalPhotoElements = 0;
   let totalChartElements = 0;
 
-  for (const doc of Object.values(canvases)) {
+  for (const nodeId of Object.keys(canvases || {})) {
+    const doc = canvases[nodeId];
     if (!doc || !Array.isArray(doc.sections)) continue;
+
     totalSections += doc.sections.length;
 
     for (const sec of doc.sections) {
-      if (!sec || !Array.isArray(sec.elements)) continue;
+      if (!Array.isArray(sec.elements)) continue;
+
       for (const el of sec.elements) {
         if (el.type === 'subsection') {
           totalSubsections += 1;
@@ -134,15 +61,15 @@ export function computeMetricsSummary(
             totalLeafElements += sub.elements.length;
             for (const leaf of sub.elements) {
               if (leaf.type === 'text') totalTextElements += 1;
-              if (leaf.type === 'photo') totalPhotoElements += 1;
-              if (leaf.type === 'chart') totalChartElements += 1;
+              else if (leaf.type === 'photo') totalPhotoElements += 1;
+              else if (leaf.type === 'chart') totalChartElements += 1;
             }
           }
         } else {
           totalLeafElements += 1;
           if (el.type === 'text') totalTextElements += 1;
-          if (el.type === 'photo') totalPhotoElements += 1;
-          if (el.type === 'chart') totalChartElements += 1;
+          else if (el.type === 'photo') totalPhotoElements += 1;
+          else if (el.type === 'chart') totalChartElements += 1;
         }
       }
     }
@@ -152,1037 +79,177 @@ export function computeMetricsSummary(
     totalSections,
     totalSubsections,
     totalLeafElements,
-    totalTextOverrides: totalTextElements, // Preserves contract compatibility
+    totalTextOverrides: 0,
+    totalTextElements,
+    totalPhotoElements,
+    totalChartElements,
   };
 }
 
-/**
- * Retrieves the currently active published snapshot ID.
- * Reads solely from the canonical key, running a one-time migration from legacy pointers if absent.
- */
-export function getActivePublishedId(): string {
-  const storage = getStorage();
-  if (!storage) return 'snap-system-baseline';
-
-  // 1. Direct read from canonical pointer
-  const canonicalId = storage.getItem(getLiveActivePublishedIdKey());
-  if (canonicalId) return canonicalId;
-
-  // 2. One-time migration fallback from legacy keys
-  const legacyId = storage.getItem(LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID);
-  let manifestLegacyId: string | undefined;
-  try {
-    const rawManifest = storage.getItem(getHistoryManifestKey());
-    if (rawManifest) {
-      const parsed = JSON.parse(rawManifest);
-      manifestLegacyId = parsed?.activePublishedId || parsed?.activeMilestoneId;
-    }
-  } catch {
-    // ignore parse error
-  }
-
-  const migratedId = legacyId || manifestLegacyId || 'snap-system-baseline';
-
-  // Persist to canonical key and cleanup legacy key
-  try {
-    storage.setItem(getLiveActivePublishedIdKey(), migratedId);
-    storage.removeItem(LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID);
-  } catch {
-    // Storage quota or access restriction safety
-  }
-
-  return migratedId;
-}
-
-/**
- * Sets the active published snapshot ID to the canonical key exclusively.
- */
-export function setActivePublishedId(id: string): void {
-  const storage = getStorage();
-  if (storage) {
-    try {
-      storage.setItem(getLiveActivePublishedIdKey(), id);
-      storage.removeItem(LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID);
-    } catch {
-      // Storage quota safety
-    }
+function dispatchHistoryChange(): void {
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new CustomEvent(EVENT_HISTORY_CHANGE));
   }
 }
 
-/**
- * Generates the canonical system factory baseline snapshot.
- * Serves as the indestructible anchor for the host application.
- */
-export function getDefaultSystemBaselineSnapshot(isActive = true): PublishedSnapshot {
-  const canvases: Record<string, NodeCanvasDocument> = {};
-  for (const nodeId of getActiveNodeIds()) {
-    canvases[nodeId] = createDefaultCanvasDocument(nodeId);
-  }
-  const contentOverrides: Record<string, string> = {};
-  const summary = computeMetricsSummary(canvases, contentOverrides);
-
-  return {
-    id: 'snap-system-baseline',
-    schemaVersion: HISTORY_SCHEMA_VERSION,
-    title: 'System Baseline (Default)',
-    description: 'Original the host application 6-Year Baseline.',
-    createdAt: '2024-01-01T00:00:00.000Z',
-    authorSessionId: 'system',
-    isActive,
-    canvases,
-    contentOverrides,
-    summary,
-  };
-}
-
-/**
- * Lightweight snapshot metadata for localStorage manifest (< 5 KB).
- * Excludes heavy canvas document ASTs and Content DB dictionaries.
- */
-export interface HistorySnapshotMetadata {
-  id: string;
-  title: string;
-  createdAt: string;
-  type: SnapshotType | string;
-  notes?: string;
-  authorSessionId?: string;
-  summary?: UnifiedPortalSnapshot['summary'];
-}
-
-export interface LightweightHistoryManifest {
-  version: number;
-  updatedAt: string;
-  lastUpdated?: string;
-  snapshots: HistorySnapshotMetadata[]; // No canvases or contentOverrides!
-}
-
-/**
- * Strips heavy payloads to create and persist a lightweight metadata manifest in localStorage (< 5 KB budget).
- */
-export function syncLightweightLocalStorage(manifest: HistoryManifest): void {
-  const storage = getStorage();
-  if (!storage) return;
-
-  let sanitizedSnapshots: HistorySnapshotMetadata[] = manifest.snapshots.map((s) => ({
-    id: s.id,
-    title: s.title,
-    createdAt: s.createdAt,
-    type: s.type,
-    notes: s.notes || undefined,
-    authorSessionId: s.authorSessionId,
-    summary: s.summary,
-  }));
-
-  let serialized = JSON.stringify({
-    version: HISTORY_SCHEMA_VERSION,
-    updatedAt: manifest.updatedAt,
-    snapshots: sanitizedSnapshots,
-  });
-
-  // Strict < 5 KB guard: if metadata exceeds 5120 bytes, prune older entries from localStorage cache
-  if (serialized.length > 5120) {
-    while (sanitizedSnapshots.length > 1 && serialized.length > 5120) {
-      sanitizedSnapshots.pop();
-      serialized = JSON.stringify({
-        version: HISTORY_SCHEMA_VERSION,
-        updatedAt: manifest.updatedAt,
-        snapshots: sanitizedSnapshots,
-      });
-    }
-  }
-
-  try {
-    storage.setItem(getHistoryManifestKey(), serialized);
-  } catch {
-    // If storage quota or restriction hit, maintain in-memory & IndexedDB
-  }
-}
-
-/**
- * Hydrates history manifest from persistent IndexedDB store (eliminates localStorage quota wipes).
- * Pure read-and-cache operation: never re-dispatches EVENT_HISTORY_CHANGE or redundant IDB writes.
- */
-export async function hydrateHistoryFromIndexedDB(): Promise<HistoryManifest> {
-  try {
-    const fromIdb = await loadFromIndexedDB<HistoryManifest>(STORAGE_KEY_HISTORY_MANIFEST);
-    if (fromIdb && Array.isArray(fromIdb.snapshots) && fromIdb.snapshots.length > 0) {
-      inMemoryManifest = fromIdb;
-      // Defensive: keep localStorage lightweight only, never write full IDB payload to localStorage
-      syncLightweightLocalStorage(fromIdb);
-      return fromIdb;
-    }
-  } catch {
-    // fallback to standard manifest
-  }
-  return getHistoryManifest();
-}
-
-/**
- * Retrieves the whole-History manifest from storage.
- */
-export function getHistoryManifest(): HistoryManifest {
-  const defaultManifest: HistoryManifest = {
-    snapshots: [],
-    updatedAt: new Date().toISOString(),
-  };
-
-  const storage = getStorage();
-  if (!storage) return inMemoryManifest || defaultManifest;
-
-  try {
-    const raw = storage.getItem(getHistoryManifestKey());
-    if (!raw) return inMemoryManifest || defaultManifest;
-
-    const parsed = JSON.parse(raw);
-    if (parsed && Array.isArray(parsed.snapshots)) {
-      const result: HistoryManifest = {
-        lastRestoredId: parsed.lastRestoredId,
-        snapshots: parsed.snapshots,
-        updatedAt: parsed.updatedAt || parsed.lastUpdated || new Date().toISOString(),
-      };
-      inMemoryManifest = inMemoryManifest || result;
-      return inMemoryManifest;
-    }
-  } catch {
-    // Graceful fallback on corrupt storage
-  }
-
-  return inMemoryManifest || defaultManifest;
-}
-
-/**
- * Persists history manifest to storage and notifies subscribers.
- * Offloads heavy canvas and Content DB payloads exclusively to IndexedDB.
- * localStorage receives only lightweight metadata (< 50KB for 20+ snapshots).
- */
-export function saveHistoryManifest(manifest: HistoryManifest): void {
-  const updated: HistoryManifest = {
-    ...manifest,
-    updatedAt: manifest.updatedAt || new Date().toISOString(),
-  };
-
-  // 1. Authoritative in-memory update
-  inMemoryManifest = updated;
-
-  // 2. High-capacity IndexedDB persistent update (persists full payload with zero quota drop)
-  saveToIndexedDB(STORAGE_KEY_HISTORY_MANIFEST, updated).then((success) => {
-    if (!success) {
-      console.warn('[historyService] Persistent IndexedDB backup failed. Local recovery snapshot may not persist across sessions.');
-      notifyIndexedDBError('save', new Error('IndexedDB save returned false'));
-    }
-  }).catch((err) => {
-    console.warn('[historyService] IndexedDB save exception:', err);
-    notifyIndexedDBError('save', err);
-  });
-
-  // 3. Strip heavy payloads to create lightweight metadata manifest for localStorage (< 5 KB budget)
-  syncLightweightLocalStorage(updated);
-
-  if (typeof window !== 'undefined') {
-    try {
-      window.dispatchEvent(
-        new CustomEvent(EVENT_HISTORY_CHANGE, {
-          detail: { manifest: updated },
-        })
-      );
-    } catch {
-      // ignore in test or non-browser env
-    }
-  }
-}
-
-/**
- * Subscribes to real-time changes in the history manifest.
- */
-export function subscribeToHistoryChange(
-  callback: (manifest: HistoryManifest) => void
-): () => void {
+export function subscribeToHistoryChange(callback: () => void): () => void {
   if (typeof window === 'undefined') return () => { };
-
-  const handler = (e: Event) => {
-    const custom = e as CustomEvent<{ manifest: HistoryManifest }>;
-    if (custom?.detail?.manifest) {
-      callback(custom.detail.manifest);
-    } else {
-      callback(getHistoryManifest());
-    }
-  };
-
+  const handler = () => callback();
   window.addEventListener(EVENT_HISTORY_CHANGE, handler);
   return () => window.removeEventListener(EVENT_HISTORY_CHANGE, handler);
 }
 
-/**
- * Gathers active chart configurations referenced across canvases or stored in local chart cache.
- */
-export function gatherSnapshotChartConfigs(
-  canvases: Record<string, NodeCanvasDocument>
-): Record<string, SheetChartConfig> {
-  const chartConfigs: Record<string, SheetChartConfig> = {};
+async function parseErrorDetail(res: Response): Promise<string> {
   try {
-    for (const doc of Object.values(canvases)) {
-      if (!doc?.sections) continue;
-      for (const sec of doc.sections) {
-        for (const el of sec.elements || []) {
-          if (el.type === 'chart' && 'chartId' in el && el.chartId) {
-            const cfg = getCachedChartConfig(el.chartId);
-            if (cfg) chartConfigs[el.chartId] = cfg;
-          } else if (el.type === 'subsection' && 'elements' in el) {
-            for (const leaf of el.elements || []) {
-              if (leaf.type === 'chart' && 'chartId' in leaf && leaf.chartId) {
-                const cfg = getCachedChartConfig(leaf.chartId);
-                if (cfg) chartConfigs[leaf.chartId] = cfg;
-              }
-            }
-          }
-        }
-      }
-    }
-  } catch {
-    // Graceful fallback
-  }
-
-  // Also include any other cached chart configurations
-  try {
-    const allCached = getAllCachedChartConfigs();
-    for (const [id, cfg] of Object.entries(allCached)) {
-      if (!chartConfigs[id]) {
-        chartConfigs[id] = cfg;
-      }
-    }
-  } catch {
-    // Graceful fallback
-  }
-
-  return chartConfigs;
-}
-
-/**
- * Gathers active linked evidence source metadata.
- * Includes synced photos (items) for zero-quota public rendering.
- */
-export function gatherSnapshotSourceMetadata(
-  canvases?: Record<string, NodeCanvasDocument>
-): Record<string, SyncedSourceMetadata> {
-  const sourceMetadata: Record<string, SyncedSourceMetadata> = {};
-  try {
-    const liveSources = getAllLiveSources();
-    for (const [pointId, source] of Object.entries(liveSources)) {
-      sourceMetadata[pointId] = {
-        pointId,
-        folderUrl: source.folderUrl,
-        folderTitle: source.folderTitle,
-        description: source.description,
-        lastSyncedAt: source.lastVerified,
-        items: source.syncedPhotos,
-      };
-    }
-  } catch {
-    // Graceful fallback
-  }
-
-  // Also harvest from canvases for any gallery elements with cached photos
-  if (canvases) {
+    const text = await res.text();
+    if (!text) return `HTTP ${res.status}`;
     try {
-      for (const doc of Object.values(canvases)) {
-        if (!doc?.sections) continue;
-        for (const sec of doc.sections) {
-          for (const el of sec.elements || []) {
-            if (el.type === 'gallery') {
-              const g = el as { id?: string; pointId?: string; driveUrl?: string; title?: string };
-              const rawId = g.pointId || g.id || '';
-              const normId = normalizePointId(rawId);
-              if (normId && !sourceMetadata[normId]) {
-                const live = getSourceSourceSync(normId);
-                sourceMetadata[normId] = {
-                  pointId: normId,
-                  folderUrl: g.driveUrl || live?.folderUrl || '',
-                  folderTitle: g.title || live?.folderTitle || 'Gallery Folder',
-                  description: live?.description,
-                  lastSyncedAt: live?.lastVerified,
-                  items: live?.syncedPhotos,
-                };
-              }
-            } else if (el.type === 'subsection' && 'elements' in el) {
-              for (const leaf of (el as { elements?: any[] }).elements || []) {
-                if (leaf.type === 'gallery') {
-                  const g = leaf as { id?: string; pointId?: string; driveUrl?: string; title?: string };
-                  const rawId = g.pointId || g.id || '';
-                  const normId = normalizePointId(rawId);
-                  if (normId && !sourceMetadata[normId]) {
-                    const live = getSourceSourceSync(normId);
-                    sourceMetadata[normId] = {
-                      pointId: normId,
-                      folderUrl: g.driveUrl || live?.folderUrl || '',
-                      folderTitle: g.title || live?.folderTitle || 'Gallery Folder',
-                      description: live?.description,
-                      lastSyncedAt: live?.lastVerified,
-                      items: live?.syncedPhotos,
-                    };
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+      const parsed = JSON.parse(text) as { error?: string; message?: string };
+      return parsed.error || parsed.message || `HTTP ${res.status}`;
     } catch {
-      // Graceful fallback
+      return `${text} (HTTP ${res.status})`;
     }
+  } catch {
+    return `HTTP ${res.status}`;
   }
+}
 
-  return sourceMetadata;
+function buildAuthHeaders(lockToken?: string | null, includeJson = false): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (includeJson) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (lockToken) {
+    headers['Authorization'] = `Bearer ${lockToken}`;
+  }
+  return headers;
 }
 
 /**
- * Aggregates a complete full snapshot bundle across all 5 nodes and Content DB.
- */
-export function captureCurrentSnapshot(
-  title: string,
-  notes: string = '',
-  type: SnapshotType = 'milestone',
-  sessionId?: string
-): UnifiedPortalSnapshot {
-  const canvases: Record<string, NodeCanvasDocument> = {};
-  for (const nodeId of getActiveNodeIds()) {
-    canvases[nodeId] = getLiveNodeCanvas(nodeId);
-  }
-
-  const contentOverrides = getAllContentOverrides();
-  const summary = computeMetricsSummary(canvases, contentOverrides);
-  const resolvedSession = sessionId || getSessionId();
-  const chartConfigs = gatherSnapshotChartConfigs(canvases);
-  const sourceMetadata = gatherSnapshotSourceMetadata(canvases);
-
-  const id = `snap-${Date.now()}-${type}-${Math.random().toString(36).substring(2, 7)}`;
-
-  return {
-    id,
-    schemaVersion: HISTORY_SCHEMA_VERSION,
-    type,
-    title: title.trim(),
-    notes: notes.trim(),
-    createdAt: new Date().toISOString(),
-    authorSessionId: resolvedSession,
-    canvases,
-    contentOverrides,
-    chartConfigs,
-    sourceMetadata,
-    summary,
-  };
-}
-
-/**
- * Creates and persists a named full milestone.
- */
-export function saveMilestone(
-  title: string,
-  notes: string = '',
-  sessionId?: string
-): UnifiedPortalSnapshot {
-  const snapshot = captureCurrentSnapshot(title, notes, 'milestone', sessionId);
-  const manifest = getHistoryManifest();
-
-  manifest.snapshots = [snapshot, ...manifest.snapshots];
-
-  saveHistoryManifest(manifest);
-  return snapshot;
-}
-
-/**
- * Prunes auto-saves in a list to keep at most MAX_AUTOSAVES (20), preserving all milestones & safety backups.
- */
-export function pruneAutoSaves(snapshots: UnifiedPortalSnapshot[]): UnifiedPortalSnapshot[] {
-  let autoSaveCount = 0;
-  return snapshots.filter((snap) => {
-    if (snap.type !== 'autosave') {
-      return true;
-    }
-    autoSaveCount += 1;
-    return autoSaveCount <= MAX_AUTOSAVES;
-  });
-}
-
-/**
- * Triggers an automated snapshot checkpoint.
- * Debounced to at most once per AUTOSAVE_DEBOUNCE_MS unless forced.
- */
-export function triggerAutoSave(
-  sessionId?: string,
-  force: boolean = false
-): UnifiedPortalSnapshot | null {
-  const now = Date.now();
-  if (!force && now - lastAutoSaveTimestamp < AUTOSAVE_DEBOUNCE_MS) {
-    return null;
-  }
-
-  lastAutoSaveTimestamp = now;
-  const snapshot = captureCurrentSnapshot('Auto-Save Checkpoint', '', 'autosave', sessionId);
-  const manifest = getHistoryManifest();
-
-  const nextSnapshots = pruneAutoSaves([snapshot, ...manifest.snapshots]);
-  manifest.snapshots = nextSnapshots;
-
-  saveHistoryManifest(manifest);
-  return snapshot;
-}
-
-/**
- * Restores a historical snapshot across all 5 nodes and Content DB.
- * Automatically takes an immediate safety_backup before applying changes.
- */
-export async function restoreUnifiedSnapshot(
-  snapshotId: string
-): Promise<{ success: boolean; safetySnapshotId?: string; error?: string }> {
-  const manifest = getHistoryManifest();
-  const target = manifest.snapshots.find((s) => s.id === snapshotId);
-
-  if (!target) {
-    return { success: false, error: `Snapshot ${snapshotId} not found` };
-  }
-
-  // 1. Mandatory Pre-Restore Safety Checkpoint
-  const safetyBackup = captureCurrentSnapshot(
-    'Pre-Restore Safety Backup',
-    `Automatic safety backup before restoring "${target.title || target.id}"`,
-    'safety_backup'
-  );
-
-  // 2. Restore all 5 node canvases
-  for (const nodeId of getActiveNodeIds()) {
-    const canvasDoc = target.canvases[nodeId];
-    if (canvasDoc) {
-      saveNodeCanvas(canvasDoc);
-    }
-  }
-
-  // 3. Restore Content DB Text Overrides
-  setAllContentOverrides(target.contentOverrides || {});
-
-  // 4. Fold in legacy canvas overrides if any exist in the restored snapshot
-  migrateCanvasOverridesIntoAst('live');
-
-  // 5. Update manifest with safety backup and active marker
-  manifest.snapshots = [safetyBackup, ...manifest.snapshots];
-  setActivePublishedId(target.id);
-  saveHistoryManifest(manifest);
-
-  // 6. Dispatch Canvas Change Notifications so UI updates reactively
-  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-    for (const nodeId of getActiveNodeIds()) {
-      const doc = getLiveNodeCanvas(nodeId);
-      const detail: CanvasChangeEventDetail = {
-        nodeId,
-        document: doc,
-      };
-      window.dispatchEvent(new CustomEvent(EVENT_LIVE_CANVAS_CHANGE, { detail }));
-    }
-    dispatchAggregateCanvasChange(false);
-  }
-
-  return {
-    success: true,
-    safetySnapshotId: safetyBackup.id,
-  };
-}
-
-/**
- * Removes a specific snapshot from the manifest.
- */
-export function deleteSnapshot(snapshotId: string): boolean {
-  const manifest = getHistoryManifest();
-  const initialCount = manifest.snapshots.length;
-  manifest.snapshots = manifest.snapshots.filter((s) => s.id !== snapshotId);
-
-  if (manifest.snapshots.length !== initialCount) {
-    saveHistoryManifest(manifest);
-    return true;
-  }
-  return false;
-}
-
-/**
- * Clears all history checkpoints from the manifest.
- */
-export function clearAllHistory(): void {
-  inMemoryManifest = {
-    snapshots: [],
-    updatedAt: new Date().toISOString(),
-  };
-  saveHistoryManifest(inMemoryManifest);
-}
-
-export interface HistoryBackupExport {
-  engineBackupVersion: number;
-  exportedAt: string;
-  tenant: string;
-  manifest: HistoryManifest;
-  activeState: {
-    canvases: Record<string, NodeCanvasDocument>;
-    contentOverrides: Record<string, string>;
-  };
-}
-
-/**
- * Generates a full formatted JSON backup string for download.
- */
-export function exportHistoryBackupJson(): string {
-  const manifest = getHistoryManifest();
-  const currentCanvases: Record<string, NodeCanvasDocument> = {};
-  for (const nodeId of getActiveNodeIds()) {
-    currentCanvases[nodeId] = getLiveNodeCanvas(nodeId);
-  }
-
-  const exportData: HistoryBackupExport = {
-    engineBackupVersion: HISTORY_SCHEMA_VERSION,
-    exportedAt: new Date().toISOString(),
-    tenant: 'the host application',
-    manifest,
-    activeState: {
-      canvases: currentCanvases,
-      contentOverrides: getAllContentOverrides(),
-    },
-  };
-
-  return JSON.stringify(exportData, null, 2);
-}
-
-/**
- * Validates and imports a JSON history backup, merging valid snapshots.
- */
-export function importHistoryBackupJson(
-  jsonString: string
-): { success: boolean; importedCount: number; error?: string } {
-  try {
-    const parsed = JSON.parse(jsonString);
-
-    let incomingSnapshots: UnifiedPortalSnapshot[] = [];
-
-    if (parsed && Array.isArray(parsed.snapshots)) {
-      incomingSnapshots = parsed.snapshots;
-    } else if (
-      parsed &&
-      parsed.manifest &&
-      Array.isArray(parsed.manifest.snapshots)
-    ) {
-      incomingSnapshots = parsed.manifest.snapshots;
-    } else {
-      return {
-        success: false,
-        importedCount: 0,
-        error: 'Invalid backup structure: missing snapshots array',
-      };
-    }
-
-    // Validate incoming snapshots
-    const validSnapshots: UnifiedPortalSnapshot[] = incomingSnapshots.filter(
-      (snap) =>
-        snap &&
-        typeof snap.id === 'string' &&
-        typeof snap.title === 'string' &&
-        typeof snap.type === 'string' &&
-        snap.canvases &&
-        typeof snap.canvases === 'object'
-    );
-
-    if (validSnapshots.length === 0) {
-      return {
-        success: false,
-        importedCount: 0,
-        error: 'No valid snapshots found in backup file',
-      };
-    }
-
-    const currentManifest = getHistoryManifest();
-    const existingIds = new Set(currentManifest.snapshots.map((s) => s.id));
-
-    let addedCount = 0;
-    const newSnapshots: UnifiedPortalSnapshot[] = [];
-
-    for (const snap of validSnapshots) {
-      if (!existingIds.has(snap.id)) {
-        newSnapshots.push(snap);
-        existingIds.add(snap.id);
-        addedCount += 1;
-      }
-    }
-
-    currentManifest.snapshots = pruneAutoSaves([...newSnapshots, ...currentManifest.snapshots]);
-    saveHistoryManifest(currentManifest);
-
-    return {
-      success: true,
-      importedCount: addedCount,
-    };
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : 'Invalid JSON file';
-    return {
-      success: false,
-      importedCount: 0,
-      error: `JSON parse error: ${errorMsg}`,
-    };
-  }
-}
-
-export {
-  initDraftSession,
-  discardDraftSession,
-} from './draftService';
-
-/**
- * Restores a historical snapshot into Developer Mode's draft storage for visual preview before publishing.
- * Does NOT mutate canonical live storage.
- */
-export function restoreSnapshotToDraft(
-  snapshot: PublishedSnapshot | UnifiedPortalSnapshot
-): boolean {
-  try {
-    setDraftModeActive(true, snapshot.id);
-
-    const nowIso = new Date().toISOString();
-
-    for (const nodeId of getActiveNodeIds()) {
-      const baseDoc = snapshot.canvases?.[nodeId] || createDefaultCanvasDocument(nodeId);
-      const doc: NodeCanvasDocument = {
-        ...JSON.parse(JSON.stringify(baseDoc)),
-        nodeId,
-        sections: renumberSections(baseDoc.sections || []),
-        updatedAt: nowIso,
-      };
-
-      // 1. Authoritative In-Memory Draft Sandbox update (Task 11.2.G zero-localStorage draft)
-      setInMemoryDraftCanvas(nodeId, doc);
-
-      // 2. Storage fallback if available
-      const storage = getStorage();
-      if (storage) {
-        try {
-          storage.setItem(getDraftCanvasKey(nodeId), JSON.stringify(doc));
-        } catch {
-          // tolerant of storage quota
-        }
-      }
-    }
-
-    // 2. Clear lingering draft tombstones and DO NOT restore flat contentOverrides for canvas elements
-    clearDraftTombstones();
-
-    if (typeof window !== 'undefined') {
-      for (const nodeId of getActiveNodeIds()) {
-        const doc = getNodeCanvas(nodeId, true);
-        const detail: CanvasChangeEventDetail = {
-          nodeId,
-          document: doc,
-        };
-        window.dispatchEvent(new CustomEvent(EVENT_DRAFT_CANVAS_CHANGE, { detail }));
-      }
-      dispatchAggregateCanvasChange(true);
-    }
-
-    setDraftDirty(true);
-    triggerDebouncedCloudDraftSync();
-    return true;
-  } catch (err) {
-    console.warn('[historyService] Failed to restore snapshot to draft:', err);
-    return false;
-  }
-}
-
-export function getLocalFallbackSnapshots(): PublishedSnapshot[] {
-  const manifest = getHistoryManifest();
-  const activePublishedId = getActivePublishedId();
-
-  const list: PublishedSnapshot[] = manifest.snapshots.map((s) => {
-    const rawAny = s as unknown as Record<string, unknown>;
-    const desc = typeof rawAny.description === 'string' ? rawAny.description : s.notes || '';
-    const isActive = s.id === activePublishedId;
-
-    return {
-      id: s.id,
-      schemaVersion: s.schemaVersion || 1,
-      title: s.title,
-      description: desc,
-      createdAt: s.createdAt,
-      authorSessionId: s.authorSessionId,
-      isActive,
-      canvases: s.canvases,
-      contentOverrides: s.contentOverrides,
-      summary: s.summary,
-    };
-  });
-
-  if (!list.some((s) => s.id === 'snap-system-baseline')) {
-    const hasActive = list.some((s) => s.isActive);
-    list.push(getDefaultSystemBaselineSnapshot(!hasActive));
-  }
-
-  // Guarantee: if no snapshot is active and list is non-empty, mark baseline or first as active
-  if (!list.some((s) => s.isActive) && list.length > 0) {
-    const baseline = list.find((s) => s.id === 'snap-system-baseline');
-    if (baseline) {
-      baseline.isActive = true;
-    } else {
-      list[0].isActive = true;
-    }
-  }
-
-  return list;
-}
-
-/**
- * Fetches the complete timeline of published snapshots from Supabase cloud (with offline fallback).
+ * Fetches revision history from Cloudflare KV via GET /api/history.
+ * Fails stop (throws) on HTTP or network error.
  */
 export async function fetchPublishedHistoryFromCloud(): Promise<PublishedSnapshot[]> {
-  const config = getSupabaseConfig();
-  if (!config || !isTableAvailable('engine_history')) {
-    return getLocalFallbackSnapshots();
+  if (typeof fetch !== 'function') {
+    throw new Error('Fetch API is unavailable to read revision history.');
   }
 
-  try {
-    const res = await fetch(
-      `${config.url}/rest/v1/engine_history?order=created_at.desc&select=*`,
-      {
-        method: 'GET',
-        headers: {
-          apikey: config.anonKey,
-          Authorization: `Bearer ${config.anonKey}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    if (res.status === 404) {
-      markTableMissing('engine_history');
-      return getLocalFallbackSnapshots();
-    }
-
-    if (!res.ok) {
-      console.warn(`[historyService] Supabase cloud fetch returned HTTP ${res.status}. Falling back to persistent local storage.`);
-      return getLocalFallbackSnapshots();
-    }
-
-    const rows = (await res.json()) as Array<{
-      id: string;
-      schema_version?: number;
-      title?: string;
-      description?: string;
-      created_at?: string;
-      author_session_id?: string;
-      is_active?: boolean;
-      snapshot_data?: {
-        canvases?: Record<string, NodeCanvasDocument>;
-        contentOverrides?: Record<string, string>;
-      };
-      summary?: {
-        totalSections: number;
-        totalSubsections: number;
-        totalLeafElements: number;
-        totalTextOverrides: number;
-      };
-    }>;
-
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return getLocalFallbackSnapshots();
-    }
-
-    const cloudMapped: PublishedSnapshot[] = rows.map((row) => ({
-      id: row.id,
-      schemaVersion: row.schema_version ?? 1,
-      title: row.title || 'Published Version',
-      description: row.description || '',
-      createdAt: row.created_at || new Date().toISOString(),
-      authorSessionId: row.author_session_id || 'unknown',
-      isActive: Boolean(row.is_active),
-      canvases: row.snapshot_data?.canvases || {},
-      contentOverrides: row.snapshot_data?.contentOverrides || {},
-      summary: row.summary || {
-        totalSections: 0,
-        totalSubsections: 0,
-        totalLeafElements: 0,
-        totalTextOverrides: 0,
-      },
-    }));
-
-    if (!cloudMapped.some((s) => s.id === 'snap-system-baseline')) {
-      const hasActive = cloudMapped.some((s) => s.isActive);
-      cloudMapped.push(getDefaultSystemBaselineSnapshot(!hasActive));
-    }
-
-    // Keep activePublishedId synced if cloud returned an active version
-    const activeFromCloud = cloudMapped.find((s) => s.isActive);
-    if (activeFromCloud) {
-      setActivePublishedId(activeFromCloud.id);
-    }
-
-    return cloudMapped;
-  } catch (err) {
-    console.warn('[historyService] Cloud fetch error:', err);
-    return getLocalFallbackSnapshots();
+  const res = await fetch('/api/history', { method: 'GET' });
+  if (!res.ok) {
+    const detail = await parseErrorDetail(res);
+    throw new Error(`Failed to load revision history: ${detail} (HTTP ${res.status})`);
   }
-}
 
-/**
- * Fetches the current active published version from Supabase cloud.
- */
-export async function fetchActivePublishedVersionFromCloud(): Promise<PublishedSnapshot | null> {
-  const config = getSupabaseConfig();
-  if (!config || !isTableAvailable('engine_history')) return null;
-
-  try {
-    const activeId = getActivePublishedId();
-    const primaryUrl =
-      activeId && activeId !== 'snap-system-baseline'
-        ? `${config.url}/rest/v1/engine_history?id=eq.${activeId}&select=*`
-        : `${config.url}/rest/v1/engine_history?is_active=eq.true&order=created_at.desc&limit=1&select=*`;
-
-    let res = await fetch(primaryUrl, {
-      method: 'GET',
-      headers: {
-        apikey: config.anonKey,
-        Authorization: `Bearer ${config.anonKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (res.status === 404) {
-      markTableMissing('engine_history');
-      return null;
-    }
-
-    let rows: any[] = res.ok ? await res.json() : [];
-
-    // If specific activeId query returned no row, fallback to currently active snapshot
-    if ((!Array.isArray(rows) || rows.length === 0) && activeId && activeId !== 'snap-system-baseline') {
-      const fallbackRes = await fetch(
-        `${config.url}/rest/v1/engine_history?is_active=eq.true&order=created_at.desc&limit=1&select=*`,
-        {
-          method: 'GET',
-          headers: {
-            apikey: config.anonKey,
-            Authorization: `Bearer ${config.anonKey}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      if (fallbackRes.ok) {
-        rows = await fallbackRes.json();
-      }
-    }
-
-    if (!Array.isArray(rows) || rows.length === 0) return null;
-
-    const row = rows[0];
-    return {
-      id: row.id,
-      schemaVersion: row.schema_version ?? 1,
-      title: row.title || 'Published Version',
-      description: row.description || '',
-      createdAt: row.created_at || new Date().toISOString(),
-      authorSessionId: row.author_session_id || 'unknown',
-      isActive: Boolean(row.is_active),
-      canvases: row.snapshot_data?.canvases || {},
-      contentOverrides: row.snapshot_data?.contentOverrides || {},
-      summary: row.summary || {
-        totalSections: 0,
-        totalSubsections: 0,
-        totalLeafElements: 0,
-        totalTextOverrides: 0,
-      },
-    };
-  } catch (err) {
-    console.warn('[historyService] Fetch active version error:', err);
-    return null;
-  }
-}
-
-export interface CanPublishDraftResult {
-  canPublish: boolean;
-  reason?: 'NOT_DIRTY' | 'DRAFT_STALE';
-  staleness?: DraftStalenessCheck;
-}
-
-/**
- * Checks whether the current draft can be safely published.
- * Blocks publication if another coordinator has published since draft creation.
- */
-export function canPublishDraft(forcePublish: boolean = false): CanPublishDraftResult {
-  const staleness = checkDraftStaleness();
-  if (staleness.isStale && !forcePublish) {
-    return {
-      canPublish: false,
-      reason: 'DRAFT_STALE',
-      staleness,
-    };
-  }
-  return {
-    canPublish: true,
-    staleness,
+  const data = (await res.json()) as {
+    activeSnapshotId?: string | null;
+    entries?: HistoryIndexEntry[];
+    snapshots?: PublishedSnapshot[];
   };
+
+  if (Array.isArray(data.snapshots)) {
+    return data.snapshots.map((snap) => ({
+      ...snap,
+      isActive: snap.id === data.activeSnapshotId || Boolean(snap.isActive),
+    }));
+  }
+
+  if (Array.isArray(data.entries)) {
+    return data.entries.map((entry) => ({
+      id: entry.id,
+      schemaVersion: entry.schemaVersion,
+      title: entry.title,
+      description: entry.description,
+      createdAt: entry.createdAt,
+      authorSessionId: entry.authorSessionId,
+      isActive: entry.id === data.activeSnapshotId,
+      canvases: {},
+      contentOverrides: {},
+      summary: entry.summary,
+    }));
+  }
+
+  return [];
 }
 
 /**
- * Commits the current draft state, sets it as the active live version, and syncs to Supabase.
+ * Restores a historical snapshot (or 'snap-system-baseline') directly into
+ * Cloudflare KV draft:workspace via POST /api/history/restore.
+ * Fails stop (throws) on HTTP or network error.
+ */
+export async function restoreSnapshotToDraft(
+  snapshotOrId: string | PublishedSnapshot | UnifiedPortalSnapshot,
+  nodeIds: string[] = getActiveNodeIds(),
+  lockToken?: string | null
+): Promise<DraftWorkspacePayload> {
+  if (typeof fetch !== 'function') {
+    throw new Error('Fetch API is unavailable to restore snapshot.');
+  }
+
+  const snapshotId = typeof snapshotOrId === 'string' ? snapshotOrId : snapshotOrId.id;
+
+  const res = await fetch('/api/history/restore', {
+    method: 'POST',
+    headers: buildAuthHeaders(lockToken, true),
+    body: JSON.stringify({ snapshotId, nodeIds }),
+  });
+
+  if (!res.ok) {
+    const detail = await parseErrorDetail(res);
+    throw new Error(`Failed to restore snapshot to draft: ${detail} (HTTP ${res.status})`);
+  }
+
+  const restored = (await res.json()) as DraftWorkspacePayload;
+  dispatchAggregateCanvasChange(true);
+  dispatchDraftChange(true, Boolean(restored.dirty));
+  dispatchHistoryChange();
+  return restored;
+}
+
+/**
+ * Bundles the live Cloudflare KV draft:workspace and publishes it atomically
+ * via POST /api/publish.
  */
 export async function publishNewSnapshot(
   description: string,
   title = 'Published Revision',
   sessionId?: string,
-  options?: { forcePublish?: boolean } | boolean
+  options?: { forcePublish?: boolean; lockToken?: string | null } | boolean
 ): Promise<PublishSnapshotResult> {
-  const isForce = typeof options === 'boolean' ? options : Boolean(options?.forcePublish);
-  const staleness = checkDraftStaleness();
-  if (staleness.isStale && !isForce) {
-    return {
-      success: false,
-      snapshot: null as unknown as PublishedSnapshot,
-      localSaved: false,
-      cloudSynced: false,
-      edgeDeployed: false,
-      error: `Draft is stale. Active published snapshot is ${staleness.currentActiveId}, but draft was created from ${staleness.baseId || 'baseline'}. Force publish required.`,
-    };
-  }
-
   const cleanDesc = description ? description.trim() : '';
 
-  // Step 1: Validation
   if (cleanDesc.length < 4) {
     return {
       success: false,
       snapshot: null as unknown as PublishedSnapshot,
-      localSaved: false,
-      cloudSynced: false,
       edgeDeployed: false,
       error: 'Changelog description must be at least 4 characters long.',
     };
   }
 
-  const unlockTime = getSessionUnlockTime();
-  if (unlockTime !== null && !isSessionValid(unlockTime)) {
+  const lockToken = typeof options === 'object' && options !== null ? options.lockToken : undefined;
+  const resolvedSession = sessionId || getSessionId();
+
+  let canvases: Record<string, NodeCanvasDocument> = {};
+  let contentOverrides: Record<string, string> = {};
+
+  try {
+    const draftWorkspace = await getDraftWorkspace(lockToken);
+    canvases = draftWorkspace.canvases || {};
+    contentOverrides = draftWorkspace.contentOverrides || {};
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unable to read draft workspace from KV';
     return {
       success: false,
       snapshot: null as unknown as PublishedSnapshot,
-      localSaved: false,
-      cloudSynced: false,
       edgeDeployed: false,
-      error: 'Session expired. Please unlock Developer Mode again.',
+      error: msg,
     };
   }
 
-  const resolvedSession = sessionId || getSessionId();
-
-  // Step 2: Snapshot Bundling
-  const canvases: Record<string, NodeCanvasDocument> = {};
-  for (const nodeId of getActiveNodeIds()) {
-    canvases[nodeId] = getNodeCanvas(nodeId, true);
-  }
-  const contentOverrides = getAllContentOverrides(true);
   const summary = computeMetricsSummary(canvases, contentOverrides);
-
   const id = `pub-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const cleanTitle = title.trim() || 'Published Revision';
   const createdAt = new Date().toISOString();
-  const chartConfigs = gatherSnapshotChartConfigs(canvases);
-  const sourceMetadata = gatherSnapshotSourceMetadata(canvases);
 
   const snapshot: PublishedSnapshot = {
     id,
@@ -1194,13 +261,10 @@ export async function publishNewSnapshot(
     isActive: true,
     canvases,
     contentOverrides,
-    chartConfigs,
-    sourceMetadata,
     summary,
   };
 
-  // Step 3: Atomic Server Edge Publish Dispatch (POST /api/publish)
-  let publishData: any = null;
+  let publishData: { success?: boolean; edgeDeployed?: boolean; edgeError?: string; error?: string } | null = null;
 
   try {
     const endpoint =
@@ -1210,25 +274,17 @@ export async function publishNewSnapshot(
 
     const publishRes = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: buildAuthHeaders(lockToken, true),
       body: JSON.stringify({ snapshot }),
     });
 
     if (!publishRes.ok) {
-      let errorMsg = `Server publish failed with HTTP ${publishRes.status}`;
-      try {
-        const errJson = await publishRes.json();
-        if (errJson?.error) errorMsg = errJson.error;
-      } catch {
-        // Body not JSON
-      }
+      const detail = await parseErrorDetail(publishRes);
       return {
         success: false,
         snapshot: null as unknown as PublishedSnapshot,
-        localSaved: false,
-        cloudSynced: false,
         edgeDeployed: false,
-        error: errorMsg,
+        error: detail,
       };
     }
 
@@ -1238,8 +294,6 @@ export async function publishNewSnapshot(
     return {
       success: false,
       snapshot: null as unknown as PublishedSnapshot,
-      localSaved: false,
-      cloudSynced: false,
       edgeDeployed: false,
       error: `Unable to reach publish server: ${msg}`,
     };
@@ -1249,264 +303,20 @@ export async function publishNewSnapshot(
     return {
       success: false,
       snapshot: null as unknown as PublishedSnapshot,
-      localSaved: false,
-      cloudSynced: false,
       edgeDeployed: false,
       error: publishData?.error || 'Server did not confirm publication',
     };
   }
 
-  // Step 4: Record snapshot in client storage & IndexedDB ONLY upon confirmed server success
-  // Atomically save all 5 canvases to folio_live_canvas_[nodeId] silently
-  for (const nodeId of getActiveNodeIds()) {
-    saveLiveNodeCanvas(canvases[nodeId], { silent: true });
-  }
-  // Fire single aggregate canvas change notification
   dispatchAggregateCanvasChange(false);
-  // Atomically save content overrides to folio_live_content_overrides
-  setLiveContentOverrides(contentOverrides);
-
-  // Append snapshot to local history manifest & IndexedDB ledger
-  const manifest = getHistoryManifest();
-  const unifiedSnapshot: UnifiedPortalSnapshot = {
-    id: snapshot.id,
-    schemaVersion: snapshot.schemaVersion,
-    type: 'milestone',
-    title: snapshot.title,
-    notes: snapshot.description,
-    createdAt: snapshot.createdAt,
-    authorSessionId: snapshot.authorSessionId,
-    canvases: snapshot.canvases,
-    contentOverrides: snapshot.contentOverrides,
-    chartConfigs: snapshot.chartConfigs,
-    sourceMetadata: snapshot.sourceMetadata,
-    summary: snapshot.summary,
-  };
-  manifest.snapshots = [unifiedSnapshot, ...manifest.snapshots];
-  manifest.activeMilestoneId = snapshot.id;
-  manifest.activePublishedId = snapshot.id;
-  setActivePublishedId(snapshot.id);
-  saveHistoryManifest(manifest);
-
-  // Step 5: Post-Publish Draft Synchronization
-  // Synchronize draft storage to match newly published live state and set dirty = false
-  syncDraftWithPublished(canvases, contentOverrides);
-
-  // Step 6: Cross-Tab Broadcast Synchronization
-  broadcastLiveSync({
-    type: 'MASID_PUBLISH_BROADCAST',
-    snapshotId: snapshot.id,
-    timestamp: snapshot.createdAt,
-    canvases: snapshot.canvases,
-    contentOverrides: snapshot.contentOverrides,
-    activePublishedId: snapshot.id,
-  });
+  dispatchDraftChange(true, false);
+  dispatchHistoryChange();
 
   return {
     success: true,
     snapshot,
-    localSaved: true,
-    cloudSynced: publishData.cloudSynced === true,
     edgeDeployed: publishData.edgeDeployed === true,
-    cloudError: publishData.cloudError,
     edgeError: publishData.edgeError,
-    error: publishData.cloudError || publishData.edgeError,
+    error: publishData.edgeError,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Cross-Tab Broadcast Channel Pipeline
-// ---------------------------------------------------------------------------
-let syncBroadcastChannel: BroadcastChannel | null = null;
-
-export function getSyncBroadcastChannel(): BroadcastChannel | null {
-  if (typeof BroadcastChannel === 'undefined') return null;
-  if (!syncBroadcastChannel) {
-    try {
-      syncBroadcastChannel = new BroadcastChannel(getBroadcastChannelName());
-      syncBroadcastChannel.onmessage = (event: MessageEvent<EngineSyncBroadcastMessage>) => {
-        handleIncomingSyncBroadcast(event.data);
-      };
-    } catch (err) {
-      console.warn('[historyService] Failed to initialize BroadcastChannel:', err);
-      syncBroadcastChannel = null;
-    }
-  }
-  return syncBroadcastChannel;
-}
-
-export function closeSyncBroadcastChannel(): void {
-  if (syncBroadcastChannel) {
-    try {
-      syncBroadcastChannel.close();
-    } catch {
-      // ignore
-    }
-    syncBroadcastChannel = null;
-  }
-}
-
-export function broadcastLiveSync(message: EngineSyncBroadcastMessage): void {
-  const channel = getSyncBroadcastChannel();
-  if (channel) {
-    try {
-      channel.postMessage(message);
-    } catch (err) {
-      console.warn('[historyService] Failed to postMessage on sync BroadcastChannel:', err);
-    }
-  }
-}
-
-export function handleIncomingSyncBroadcast(message: EngineSyncBroadcastMessage): void {
-  if (!message || message.type !== 'MASID_PUBLISH_BROADCAST') return;
-
-  // Unconditionally update live channel regardless of whether local draft is dirty:
-  // Live channel keys (folio_live_*) are strictly isolated from draft channel keys (folio_draft_*)!
-  if (message.canvases) {
-    for (const nodeId of getActiveNodeIds()) {
-      if (message.canvases[nodeId]) {
-        saveLiveNodeCanvas(message.canvases[nodeId], { silent: true });
-      }
-    }
-    dispatchAggregateCanvasChange(false);
-  }
-
-  // Atomically update folio_live_content_overrides
-  if (message.contentOverrides) {
-    setLiveContentOverrides(message.contentOverrides);
-  }
-
-  // Update active published ID in local manifest & storage
-  if (message.activePublishedId) {
-    setActivePublishedId(message.activePublishedId);
-  }
-}
-
-// Auto-attach in browser environments on boot
-if (typeof window !== 'undefined') {
-  try {
-    getSyncBroadcastChannel();
-  } catch {
-    // Tolerant in restricted environments
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Hydration State Machine Pipeline
-// ---------------------------------------------------------------------------
-let isHydratingActive = false;
-let isHydrationComplete = false;
-const hydrationListeners = new Set<(isHydrating: boolean) => void>();
-
-/**
- * @deprecated Task 11.2.E: Artificial loading gates eliminated.
- * Baseline documents render immediately on frame 1 with 0 skeleton pop-in.
- */
-export function isInitialHydrationPending(): boolean {
-  return false;
-}
-
-export function isCloudHydrating(): boolean {
-  return isHydratingActive;
-}
-
-export function subscribeToHydration(callback: (isHydrating: boolean) => void): () => void {
-  hydrationListeners.add(callback);
-  return () => {
-    hydrationListeners.delete(callback);
-  };
-}
-
-function notifyHydrationChange(hydrating: boolean): void {
-  isHydratingActive = hydrating;
-  hydrationListeners.forEach((cb) => {
-    try {
-      cb(hydrating);
-    } catch (e) {
-      console.warn('[historyService] Hydration listener error:', e);
-    }
-  });
-}
-
-export function getHydrationState(): HydrationState {
-  const storage = getStorage();
-  const storedId = storage
-    ? storage.getItem(getLiveActivePublishedIdKey()) ||
-    storage.getItem(LEGACY_STORAGE_KEY_ACTIVE_PUBLISHED_ID)
-    : null;
-
-  return {
-    isHydrating: isHydratingActive,
-    hasConfirmedData: Boolean(storedId) || isHydrationComplete,
-    source: storedId ? 'cache' : (isHydrationComplete ? 'cloud' : 'baseline'),
-    activePublishedId: storedId,
-  };
-}
-
-export function resetHydrationStateForTesting(): void {
-  isHydratingActive = false;
-  isHydrationComplete = false;
-}
-
-let activeHydrationPromise: Promise<boolean> | null = null;
-
-/**
- * Hydrates local canonical storage from the cloud's active published version on startup.
- * Memoizes in-flight promise to prevent duplicate concurrent network fetches.
- */
-export function hydrateActiveVersionFromCloud(): Promise<boolean> {
-  if (activeHydrationPromise) {
-    return activeHydrationPromise;
-  }
-
-  activeHydrationPromise = (async () => {
-    const pending = isInitialHydrationPending();
-    if (pending) {
-      notifyHydrationChange(true);
-    }
-
-    try {
-      const activeVersion = await fetchActivePublishedVersionFromCloud();
-      if (!activeVersion) {
-        isHydrationComplete = true;
-        if (pending || isHydratingActive) {
-          notifyHydrationChange(false);
-        }
-        return false;
-      }
-
-      setActivePublishedId(activeVersion.id);
-
-      // Unconditionally update live channel storage:
-      // Live channel keys (folio_live_*) are strictly isolated from draft keys (folio_draft_*)!
-      for (const nodeId of getActiveNodeIds()) {
-        if (activeVersion.canvases[nodeId]) {
-          saveLiveNodeCanvas(activeVersion.canvases[nodeId], { silent: true });
-        }
-      }
-      dispatchAggregateCanvasChange(false);
-      if (activeVersion.contentOverrides) {
-        setLiveContentOverrides(activeVersion.contentOverrides);
-      }
-      migrateCanvasOverridesIntoAst('live');
-
-      isHydrationComplete = true;
-      if (pending || isHydratingActive) {
-        notifyHydrationChange(false);
-      }
-      return true;
-    } catch (err) {
-      console.warn('[historyService] Hydrate active version error:', err);
-      isHydrationComplete = true;
-      if (pending || isHydratingActive) {
-        notifyHydrationChange(false);
-      }
-      return false;
-    } finally {
-      activeHydrationPromise = null;
-    }
-  })();
-
-  return activeHydrationPromise;
-}
-

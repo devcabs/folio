@@ -84,8 +84,6 @@ export interface PublicNodePayload {
   version: number;
   updatedAt: string;
   canvas: NodeCanvasDocument;
-  chartDatasets: Record<string, CachedIndicatorDataset>;
-  sourceMetadata: Record<string, SyncedSourceMetadata>;
 }
 
 /**
@@ -97,6 +95,19 @@ export interface PublicPortalManifestPayload {
   nodeIds: string[];
   schemaVersion: number;
   contentOverrides?: Record<string, string>;
+}
+
+/**
+ * Route Contract 3: /api/draft (KV key: draft:workspace)
+ */
+export interface DraftWorkspacePayload {
+  baseSnapshotId: string;
+  dirty: boolean;
+  revision: number;
+  updatedAt: string;
+  authorSessionId: string;
+  canvases: Record<string, NodeCanvasDocument>;
+  contentOverrides: Record<string, string>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,13 +122,6 @@ export const PublicPortalManifestPayloadSchema = z.object({
   contentOverrides: z.record(z.string(), z.string()).optional(),
 });
 
-export const NodeCanvasDocumentSchema = z.object({
-  nodeId: z.string(),
-  version: z.number(),
-  sections: z.array(z.any()),
-  updatedAt: z.string(),
-});
-
 export const CachedIndicatorDatasetSchema = z.object({
   chartId: z.string(),
   title: z.string(),
@@ -127,6 +131,62 @@ export const CachedIndicatorDatasetSchema = z.object({
   chartType: z.string(),
   sanitizedCsvContent: z.string().optional(),
 }).passthrough();
+
+export const ChartElementSchema = z.object({
+  id: z.string(),
+  type: z.literal('chart'),
+  chartId: z.string(),
+  title: z.string(),
+  subtitle: z.string().optional(),
+  config: z.record(z.string(), z.any()).optional(),
+  dataset: CachedIndicatorDatasetSchema.optional(),
+}).passthrough();
+
+export const GalleryElementSchema = z.object({
+  id: z.string(),
+  type: z.literal('gallery'),
+  pointId: z.string(),
+  title: z.string().optional(),
+  titlePointId: z.string().optional(),
+  subtitle: z.string().optional(),
+  subtitlePointId: z.string().optional(),
+  driveUrl: z.string().optional(),
+  description: z.string().optional(),
+  lastVerified: z.string().optional(),
+  syncedPhotos: z.array(z.record(z.string(), z.any())).optional(),
+}).passthrough();
+
+export const CanvasLeafElementSchema = z.union([
+  ChartElementSchema,
+  GalleryElementSchema,
+  z.object({
+    id: z.string(),
+    type: z.enum(['text', 'photo']),
+  }).passthrough(),
+]);
+
+export const SubsectionElementSchema = z.object({
+  id: z.string(),
+  type: z.literal('subsection'),
+  title: z.string(),
+  elements: z.array(CanvasLeafElementSchema),
+}).passthrough();
+
+export const SectionElementSchema = z.object({
+  id: z.string(),
+  type: z.literal('section').optional(),
+  title: z.string(),
+  isNumbered: z.boolean().optional(),
+  number: z.string().optional(),
+  elements: z.array(z.union([SubsectionElementSchema, CanvasLeafElementSchema])),
+}).passthrough();
+
+export const NodeCanvasDocumentSchema = z.object({
+  nodeId: z.string(),
+  version: z.number(),
+  sections: z.array(SectionElementSchema),
+  updatedAt: z.string(),
+});
 
 export const SyncedSourceMetadataSchema = z.object({
   pointId: z.string(),
@@ -143,8 +203,6 @@ export const PublicNodePayloadSchema = z.object({
   version: z.number().int().nonnegative(),
   updatedAt: z.string().min(1, 'updatedAt is required'),
   canvas: NodeCanvasDocumentSchema,
-  chartDatasets: z.record(z.string(), z.any()),
-  sourceMetadata: z.record(z.string(), z.any()),
 });
 
 /**

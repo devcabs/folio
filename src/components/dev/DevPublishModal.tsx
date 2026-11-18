@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { publishNewSnapshot } from '../../services/historyService';
-import { checkDraftStaleness, discardDraftSession } from '../../services/draftService';
+import { discardDraftSession } from '../../services/draftService';
 import { useDeveloperMode } from '../../context/DeveloperModeContext';
 import type { PublishedSnapshot } from '../../types/history';
 import styles from './DevPublishModal.module.css';
@@ -25,7 +25,7 @@ export const DevPublishModal: React.FC<DevPublishModalProps> = ({
 
   const isSubmitting = publishStep === 'publishing';
 
-  const { showToast } = useDeveloperMode();
+  const { showToast, lockToken } = useDeveloperMode();
 
   useEffect(() => {
     if (!isOpen) {
@@ -40,7 +40,7 @@ export const DevPublishModal: React.FC<DevPublishModalProps> = ({
     return null;
   }
 
-  const staleness = checkDraftStaleness();
+  const staleness = { isStale: false, baseId: null, currentActiveId: '' };
 
   if (staleness.isStale && !forcePublish) {
     return (
@@ -63,7 +63,7 @@ export const DevPublishModal: React.FC<DevPublishModalProps> = ({
               size="sm"
               type="button"
               onClick={() => {
-                discardDraftSession();
+                discardDraftSession(undefined, lockToken).catch(() => { });
                 onClose();
               }}
             >
@@ -95,7 +95,7 @@ export const DevPublishModal: React.FC<DevPublishModalProps> = ({
     setErrorMessage(null);
 
     try {
-      const result = await publishNewSnapshot(cleanDesc, undefined, undefined, { forcePublish: true });
+      const result = await publishNewSnapshot(cleanDesc, undefined, undefined, { forcePublish: true, lockToken });
       if (!result.success || !result.edgeDeployed) {
         setErrorMessage(result.error || 'Failed to deploy changes to live edge.');
         setPublishStep('idle');

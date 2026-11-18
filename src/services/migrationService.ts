@@ -4,17 +4,10 @@
  * Manages runtime migration ledger inspection, content watermark resolution,
  * pending migration calculations, and prompt generation.
  *
- * Strict SSR and storage safety: all persistence operations MUST go through
- * the injected StorageAdapter (defaulting to localStorageAdapter).
- * Direct calls to localStorage are strictly forbidden.
+ * Single-source watermark: resolves strictly from EngineConfig.contentVersion.
  */
 
-import { localStorageAdapter, type StorageAdapter } from '../utils/storageAdapter';
-import {
-  resolveContentWatermark,
-  updateWatermark,
-  FOLIO_CONTENT_VERSION_KEY,
-} from '../utils/watermarkResolver';
+import { resolveContentWatermark } from '../utils/watermarkResolver';
 import { FOLIO_MIGRATION_LEDGER, compareSemver } from '../migrations/ledger';
 import { isValidSemver } from '../utils/semver-utils';
 import { getEngineConfig, type EngineConfig } from '../config/engine.config';
@@ -26,7 +19,6 @@ import {
 } from '../utils/migrationPromptFormatter';
 
 export { generateAiMigrationPrompt, type PromptFormatterOptions };
-export { FOLIO_CONTENT_VERSION_KEY };
 
 /**
  * Returns the recorded migration ledger history sorted deterministically in ascending semver order.
@@ -38,44 +30,27 @@ export function getMigrationLedger(): MigrationEntry[] {
 }
 
 /**
- * Resolves the active content watermark version using the provided storage adapter.
- * Precedence logic is strictly delegated to resolveContentWatermark.
+ * Resolves the active content watermark version strictly from EngineConfig.contentVersion.
  *
- * @param config  - Optional EngineConfig or object containing contentVersion.
- * @param storage - StorageAdapter instance (defaults to localStorageAdapter).
+ * @param config - Optional EngineConfig or object containing contentVersion.
  * @returns The resolved watermark semver string.
  */
 export function getContentVersionWatermark(
-  config?: EngineConfig | { contentVersion?: string },
-  storage: StorageAdapter = localStorageAdapter
+  config?: EngineConfig | { contentVersion?: string }
 ): string {
   const effectiveConfigVersion =
     config !== undefined ? config.contentVersion : getEngineConfig().contentVersion;
-  return resolveContentWatermark(effectiveConfigVersion, storage);
-}
-
-/**
- * Persists the content watermark version through the injected storage adapter.
- * Monotonically updates watermark using updateWatermark (never downgrades).
- * Never accesses window.localStorage directly.
- */
-export function setContentVersionWatermark(
-  version: string,
-  storage: StorageAdapter = localStorageAdapter
-): void {
-  updateWatermark(version, storage);
+  return resolveContentWatermark(effectiveConfigVersion);
 }
 
 /**
  * Computes pending content migrations newer than the given or resolved watermark.
  *
  * @param watermark - Optional explicit watermark semver override.
- * @param storage   - StorageAdapter instance (defaults to localStorageAdapter).
  * @returns Structured PendingMigrationReport detailing unapplied versions and content changes.
  */
 export function getPendingMigrations(
-  watermark?: string,
-  storage: StorageAdapter = localStorageAdapter
+  watermark?: string
 ): PendingMigrationReport {
   const ledger = getMigrationLedger();
   const currentEngineVersion =
@@ -91,7 +66,7 @@ export function getPendingMigrations(
   }
 
   const resolvedWatermark =
-    trimmedWatermark ?? getContentVersionWatermark(undefined, storage);
+    trimmedWatermark ?? getContentVersionWatermark();
 
   const unappliedEntries = ledger.filter(
     (entry) =>
@@ -112,5 +87,3 @@ export function getPendingMigrations(
     unappliedVersions,
   };
 }
-
-

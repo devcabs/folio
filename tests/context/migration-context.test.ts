@@ -14,9 +14,7 @@ import {
   useDeveloperMode,
 } from '../../src/context/DeveloperModeContext';
 import * as contextExports from '../../src/context';
-import { createInMemoryAdapter, type StorageAdapter } from '../../src/utils/storageAdapter';
-import { FOLIO_CONTENT_VERSION_KEY } from '../../src/utils/watermarkResolver';
-import { resetEngineConfig } from '../../src/config/engine.config';
+import { createDefaultEngineConfig, resetEngineConfig } from '../../src/config/engine.config';
 import { getMigrationLedger } from '../../src/services/migrationService';
 
 // Ensure minimal browser DOM globals for React 19 root rendering in Node
@@ -72,11 +70,8 @@ function ensureDomEnvironment() {
 }
 
 describe('Subtask 1.4: MigrationContext Isolation from DeveloperModeContext', () => {
-  let storage: StorageAdapter;
-
   beforeEach(() => {
     resetEngineConfig();
-    storage = createInMemoryAdapter();
     ensureDomEnvironment();
   });
 
@@ -101,7 +96,7 @@ describe('Subtask 1.4: MigrationContext Isolation from DeveloperModeContext', ()
       const html = ReactDOMServer.renderToString(
         React.createElement(
           MigrationProvider,
-          { storage },
+          {},
           React.createElement(SafeConsumer)
         )
       );
@@ -125,13 +120,13 @@ describe('Subtask 1.4: MigrationContext Isolation from DeveloperModeContext', ()
         return null;
       };
 
-      storage.setItem(FOLIO_CONTENT_VERSION_KEY, '0.1.0');
+      const engineConfig = createDefaultEngineConfig({ contentVersion: '0.1.0' });
 
       React.act(() => {
         root.render(
           React.createElement(
             MigrationProvider,
-            { storage },
+            { engineConfig },
             React.createElement(TestConsumer)
           )
         );
@@ -170,13 +165,13 @@ describe('Subtask 1.4: MigrationContext Isolation from DeveloperModeContext', ()
         return null;
       };
 
-      storage.setItem(FOLIO_CONTENT_VERSION_KEY, '0.1.2');
+      const engineConfig = createDefaultEngineConfig({ contentVersion: '0.1.2' });
 
       React.act(() => {
         root.render(
           React.createElement(
             MigrationProvider,
-            { storage },
+            { engineConfig },
             React.createElement(TestConsumer)
           )
         );
@@ -206,19 +201,17 @@ describe('Subtask 1.4: MigrationContext Isolation from DeveloperModeContext', ()
         return null;
       };
 
-      storage.setItem(FOLIO_CONTENT_VERSION_KEY, '0.1.0');
+      const engineConfig = createDefaultEngineConfig({ contentVersion: '0.1.0' });
 
       React.act(() => {
         root.render(
           React.createElement(
             MigrationProvider,
-            { storage },
+            { engineConfig },
             React.createElement(TestConsumer)
           )
         );
       });
-
-      expect(storage.getItem(FOLIO_CONTENT_VERSION_KEY)).toBe('0.1.0');
 
       const ledger = getMigrationLedger();
       const latestVersion = ledger[ledger.length - 1].version;
@@ -227,9 +220,8 @@ describe('Subtask 1.4: MigrationContext Isolation from DeveloperModeContext', ()
         contextRef!.markAsMigrated();
       });
 
-      // Storage watermark is updated to latest engine ledger version
-      expect(storage.getItem(FOLIO_CONTENT_VERSION_KEY)).toBe(latestVersion);
       expect(contextRef!.pendingReport?.contentVersionWatermark).toBe(latestVersion);
+      expect(contextRef!.pendingReport?.hasPendingContentChanges).toBe(false);
 
       root.unmount();
     });
@@ -260,7 +252,7 @@ describe('Subtask 1.4: MigrationContext Isolation from DeveloperModeContext', ()
         root.render(
           React.createElement(
             MigrationProvider,
-            { storage },
+            {},
             React.createElement(MigrationController),
             React.createElement(
               DeveloperModeProvider,
@@ -298,10 +290,6 @@ describe('Subtask 1.4: MigrationContext Isolation from DeveloperModeContext', ()
       container.ownerDocument.defaultView = global;
       const root = createRoot(container);
 
-      // Set dev mode session unlock timestamp to valid current time
-      const now = Date.now();
-      storage.setItem('folio_dev_session_unlock', String(now));
-
       let migrationRef: MigrationContextType | null = null;
       let devRef: ReturnType<typeof useDeveloperMode> | null = null;
 
@@ -324,7 +312,7 @@ describe('Subtask 1.4: MigrationContext Isolation from DeveloperModeContext', ()
         root.render(
           React.createElement(
             MigrationProvider,
-            { storage, engineConfig: customConfig as any },
+            { engineConfig: customConfig as any },
             React.createElement(
               DeveloperModeProvider,
               null,

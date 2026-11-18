@@ -17,13 +17,7 @@ import type {
   SyncedSourceItem,
   DriveReconciliationResult,
   SyncFolderPhotosResult,
-  DriveSyncOptions,
 } from '../types/source';
-import {
-  upsertLiveSourceSource,
-  getSourceSourceSync,
-  getLiveSourceSource,
-} from './sourceService';
 import { buildEdgeMediaUrl } from '../utils/mediaUrl';
 
 /**
@@ -67,51 +61,27 @@ export function compareNaturalFilenames(a: string, b: string): number {
 }
 
 /**
- * Transforms Google Drive thumbnail link into permanent high-resolution endpoint (=s1600 or sz=w1600).
- * Bypasses ephemeral /drive-storage/ URLs by strictly generating permanent Google Drive endpoints.
- * Supports edge media proxy generation (/api/media/drive/:fileId?w=1600) when preferEdgeProxy is true.
+ * Generates an Edge Media Proxy high-resolution URL (/api/media/drive/:fileId?w=1600).
  */
 export function formatHighResDriveUrl(
   thumbnailLink?: string,
-  fileId?: string,
-  preferEdgeProxy: boolean = false
+  fileId?: string
 ): string {
-  if (preferEdgeProxy && fileId) {
-    return buildEdgeMediaUrl(fileId, { width: 1600 });
-  }
-  // If thumbnailLink is ephemeral (/drive-storage/), discard it in favor of permanent fileId endpoint
-  if (fileId && (!thumbnailLink || thumbnailLink.includes('/drive-storage/'))) {
-    return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`;
-  }
-  if (thumbnailLink && thumbnailLink.includes('=s')) {
-    return thumbnailLink.replace(/=s\d+.*$/, '=s1600');
-  }
   if (fileId) {
-    return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`;
+    return buildEdgeMediaUrl(fileId, { width: 1600 });
   }
   return thumbnailLink || '';
 }
 
 /**
- * Returns permanent thumbnail URL, bypassing ephemeral /drive-storage/ session links.
- * Supports edge media proxy generation (/api/media/drive/:fileId?w=320) when preferEdgeProxy is true.
+ * Generates an Edge Media Proxy thumbnail URL (/api/media/drive/:fileId?w=320).
  */
 export function formatThumbnailDriveUrl(
-  thumbnailLink?: string,
-  fileId?: string,
-  preferEdgeProxy: boolean = false
+  _thumbnailLink?: string,
+  fileId?: string
 ): string {
-  if (preferEdgeProxy && fileId) {
-    return buildEdgeMediaUrl(fileId, { width: 320 });
-  }
-  if (fileId && (!thumbnailLink || thumbnailLink.includes('/drive-storage/'))) {
-    return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w320`;
-  }
-  if (thumbnailLink && !thumbnailLink.includes('/drive-storage/')) {
-    return thumbnailLink;
-  }
   if (fileId) {
-    return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w320`;
+    return buildEdgeMediaUrl(fileId, { width: 320 });
   }
   return '';
 }
@@ -343,33 +313,28 @@ export async function fetchDriveFolderImages(folderUrlOrId: string): Promise<Dri
   );
 
   if (subfolders.length > 0) {
-    try {
-      const subfolderPromises = subfolders.slice(0, 5).map(async (sub) => {
-        const subQuery = `'${sub.id}' in parents and trashed = false`;
-        const subEndpoint = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
-          subQuery
-        )}&fields=${encodeURIComponent(
-          fields
-        )}&pageSize=50&supportsAllDrives=true&includeItemsFromAllDrives=true&key=${encodeURIComponent(
-          apiKey
-        )}`;
-        const subResp = await fetch(subEndpoint, { method: 'GET', headers });
-        if (subResp.ok) {
-          const subData = (await subResp.json()) as { files?: DrivePhotoFile[] };
-          return (subData.files ?? []).filter(isImageFile);
-        }
-        return [];
-      });
-
-      const subfolderResults = await Promise.all(subfolderPromises);
-      for (const subImages of subfolderResults) {
-        directImages.push(...subImages);
+    const subfolderPromises = subfolders.slice(0, 5).map(async (sub) => {
+      const subQuery = `'${sub.id}' in parents and trashed = false`;
+      const subEndpoint = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
+        subQuery
+      )}&fields=${encodeURIComponent(
+        fields
+      )}&pageSize=50&supportsAllDrives=true&includeItemsFromAllDrives=true&key=${encodeURIComponent(
+        apiKey
+      )}`;
+      const subResp = await fetch(subEndpoint, { method: 'GET', headers });
+      if (!subResp.ok) {
+        throw new Error(
+          `Google Drive subfolder scan failed for "${sub.name}" [HTTP ${subResp.status}: ${subResp.statusText || 'Error'}].`
+        );
       }
-    } catch (subfolderErr) {
-      console.warn(
-        '[drivePhotoSyncService] Subfolder image scan encountered an error; direct images retained:',
-        subfolderErr
-      );
+      const subData = (await subResp.json()) as { files?: DrivePhotoFile[] };
+      return (subData.files ?? []).filter(isImageFile);
+    });
+
+    const subfolderResults = await Promise.all(subfolderPromises);
+    for (const subImages of subfolderResults) {
+      directImages.push(...subImages);
     }
   }
 
@@ -377,20 +342,17 @@ export async function fetchDriveFolderImages(folderUrlOrId: string): Promise<Dri
 }
 
 /**
- * High-level orchestration function for syncing a node's Google Drive folder.
- * Subtask 6.2: Service Orchestration Function.
+ * High-level orchestration function for syncing a gallery's Google Drive folder.
  *
  * 1. Fetches image files from Google Drive REST API v3
  * 2. Reconciles incoming files with existing synced items (O(1) Map diff)
- * 3. Persists the reconciled photo manifest into BaaS / LocalStorage cache via upsertLiveSourceSource
- * 4. Dispatches reactive update events and returns the reconciled items, diff stats, and updated source
+ * 3. Returns the reconciled items, diff stats, and verification timestamp
+ *    for direct persistence onto GalleryElement in the NodeCanvasDocument AST.
  */
 export async function syncFolderPhotos(
   pointId: string,
   folderUrl: string,
-  existingPhotos: SyncedSourceItem[] = [],
-  authToken?: string,
-  options?: DriveSyncOptions
+  existingPhotos: SyncedSourceItem[] = []
 ): Promise<SyncFolderPhotosResult> {
   if (!pointId || typeof pointId !== 'string' || !pointId.trim()) {
     throw new Error('Invalid pointId: must be a non-empty string.');
@@ -409,31 +371,9 @@ export async function syncFolderPhotos(
   // 2. Perform differential reconciliation
   const reconciliation = reconcileDrivePhotos(existingPhotos, incomingFiles, trimmedPointId);
 
-  // 3. Resolve existing source to preserve titles/descriptions if present
-  const existingSource =
-    getSourceSourceSync(trimmedPointId) || (await getLiveSourceSource(trimmedPointId));
-  const folderTitle = existingSource?.folderTitle || 'Official Google Drive Folder';
-  const description = existingSource?.description;
-
-  // 4. Persist updated manifest via BaaS and multi-tier cache
-  const updatedSource = await upsertLiveSourceSource(
-    {
-      pointId: trimmedPointId,
-      folderUrl: trimmedFolderUrl,
-      folderTitle,
-      description,
-      syncedPhotos: reconciliation.items,
-      updatedBy: 'Drive Sync Engine',
-    },
-    authToken || options?.authToken,
-    { isBackground: options?.isBackground }
-  );
-
   return {
     items: reconciliation.items,
     stats: reconciliation.stats,
-    source: updatedSource,
-    cloudSynced: updatedSource.cloudSynced,
-    cloudError: updatedSource.cloudError,
+    lastVerified: new Date().toISOString(),
   };
 }

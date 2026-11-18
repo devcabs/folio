@@ -145,9 +145,7 @@ describe('Subtask 2.2: Google Drive Photo Sync Pagination & Resilience', () => {
   });
 
   describe('Subfolder Scan Resilience & Diagnostics', () => {
-    it('catches and logs console.warn on subfolder scan errors without discarding direct images', async () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
+    it('fails stop on subfolder scan errors instead of silently pruning subfolder photos', async () => {
       const rootFiles: DrivePhotoFile[] = [
         { id: 'img-root', name: 'direct.jpg', mimeType: 'image/jpeg' },
         { id: 'subfolder-1', name: 'Sub 1', mimeType: 'application/vnd.google-apps.folder' },
@@ -162,17 +160,10 @@ describe('Subtask 2.2: Google Drive Photo Sync Pagination & Resilience', () => {
 
       globalThis.fetch = fetchMock;
 
-      const result = await fetchDriveFolderImages('folder-with-subfolders');
-
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('img-root');
-
-      // Verify structured warning was dispatched
-      expect(warnSpy).toHaveBeenCalledWith(
-        '[drivePhotoSyncService] Subfolder image scan encountered an error; direct images retained:',
-        expect.any(Error)
+      await expect(fetchDriveFolderImages('folder-with-subfolders')).rejects.toThrow(
+        'Subfolder network timeout'
       );
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
     it('aggregates subfolder images when subfolder scan succeeds', async () => {
@@ -341,23 +332,16 @@ describe('Subtask 2.2: Google Drive Photo Sync Pagination & Resilience', () => {
   });
 
   describe('URL Formatter Functions', () => {
-    it('formats high-res and thumbnail URLs correctly', () => {
-      const highRes = formatHighResDriveUrl('https://lh3.googleusercontent.com/abc=s220', 'file1234567890');
-      expect(highRes).toBe('https://lh3.googleusercontent.com/abc=s1600');
-
-      const thumb = formatThumbnailDriveUrl('https://lh3.googleusercontent.com/abc=s220', 'file1234567890');
-      expect(thumb).toBe('https://lh3.googleusercontent.com/abc=s220');
-
-      // Edge proxy format
-      const edgeThumb = formatThumbnailDriveUrl(undefined, 'file1234567890', true);
+    it('formats high-res and thumbnail URLs as edge media proxy routes', () => {
+      const edgeThumb = formatThumbnailDriveUrl(undefined, 'file1234567890');
       expect(edgeThumb).toBe('/api/media/drive/file1234567890?w=320');
-      const edgeHigh = formatHighResDriveUrl(undefined, 'file1234567890', true);
+      const edgeHigh = formatHighResDriveUrl(undefined, 'file1234567890');
       expect(edgeHigh).toBe('/api/media/drive/file1234567890?w=1600');
     });
   });
 
-  describe('Subtask 2.3: syncFolderPhotos Background & Cloud Observability', () => {
-    it('propagates isBackground option and returns cloudSynced / cloudError', async () => {
+  describe('Subtask 2.3: syncFolderPhotos AST Sync', () => {
+    it('returns synced items, stats, and lastVerified without sidecar source', async () => {
       const mockFiles: DrivePhotoFile[] = [
         { id: 'img-101', name: 'photo-101.jpg', mimeType: 'image/jpeg' },
       ];
@@ -371,15 +355,12 @@ describe('Subtask 2.2: Google Drive Photo Sync Pagination & Resilience', () => {
       const result = await syncFolderPhotos(
         'node-orchestration-test',
         'https://drive.google.com/drive/folders/1234567890abcdef12345',
-        [],
-        undefined,
-        { isBackground: true }
+        []
       );
 
       expect(result.items).toHaveLength(1);
       expect(result.stats.added).toBe(1);
-      expect(result.source).toBeDefined();
-      expect(result.source.pointId).toBe('orchestration-test');
+      expect(result.lastVerified).toBeTruthy();
     });
   });
 });

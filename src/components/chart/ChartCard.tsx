@@ -11,8 +11,6 @@ import {
   parseRangeNotation,
 } from '../../utils/chartSanitizer';
 import { formatSheetModifiedTime } from '../../services/sheetsVerificationService';
-import { fetchLiveSheetMatrix } from '../../services/sheetsDataService';
-import { saveChartConfigDetailed, notifyChartChange } from '../../services/chartSourceService';
 import { Button } from '../ui/Button';
 import { Toast } from '../feedback/Toast';
 import { ChartTableModal } from './ChartTableModal';
@@ -27,7 +25,10 @@ export interface ChartCardProps {
   accentColor?: string;
   status?: import('../../types/chart').ChartSyncStatus;
   errorMessage?: string;
-  onConfigUpdated?: (config: SheetChartConfig) => void;
+  onConfigUpdated?: (
+    config: SheetChartConfig,
+    dataset?: ChartDataset
+  ) => Promise<{ ok: boolean; error?: string } | void> | void;
   onSync?: () => Promise<unknown> | void;
   isSyncing?: boolean;
   className?: string;
@@ -84,43 +85,21 @@ export const ChartCard: React.FC<ChartCardProps> = ({
       return;
     }
 
+    if (!onSync) {
+      setToast({
+        message: 'Chart sync handler is not configured.',
+        type: 'error',
+      });
+      return;
+    }
+
     setInternalSyncing(true);
     try {
-      if (onSync) {
-        await onSync();
-        setToast({
-          message: 'Chart synced successfully from Google Sheet.',
-          type: 'success',
-        });
-      } else {
-        const matrix = await fetchLiveSheetMatrix({
-          sheetUrl: config.sheetUrl,
-          tabName: config.tabName,
-          sheetGid: config.sheetGid,
-          range: config.range,
-          timeoutMs: 8000,
-        });
-
-        if (matrix && matrix.length > 0) {
-          const updatedConfig: SheetChartConfig = {
-            ...config,
-            cachedDataset: matrix,
-            updatedAt: new Date().toISOString(),
-          };
-          await saveChartConfigDetailed(updatedConfig);
-          notifyChartChange(chartId, updatedConfig);
-          onConfigUpdated?.(updatedConfig);
-          setToast({
-            message: 'Chart synced successfully from Google Sheet.',
-            type: 'success',
-          });
-        } else {
-          setToast({
-            message: 'Synced from Google Sheet, but no rows were found.',
-            type: 'info',
-          });
-        }
-      }
+      await onSync();
+      setToast({
+        message: 'Chart synced successfully from Google Sheet.',
+        type: 'success',
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to sync chart from Google Sheet.';
       setToast({
@@ -130,7 +109,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
     } finally {
       setInternalSyncing(false);
     }
-  }, [isSyncing, config, onSync, chartId, onConfigUpdated]);
+  }, [isSyncing, config, onSync]);
 
   // Derive display values from dataset or config (strictly unopinionated: vacant means nothing rendered)
   const title = config?.titleOverride || dataset?.title || '';
@@ -320,9 +299,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
           chartId={chartId}
           nodeId={nodeId}
           initialConfig={config || undefined}
-          onDeployed={(updatedConfig) => {
-            onConfigUpdated?.(updatedConfig);
-          }}
+          onDeployed={onConfigUpdated}
         />
       )}
       {/* Full-Scale Tabular View Modal */}

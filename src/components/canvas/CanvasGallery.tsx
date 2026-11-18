@@ -1,37 +1,36 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo } from 'react';
 import type { GalleryElement } from '../../types/canvas';
-import type { SourceItem, NodeItem } from '../../types/node';
-import rawNodeData from '../../data/node-nodes.json';
+import type { SyncedSourceItem } from '../../types/source';
 import { SourceGallery } from '../source/SourceGallery';
 import styles from './CanvasContainers.module.css';
 
-interface NodeDataShape {
-  nodes: NodeItem[];
+export interface GalleryElementUpdates {
+  driveUrl?: string;
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  lastVerified?: string;
+  syncedPhotos?: SyncedSourceItem[];
 }
-
-const nodesList: NodeItem[] = Array.isArray(rawNodeData)
-  ? (rawNodeData as NodeItem[])
-  : ((rawNodeData as unknown as NodeDataShape).nodes || []);
 
 export interface CanvasGalleryProps {
   element: GalleryElement;
   nodeId: string;
   accentColor?: string;
   className?: string;
-  onUpdateGallery?: (updates: { driveUrl?: string; title?: string }) => void;
+  onUpdateGallery?: (
+    updates: GalleryElementUpdates
+  ) => Promise<{ ok: boolean; error?: string } | void> | void;
 }
 
 /**
  * CanvasGallery Component
- * Folio Engine — Task 8.9: Canvas Leaf Elements (Photo Gallery)
+ * Folio Engine — Subtask 7.8: Self-Contained AST Evidence Gallery
  *
  * Renders full multi-photo source showcase on the Dynamic Canvas:
- * - Decoupled element-level photo synchronization and Google Drive attachment
- * - Respects GalleryElement AST contract (driveUrl, pointId)
- * - Wraps canonical SourceGallery with responsive adaptive collage grid
- * - Integrated Google Drive photo synchronization and full-screen lightbox
- * - Memoized with React.memo for re-render efficiency
- * - 100% token purity and Universal Zero Outline Policy adherence
+ * - Reads driveUrl, title, description, lastVerified, and syncedPhotos strictly from GalleryElement AST
+ * - Persists all mutations directly onto GalleryElement in NodeCanvasDocument AST (PUT /api/draft)
+ * - Zero fallback to static JSON or localStorage
  */
 export const CanvasGallery: React.FC<CanvasGalleryProps> = memo(({
   element,
@@ -40,11 +39,6 @@ export const CanvasGallery: React.FC<CanvasGalleryProps> = memo(({
   className,
   onUpdateGallery,
 }) => {
-  const sourceItems: SourceItem[] = useMemo(() => {
-    const matched = nodesList.find((p) => p.id === nodeId);
-    return matched?.sourceItems || [];
-  }, [nodeId]);
-
   return (
     <div className={`${styles.galleryWrapper || ''} ${className || ''}`.trim()}>
       <SourceGallery
@@ -53,7 +47,9 @@ export const CanvasGallery: React.FC<CanvasGalleryProps> = memo(({
         galleryId={element.id}
         driveUrl={element.driveUrl}
         title={element.title}
-        sourceItems={sourceItems}
+        description={element.description}
+        lastVerified={element.lastVerified}
+        syncedPhotos={element.syncedPhotos}
         accentColor={accentColor}
         editTriggerId={element.id}
         onUpdateGallery={onUpdateGallery}

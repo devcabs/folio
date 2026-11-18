@@ -13,8 +13,12 @@ let savedHtmlOverflow = '';
 let savedPaddingRight = '';
 let savedRootPointerEvents = '';
 
+export function isScrollLocked(): boolean {
+  return activeLocks > 0;
+}
+
 export function acquireScrollLock(): void {
-  if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined' || !document.body || !document.documentElement) return;
 
   if (activeLocks === 0) {
     savedBodyOverflow = document.body.style.overflow;
@@ -42,7 +46,7 @@ export function acquireScrollLock(): void {
 }
 
 export function releaseScrollLock(): void {
-  if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined' || !document.body || !document.documentElement) return;
 
   activeLocks = Math.max(0, activeLocks - 1);
   if (activeLocks === 0) {

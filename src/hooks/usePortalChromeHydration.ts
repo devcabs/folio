@@ -1,70 +1,106 @@
 /**
  * Folio Engine — Portal Chrome Hydration Hook
  * Location: src/hooks/usePortalChromeHydration.ts
- * Specification: docs/task/4.2-publish-chart-and-chrome-bundling.md
+ * Specification: docs/task/7.2-content-db-and-portal-chrome-ssot.md
  *
  * Implements:
- * 1. Warm in-memory content DB from /api/public/manifest with { memoryOnly: true }.
- * 2. Zero localStorage writes for read-only public visitors.
- * 3. Zero-CLS gate: isHydrating flag allows rendering HeroWelcomeGhostWireframe
- *    until content overrides are loaded into memory.
+ * 1. Consumes PortalChromeContext when inside PortalChromeProvider.
+ * 2. Falls back to local React state hydration when used standalone (zero module-level singletons).
+ * 3. Strict fail-stop: surfaces error / hydrationError and retry() on non-2xx or network failure.
+ * 4. Re-hydrates from /api/public/manifest whenever isDevMode transitions back to false.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDeveloperMode } from './useDeveloperMode';
-import { setLiveContentOverrides } from '../utils/contentDb';
-import type { PublicPortalManifestPayload } from '../types/edge';
+import { usePortalChrome } from '../context/PortalChromeContext';
+import {
+  fetchPublicManifestOverrides,
+  fetchDraftWorkspaceOverrides,
+} from '../utils/contentDb';
 
-let hasCompletedHydration = false;
-
-export function resetPortalChromeHydrationForTesting(): void {
-  hasCompletedHydration = false;
+export interface UsePortalChromeHydrationReturn {
+  isHydrating: boolean;
+  error: string | null;
+  hydrationError: string | null;
+  retry: () => void;
+  isStandalone?: boolean;
 }
 
-export function usePortalChromeHydration(): { isHydrating: boolean } {
-  const { isDevMode } = useDeveloperMode();
-  const [isHydrating, setIsHydrating] = useState<boolean>(() => {
-    if (isDevMode || typeof window === 'undefined' || hasCompletedHydration) {
-      return false;
-    }
+export function resetPortalChromeHydrationForTesting(): void {
+  // No-op: module-level hydration singleton removed in Epic 7.2
+}
+
+export function usePortalChromeHydration(): UsePortalChromeHydrationReturn {
+  const portalChrome = usePortalChrome();
+  const { isDevMode, lockToken } = useDeveloperMode();
+
+  const [standaloneHydrating, setStandaloneHydrating] = useState<boolean>(() => {
+    if (portalChrome) return false;
+    if (typeof window === 'undefined' || typeof fetch !== 'function') return false;
     return true;
   });
+  const [standaloneError, setStandaloneError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState<number>(0);
+
+  const standaloneRetry = useCallback(() => {
+    setRetryCount((c) => c + 1);
+  }, []);
 
   useEffect(() => {
-    if (isDevMode || hasCompletedHydration) {
-      setIsHydrating(false);
-      return;
-    }
-
-    if (typeof fetch !== 'function') {
-      setIsHydrating(false);
+    if (portalChrome) return;
+    if (typeof window === 'undefined' || typeof fetch !== 'function') {
+      setStandaloneHydrating(false);
       return;
     }
 
     let isCancelled = false;
-    fetch('/api/public/manifest')
-      .then((res) => (res.ok ? (res.json() as Promise<PublicPortalManifestPayload>) : null))
-      .then((manifest) => {
-        if (isCancelled || !manifest) return;
-        if (manifest.contentOverrides && Object.keys(manifest.contentOverrides).length > 0) {
-          // Ingest strictly into memory cache; zero localStorage writes
-          setLiveContentOverrides(manifest.contentOverrides, { memoryOnly: true });
+    setStandaloneHydrating(true);
+    setStandaloneError(null);
+
+    const hydrate = async () => {
+      try {
+        if (isDevMode) {
+          await fetchDraftWorkspaceOverrides(lockToken ?? null);
+        } else {
+          await fetchPublicManifestOverrides();
         }
-      })
-      .catch(() => {
-        // Graceful fallback to default text
-      })
-      .finally(() => {
-        hasCompletedHydration = true;
         if (!isCancelled) {
-          setIsHydrating(false);
+          setStandaloneError(null);
         }
-      });
+      } catch (err) {
+        if (!isCancelled) {
+          const message = err instanceof Error ? err.message : 'Failed to load portal chrome from KV.';
+          setStandaloneError(message);
+        }
+      } finally {
+        if (!isCancelled) {
+          setStandaloneHydrating(false);
+        }
+      }
+    };
+
+    hydrate();
 
     return () => {
       isCancelled = true;
     };
-  }, [isDevMode]);
+  }, [portalChrome, isDevMode, lockToken, retryCount]);
 
-  return { isHydrating };
+  if (portalChrome) {
+    return {
+      isHydrating: portalChrome.isHydrating,
+      error: portalChrome.hydrationError,
+      hydrationError: portalChrome.hydrationError,
+      retry: portalChrome.retry,
+      isStandalone: false,
+    };
+  }
+
+  return {
+    isHydrating: standaloneHydrating,
+    error: standaloneError,
+    hydrationError: standaloneError,
+    retry: standaloneRetry,
+    isStandalone: true,
+  };
 }

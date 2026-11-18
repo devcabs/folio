@@ -6,46 +6,38 @@ import type {
 } from '../types/developer';
 import {
   isDesktopDevice,
-  getSessionUnlockTime,
-  setSessionUnlockTime,
-  clearSessionUnlockTime,
   isSessionValid,
   getRemainingSessionMinutes,
-  getLockoutUntil,
-  setLockoutUntil,
-  clearLockoutUntil,
-  getFailedAttempts,
-  setFailedAttempts,
-  resetFailedAttempts,
-  verifyPin,
   MAX_ATTEMPTS,
   LOCKOUT_DURATION_MS,
 } from '../utils/devSecurity';
+
+let inMemoryUnlockTime: number | null = null;
+let inMemoryLockoutUntil: number | null = null;
+let inMemoryFailedAttempts = 0;
+
+const getSessionUnlockTime = (): number | null => inMemoryUnlockTime;
+const setSessionUnlockTime = (ts: number): void => { inMemoryUnlockTime = ts; };
+const clearSessionUnlockTime = (): void => { inMemoryUnlockTime = null; };
+const getLockoutUntil = (): number | null => inMemoryLockoutUntil;
+const setLockoutUntil = (ts: number): void => { inMemoryLockoutUntil = ts; };
+const clearLockoutUntil = (): void => { inMemoryLockoutUntil = null; };
+const getFailedAttempts = (): number => inMemoryFailedAttempts;
+const setFailedAttempts = (count: number): void => { inMemoryFailedAttempts = count; };
+const resetFailedAttempts = (): void => { inMemoryFailedAttempts = 0; };
 import {
   getSessionId,
-  regenerateSessionId,
   checkDevLockStatus,
   acquireDevLock,
   renewDevLockHeartbeat,
   releaseDevLock,
   releaseDevLockBeacon,
-  subscribeToLockStorage,
   HEARTBEAT_INTERVAL_MS,
-  TAB_INSTANCE_ID,
-  getSessionBroadcastChannel,
 } from '../services/devLockService';
-import {
-  hydrateActiveVersionFromCloud,
-  isInitialHydrationPending,
-  subscribeToHydration,
-} from '../services/historyService';
 import {
   initDraftSession,
   discardDraftSession,
-  clearDraftStorage,
-  isDraftModeActive,
-  isDraftDirty,
-  setDraftDirty,
+  dispatchDraftChange,
   subscribeToDraftStatus,
   subscribeToCloudDraftSync,
   getCloudDraftSyncStatus,
@@ -54,7 +46,6 @@ import type { CloudDraftSyncStatus } from '../types/draft';
 import { Toast } from '../components/feedback/Toast';
 import { handleBeforeUnloadGuard } from '../services/unsavedChangesService';
 import { useMigrationContext } from './MigrationContext';
-import { EVENT_INDEXEDDB_ERROR } from '../services/historyStorage';
 
 export interface ToastState {
   id?: string;
@@ -109,16 +100,21 @@ const MigrationToastWatcher: React.FC<MigrationToastWatcherProps> = ({
 const DeveloperModeContext = createContext<DeveloperModeContextType | null>(null);
 
 export interface DeveloperModeProviderProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   securitySalt?: string;
   expectedPinHash?: string;
+  initialUnlockedAt?: number | null;
 }
 
 const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
   children,
-  securitySalt,
-  expectedPinHash,
+  securitySalt: _securitySalt,
+  expectedPinHash: _expectedPinHash,
+  initialUnlockedAt,
 }) => {
+  if (initialUnlockedAt !== undefined) {
+    inMemoryUnlockTime = initialUnlockedAt;
+  }
   const [isDesktop, setIsDesktop] = useState<boolean>(() => isDesktopDevice());
   const [isDevMode, setIsDevMode] = useState<boolean>(() => {
     if (!isDesktopDevice()) return false;
@@ -135,6 +131,7 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     return 'idle';
   });
   const [sessionId, setSessionId] = useState<string>(() => getSessionId());
+  const [lockToken, setLockToken] = useState<string | null>(null);
   const [isLockBlocked, setIsLockBlocked] = useState<boolean>(false);
   const [activeLockInfo, setActiveLockInfo] = useState<DevSessionLock | null>(null);
   const [isRenewal, setIsRenewal] = useState<boolean>(false);
@@ -151,7 +148,7 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
   const [sessionRemainingMinutes, setSessionRemainingMinutes] = useState<number>(() => {
     return getRemainingSessionMinutes(getSessionUnlockTime());
   });
-  const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState<boolean>(() => isDraftDirty());
+  const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState<boolean>(false);
   const [toasts, setToasts] = useState<ToastState[]>([]);
   const setToastState = useCallback<React.Dispatch<React.SetStateAction<ToastState | null>>>(
     (action) => {
@@ -194,58 +191,6 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     };
   }, []);
 
-  // Cloned / Duplicate Tab Collision Detection via BroadcastChannel
-  useEffect(() => {
-    const channel = getSessionBroadcastChannel();
-    if (!channel) return;
-
-    const handleMessage = (e: MessageEvent) => {
-      if (!e.data || typeof e.data !== 'object') return;
-
-      if (e.data.type === 'PING_SESSION' && e.data.sessionId === sessionId) {
-        if (e.data.tabInstanceId !== TAB_INSTANCE_ID) {
-          // Another tab was cloned from this tab or is asserting the same sessionId!
-          channel.postMessage({
-            type: 'SESSION_OWNED',
-            sessionId,
-            ownerTabInstanceId: TAB_INSTANCE_ID,
-          });
-        }
-      } else if (
-        e.data.type === 'SESSION_OWNED' &&
-        e.data.sessionId === sessionId &&
-        e.data.ownerTabInstanceId !== TAB_INSTANCE_ID
-      ) {
-        // We received rejection from the primary tab holding this sessionId!
-        console.warn('[DeveloperModeContext] Cloned tab detected! Disengaging inherited Dev Mode.');
-        clearSessionUnlockTime();
-        const newId = regenerateSessionId();
-        setSessionId(newId);
-        setIsDevMode(false);
-        isPinModalOpenRef.current = false;
-        setIsPinModalOpen(false);
-        setIsLockBlocked(true);
-        isLockBlockedRef.current = true;
-        checkDevLockStatus(newId).then((status) => {
-          setActiveLockInfo(status.currentLock || null);
-        });
-      }
-    };
-
-    channel.addEventListener('message', handleMessage);
-
-    // Announce this tab's identity
-    channel.postMessage({
-      type: 'PING_SESSION',
-      sessionId,
-      tabInstanceId: TAB_INSTANCE_ID,
-    });
-
-    return () => {
-      channel.removeEventListener('message', handleMessage);
-    };
-  }, [sessionId]);
-
   // Sync draft dirty state with reactive subscription
   useEffect(() => {
     const unsubscribe = subscribeToDraftStatus((status) => {
@@ -254,15 +199,7 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     return unsubscribe;
   }, []);
 
-  // Track active cloud hydration status (Task 10.7)
-  const [isCloudHydrating, setIsCloudHydrating] = useState<boolean>(() => isInitialHydrationPending());
-
-  useEffect(() => {
-    const unsubscribe = subscribeToHydration((hydrating) => {
-      setIsCloudHydrating(hydrating);
-    });
-    return unsubscribe;
-  }, []);
+  const isCloudHydrating = false;
 
   // Track cloud draft sync status (Task 11.2.G2)
   const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudDraftSyncStatus>(() => getCloudDraftSyncStatus());
@@ -274,17 +211,10 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     return unsubscribe;
   }, []);
 
-  // Hydrate active published version from Supabase strictly when Developer Mode is engaged
-  useEffect(() => {
-    if (isDevMode) {
-      hydrateActiveVersionFromCloud().catch(() => { });
-    }
-  }, [isDevMode]);
-
   // Initialize draft session whenever Dev Mode is enabled or refreshed across F5/Cmd+R
   useEffect(() => {
     if (isDevMode) {
-      initDraftSession(false).catch((err) => {
+      initDraftSession(undefined, lockToken).catch((err) => {
         console.error('Draft initialization failed:', err);
         setToastState({
           message: 'Draft Initialization Failed: Could not initialize draft workspace.',
@@ -293,7 +223,7 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
         setIsDevMode(false);
       });
     }
-  }, [isDevMode]);
+  }, [isDevMode, lockToken]);
 
   // 1. Desktop & Viewport Responsiveness Audit
   useEffect(() => {
@@ -383,20 +313,19 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
       return;
     }
 
-    // Immediately acquire/ensure lock for active dev session
-    acquireDevLock(sessionId);
-
     // Setup 30-second background heartbeat with automatic eviction
     const runHeartbeat = () => {
-      renewDevLockHeartbeat(sessionId).then(async (renewed) => {
+      if (!lockToken) return;
+      renewDevLockHeartbeat(lockToken).then(async (renewed) => {
         if (!renewed) {
           console.warn('[DeveloperModeContext] Liveness heartbeat rejected: lock held by another coordinator.');
           setIsDevMode(false);
+          setLockToken(null);
           clearSessionUnlockTime();
-          clearDraftStorage();
+          dispatchDraftChange(false, false);
           setIsLockBlocked(true);
           isLockBlockedRef.current = true;
-          const status = await checkDevLockStatus(sessionId);
+          const status = await checkDevLockStatus(null);
           setActiveLockInfo(status.currentLock || null);
           setToastState({
             message: 'Developer Mode session ended: another coordinator is currently active.',
@@ -410,12 +339,12 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
 
     // Safe beacon release upon actual tab or window dismissal
     const handlePageHide = () => {
-      releaseDevLockBeacon(sessionId);
+      releaseDevLockBeacon(lockToken);
     };
 
     // Universal guard preventing accidental reload/closure while on draft or when in-flight edits exist
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDevMode || isDraftModeActive()) {
+      if (isDevMode) {
         e.preventDefault();
         e.returnValue = '';
         return '';
@@ -461,19 +390,20 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     return () => {
       window.removeEventListener('keydown', handleReloadKeyDown, { capture: true });
     };
-  }, [isDevMode]);
+  }, [isDevMode, lockToken]);
 
   // 4b. Immediate Mount & Focus Lock Exclusivity Validation
   useEffect(() => {
-    if (!isDevMode) return;
+    if (!isDevMode || !lockToken) return;
 
     const verifyLockExclusivity = async () => {
-      const status = await checkDevLockStatus(sessionId);
+      const status = await checkDevLockStatus(lockToken);
       if (!status.canAcquire && status.currentLock && !status.isSelfSession) {
         console.warn('[DeveloperModeContext] Active lock claimed by another coordinator.');
         setIsDevMode(false);
+        setLockToken(null);
         clearSessionUnlockTime();
-        clearDraftStorage();
+        dispatchDraftChange(false, false);
         setIsLockBlocked(true);
         isLockBlockedRef.current = true;
         setActiveLockInfo(status.currentLock);
@@ -500,7 +430,21 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
       clearInterval(pollingInterval);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [isDevMode, sessionId]);
+  }, [isDevMode, lockToken]);
+
+  const showToast = useCallback(
+    (
+      message: string,
+      type: 'success' | 'error' | 'info' = 'success',
+      actionLabel?: string,
+      onAction?: () => void,
+      durationMs?: number
+    ) => {
+      const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setToasts((prev) => [...prev, { id, message, type, actionLabel, onAction, durationMs }]);
+    },
+    []
+  );
 
   // 5. Modal Open & Close Handlers with Pre-Flight Lock Check
   const openPinModal = useCallback(
@@ -528,9 +472,13 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
         return;
       }
 
-      // Pre-flight check: block before PIN entry if locked by another coordinator
-      checkDevLockStatus(sessionId)
+      // Pre-flight check: fail stop on error, or block before PIN entry if locked by another coordinator
+      checkDevLockStatus(lockToken)
         .then((status) => {
+          if (status.error) {
+            showToast('Unable to verify coordinator lock status.', 'error');
+            return;
+          }
           if (!status.canAcquire && status.currentLock && !status.isSelfSession) {
             isLockBlockedRef.current = true;
             setIsLockBlocked(true);
@@ -547,15 +495,10 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
           }
         })
         .catch(() => {
-          isLockBlockedRef.current = false;
-          setIsLockBlocked(false);
-          setActiveLockInfo(null);
-          setPinState('idle');
-          isPinModalOpenRef.current = true;
-          setIsPinModalOpen(true);
+          showToast('Unable to verify coordinator lock status.', 'error');
         });
     },
-    [sessionId]
+    [lockToken, showToast]
   );
 
   const closePinModal = useCallback(() => {
@@ -572,12 +515,13 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
       const unlockTime = getSessionUnlockTime();
       if (!isSessionValid(unlockTime)) {
         clearSessionUnlockTime();
-        releaseDevLock(sessionId);
+        releaseDevLock(lockToken);
+        setLockToken(null);
         setIsDevMode(false);
       }
       setIsRenewal(false);
     }
-  }, [isRenewal, sessionId]);
+  }, [isRenewal, lockToken]);
 
   const closeLockBlockedModal = useCallback(() => {
     isLockBlockedRef.current = false;
@@ -587,7 +531,10 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
 
   const refreshLockStatus = useCallback(async () => {
     try {
-      const status = await checkDevLockStatus(sessionId);
+      const status = await checkDevLockStatus(lockToken);
+      if (status.error) {
+        return;
+      }
       if (status.canAcquire || status.isSelfSession) {
         openPinModal(false, true);
       } else if (status.currentLock) {
@@ -598,45 +545,18 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     } catch {
       // Ignore network errors during polling
     }
-  }, [sessionId, openPinModal]);
-
-  // 6. Cross-Tab Storage Event Synchronization
-  useEffect(() => {
-    const unsubscribe = subscribeToLockStorage((lock) => {
-      if (lock && lock.isLocked && lock.lockedBySessionId !== sessionId) {
-        // Another tab has taken the lock
-        if (isDevMode) {
-          setIsDevMode(false);
-          clearSessionUnlockTime();
-        }
-        if (isPinModalOpenRef.current) {
-          isPinModalOpenRef.current = false;
-          setIsPinModalOpen(false);
-          isLockBlockedRef.current = true;
-          setIsLockBlocked(true);
-        }
-        setActiveLockInfo(lock);
-      } else if (!lock || !lock.isLocked) {
-        if (isLockBlockedRef.current) {
-          // Another user/tab released the lock while this tab was waiting in the warning modal.
-          // Transition directly from the blocked warning modal to the PIN entry modal.
-          openPinModal(false, true);
-        }
-      }
-    });
-
-    return unsubscribe;
-  }, [isDevMode, sessionId, openPinModal]);
+  }, [lockToken, openPinModal]);
 
   const exitDevMode = useCallback(
     (options?: { discard?: boolean }) => {
       if (options?.discard === true) {
-        discardDraftSession();
+        discardDraftSession(undefined, lockToken).catch(() => { });
       } else {
-        clearDraftStorage();
+        dispatchDraftChange(false, false);
       }
       setHasUnpublishedChanges(false);
-      releaseDevLock(sessionId);
+      releaseDevLock(lockToken);
+      setLockToken(null);
       clearSessionUnlockTime();
       setIsDevMode(false);
       isPinModalOpenRef.current = false;
@@ -705,7 +625,7 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     }
   }, [isDevMode, requestExitDevMode, openPinModal]);
 
-  // 7. PIN Verification Submission with Concurrency Lock Acquisition
+  // 7. Edge-Authenticated PIN Verification & Coordinator Lock Acquisition
   const submitPin = useCallback(
     async (pin: string): Promise<boolean> => {
       if (getLockoutUntil() && Date.now() < (getLockoutUntil() ?? 0)) {
@@ -716,27 +636,18 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
       setPinState('verifying');
 
       try {
-        // 3-second circuit breaker / safety timeout guard
-        const verificationPromise = verifyPin(pin, securitySalt, expectedPinHash);
-        const timeoutPromise = new Promise<boolean>((_, reject) =>
-          setTimeout(() => reject(new Error('PIN verification timed out.')), 3000)
-        );
+        const lockRes = await acquireDevLock({
+          pin,
+          sessionId,
+          coordinatorLabel: 'Coordinator',
+          forceReacquireWithPin: isRenewal,
+        });
 
-        const isValid = await Promise.race([verificationPromise, timeoutPromise]);
-
-        if (isValid) {
-          // Attempt institutional dev lock acquisition
-          const lockRes = await acquireDevLock(sessionId);
-          if (!lockRes.success && lockRes.lock) {
-            // Collision race condition: another coordinator acquired lock right before submission
-            isPinModalOpenRef.current = false;
-            setIsPinModalOpen(false);
-            setPinState('idle');
-            isLockBlockedRef.current = true;
-            setIsLockBlocked(true);
-            setActiveLockInfo(lockRes.lock);
-            return false;
+        if (lockRes.success && lockRes.lockToken) {
+          if (lockRes.sessionId) {
+            setSessionId(lockRes.sessionId);
           }
+          setLockToken(lockRes.lockToken);
 
           const now = Date.now();
           setSessionUnlockTime(now);
@@ -746,15 +657,13 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
           setSessionRemainingMinutes(30);
           setPinState('success');
           try {
-            if (isRenewal) {
-              initDraftSession(false);
-            } else {
-              initDraftSession(true);
-            }
+            initDraftSession(undefined, lockRes.lockToken).catch((err) => {
+              console.error('Draft initialization failed:', err);
+            });
           } catch (err) {
             console.error('Draft initialization failed:', err);
             setToastState({
-              message: 'Draft Initialization Failed: Insufficient browser storage to create draft workspace.',
+              message: 'Draft Initialization Failed: Could not initialize draft workspace.',
               type: 'error',
             });
             setIsDevMode(false);
@@ -775,31 +684,36 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
             setPinState('idle');
           }, 400);
           return true;
-        } else {
-          const nextFailures = getFailedAttempts() + 1;
-          setFailedAttempts(nextFailures);
-          const remaining = Math.max(0, MAX_ATTEMPTS - nextFailures);
-          setAttemptsRemaining(remaining);
+        }
 
-          if (remaining === 0) {
-            const lockoutTime = Date.now() + LOCKOUT_DURATION_MS;
-            setLockoutUntil(lockoutTime);
-            setLockoutRemainingSeconds(60);
-            setPinState('locked_out');
-          } else {
-            setPinState('error');
-          }
+        if (lockRes.status === 409 && lockRes.lock) {
+          isPinModalOpenRef.current = false;
+          setIsPinModalOpen(false);
+          setPinState('idle');
+          isLockBlockedRef.current = true;
+          setIsLockBlocked(true);
+          setActiveLockInfo(lockRes.lock);
           return false;
         }
-      } catch (err) {
-        console.warn('[DeveloperMode] Verification error caught:', err);
-        const nextFailures = getFailedAttempts() + 1;
-        setFailedAttempts(nextFailures);
-        const remaining = Math.max(0, MAX_ATTEMPTS - nextFailures);
+
+        if (lockRes.status === 429) {
+          const lockoutTime = lockRes.lockoutUntil ?? Date.now() + LOCKOUT_DURATION_MS;
+          setLockoutUntil(lockoutTime);
+          setAttemptsRemaining(0);
+          setLockoutRemainingSeconds(Math.max(1, Math.ceil((lockoutTime - Date.now()) / 1000)));
+          setPinState('locked_out');
+          return false;
+        }
+
+        const remaining =
+          typeof lockRes.attemptsRemaining === 'number'
+            ? lockRes.attemptsRemaining
+            : Math.max(0, MAX_ATTEMPTS - (getFailedAttempts() + 1));
+        setFailedAttempts(MAX_ATTEMPTS - remaining);
         setAttemptsRemaining(remaining);
 
         if (remaining === 0) {
-          const lockoutTime = Date.now() + LOCKOUT_DURATION_MS;
+          const lockoutTime = lockRes.lockoutUntil ?? Date.now() + LOCKOUT_DURATION_MS;
           setLockoutUntil(lockoutTime);
           setLockoutRemainingSeconds(60);
           setPinState('locked_out');
@@ -807,9 +721,13 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
           setPinState('error');
         }
         return false;
+      } catch (err) {
+        console.warn('[DeveloperMode] Verification error caught:', err);
+        setPinState('error');
+        return false;
       }
     },
-    [sessionId]
+    [sessionId, isRenewal]
   );
 
   // 8. Global Desktop Hotkey Trigger (Cmd/Ctrl + Shift + D)
@@ -859,34 +777,6 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     }
   }, [openPinModal]);
 
-  const showToast = useCallback(
-    (
-      message: string,
-      type: 'success' | 'error' | 'info' = 'success',
-      actionLabel?: string,
-      onAction?: () => void,
-      durationMs?: number
-    ) => {
-      const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      setToasts((prev) => [...prev, { id, message, type, actionLabel, onAction, durationMs }]);
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const handleStorageError = () => {
-      showToast(
-        'Browser storage limit reached — full snapshot backup could not be saved locally. Export a JSON backup to protect your work.',
-        'error'
-      );
-    };
-
-    window.addEventListener(EVENT_INDEXEDDB_ERROR, handleStorageError);
-    return () => window.removeEventListener(EVENT_INDEXEDDB_ERROR, handleStorageError);
-  }, [showToast]);
-
   const value: DeveloperModeContextType = {
     isDevMode,
     isDesktop,
@@ -906,13 +796,14 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     closeExitConfirmModal,
     toggleDevMode,
     sessionId,
+    lockToken,
     isLockBlocked,
     activeLockInfo,
     closeLockBlockedModal,
     refreshLockStatus,
     hasUnpublishedChanges,
     setHasUnpublishedChanges: (dirty: boolean) => {
-      setDraftDirty(dirty);
+      dispatchDraftChange(isDevMode, dirty);
       setHasUnpublishedChanges(dirty);
     },
     isCloudHydrating,
@@ -965,6 +856,7 @@ export const useDeveloperMode = (): DeveloperModeContextType => {
       closeExitConfirmModal: () => { },
       toggleDevMode: () => { },
       sessionId: '',
+      lockToken: null,
       isLockBlocked: false,
       activeLockInfo: null,
       closeLockBlockedModal: () => { },

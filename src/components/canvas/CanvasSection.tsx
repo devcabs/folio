@@ -29,7 +29,7 @@ export interface CanvasSectionProps {
  */
 export const CanvasSection: React.FC<CanvasSectionProps> = memo(({
   section,
-  nodeId,
+  nodeId: _nodeId,
   nodeTitle: _nodeTitle,
   accentColor,
   isDevMode: _isDevMode,
@@ -39,7 +39,6 @@ export const CanvasSection: React.FC<CanvasSectionProps> = memo(({
   onEdit,
 }) => {
   const domId = section.id.startsWith('sec-') ? section.id : `sec-${section.id}`;
-  const titlePointId = section.titlePointId || `node.${nodeId}.section.${section.id}.title`;
 
   const defaultNumbered = computedNumber !== undefined
     ? computedNumber !== null
@@ -68,7 +67,6 @@ export const CanvasSection: React.FC<CanvasSectionProps> = memo(({
         number={effectiveNumber}
         defaultNumbered={isNumbered}
         title={resolvedTitle}
-        titlePointId={titlePointId}
         as="h2"
         accentColor={accentColor}
         editTriggerId={section.id}

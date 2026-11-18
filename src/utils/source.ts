@@ -1,9 +1,6 @@
-import sourceSourcesRaw from '../data/source-sources.json';
-import type { SourceSource, SourceSourceRegistry } from '../types/source';
-import type { DevLinkData } from '../types/developer';
-import { getContentObject } from './contentDb';
-
-const registry = sourceSourcesRaw as SourceSourceRegistry;
+/**
+ * Pure Google Drive URL validation and point ID normalization utilities.
+ */
 
 /**
  * Normalizes point and node identifiers to ensure consistent lookup.
@@ -16,39 +13,6 @@ export function normalizePointId(pointId: string): string {
 }
 
 /**
- * Safely retrieves the official SourceSource for a given node or point ID.
- * Incorporates dynamic client-side Content DB overrides if configured.
- * Returns null if the source is not registered or invalid.
- */
-export function getSourceSource(pointId: string): SourceSource | null {
-  const normalizedKey = normalizePointId(pointId);
-  if (!normalizedKey) return null;
-  const defaultSource = registry[normalizedKey] ?? null;
-
-  const sourceKey = `source.${normalizedKey}.source`;
-  const override = getContentObject<DevLinkData | (Partial<SourceSource> & { url?: string; label?: string }) | null>(
-    sourceKey,
-    null
-  );
-
-  if (override) {
-    const url = 'folderUrl' in override ? override.folderUrl : override.url;
-    const title = 'folderTitle' in override ? override.folderTitle : override.label;
-    if (url !== undefined || title !== undefined) {
-      return {
-        pointId: normalizedKey,
-        folderUrl: url ?? defaultSource?.folderUrl ?? '',
-        folderTitle: title ?? defaultSource?.folderTitle ?? 'Official Google Drive Folder',
-        description: defaultSource?.description,
-        lastVerified: defaultSource?.lastVerified,
-      };
-    }
-  }
-
-  return defaultSource;
-}
-
-/**
  * Matches canonical Google Drive folder URL patterns:
  * - https://drive.google.com/drive/folders/{folderId}
  * - https://drive.google.com/drive/u/{userIndex}/folders/{folderId}
@@ -56,6 +20,15 @@ export function getSourceSource(pointId: string): SourceSource | null {
  */
 export const GOOGLE_DRIVE_FOLDER_REGEX =
   /^https:\/\/(?:drive\.google\.com\/(?:drive\/(?:u\/\d+\/)?folders\/|open\?id=))([a-zA-Z0-9_-]+)/;
+
+/**
+ * Extracts canonical Google Drive folder ID from a URL.
+ */
+export function extractDriveFolderId(url: string): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const match = url.trim().match(GOOGLE_DRIVE_FOLDER_REGEX);
+  return match && match[1] ? match[1] : null;
+}
 
 /**
  * Validates whether a given URL string is a valid Google Drive folder URL.

@@ -10,7 +10,7 @@ import type { ImageLoadingStatus, UseImageLoaderResult } from '../types/source';
  * - Subscription flag cleanup to prevent memory leaks and state updates after unmount
  * - Stable retry callback for recovery from network interruptions
  */
-export function useImageLoader(src?: string, fallbackSrc?: string): UseImageLoaderResult {
+export function useImageLoader(src?: string): UseImageLoaderResult {
   const [activeSrc, setActiveSrc] = useState<string | undefined>(src);
   const [status, setStatus] = useState<ImageLoadingStatus>(src ? 'loading' : 'idle');
   const [retryCount, setRetryCount] = useState(0);
@@ -46,12 +46,7 @@ export function useImageLoader(src?: string, fallbackSrc?: string): UseImageLoad
 
     img.onerror = () => {
       if (isSubscribed) {
-        // Seamlessly fallback if fallbackSrc is available and different
-        if (fallbackSrc && activeSrc !== fallbackSrc) {
-          setActiveSrc(fallbackSrc);
-        } else {
-          setStatus('error');
-        }
+        setStatus('error');
       }
     };
 
@@ -60,7 +55,7 @@ export function useImageLoader(src?: string, fallbackSrc?: string): UseImageLoad
       img.onload = null;
       img.onerror = null;
     };
-  }, [activeSrc, fallbackSrc, retryCount]);
+  }, [activeSrc, retryCount]);
 
   const retry = useCallback(() => {
     setActiveSrc(src);

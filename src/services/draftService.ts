@@ -1,234 +1,83 @@
 /**
- * Folio Engine - Draft Isolation & Cloud DB-Draft Service
+ * Folio Engine — Live Cloudflare KV Draft Workspace Service (`draft:workspace`)
  * Location: src/services/draftService.ts
- * Specification: docs/tasks/task11_2g_db_draft_and_blob_storage_pipeline.md
- * Aligned with: docs/00_WORKFLOW.md, docs/03_ARCHITECTURE.md, docs/07_CODING_STANDARDS.md
+ * Specification: docs/task/7.4-draft-sandbox-and-cloud-sync-ssot.md
  *
- * Implements:
- * 1. Zero-localStorage in-memory draft sandbox for 60 FPS editing.
- * 2. Active draft lifecycle & dirty change tracking (hasUnpublishedChanges).
- * 3. Cloud-backed draft synchronization with Supabase engine_drafts table.
- * 4. 1500ms debounced auto-sync with status events (saved, saving, error, offline).
- * 5. Safe draft discard and multi-device continuation.
+ * Epic 7 Subtask 7.4:
+ * - Zero module-level inMemoryDraft* shadow stores.
+ * - Zero browser storage (localStorage / sessionStorage / indexedDB) reads or writes.
+ * - Zero Supabase engine_drafts calls.
+ * - Direct fail-stop HTTP calls to /api/draft and /api/draft/init authenticated with Bearer <lockToken>.
  */
 
-import {
-  dispatchAggregateCanvasChange,
-  NODE_IDS,
-} from './canvasLayoutService';
+import { dispatchAggregateCanvasChange } from './canvasLayoutService';
+import { getActiveNodeIds } from '../config/engine.config';
 import type { NodeCanvasDocument } from '../types/canvas';
+import type { DraftWorkspacePayload } from '../types/edge';
 import type {
-  CloudDraftData,
   CloudDraftSyncStatus,
   DraftSyncStatusEventDetail,
 } from '../types/draft';
-import {
-  invalidateContentCache,
-  getAllContentOverrides,
-  setAllContentOverrides,
-  clearDraftTombstones,
-  EVENT_DRAFT_CONTENT_CHANGE,
-} from '../utils/contentDb';
-import { getSessionUnlockTime, isSessionValid } from '../utils/devSecurity';
-import { getStorage } from '../utils/storage';
-import { getStorageNamespace } from '../config/engine.config';
-import { getActivePublishedId, setActivePublishedId } from './historyService';
-import { getSupabaseConfig, isTableAvailable, markTableMissing } from '../utils/supabase-config';
+import { EVENT_DRAFT_CONTENT_CHANGE } from '../utils/contentDb';
 
-export const getDraftCanvasPrefix = (ns?: string) => (ns || getStorageNamespace()) + '_draft_canvas_';
-export const DRAFT_CANVAS_PREFIX = getDraftCanvasPrefix();
-export const getDraftContentKey = (ns?: string) => (ns || getStorageNamespace()) + '_draft_content_overrides';
-export const DRAFT_CONTENT_KEY = getDraftContentKey();
-export const getDraftActiveKey = (ns?: string) => (ns || getStorageNamespace()) + '_draft_active';
-export const DRAFT_ACTIVE_KEY = getDraftActiveKey();
-export const getDraftDirtyKey = (ns?: string) => (ns || getStorageNamespace()) + '_draft_dirty';
-export const DRAFT_DIRTY_KEY = getDraftDirtyKey();
 export const EVENT_DRAFT_STATUS_CHANGE = 'engine-draft-status-change';
 export const EVENT_CLOUD_DRAFT_SYNC_STATUS = 'engine-cloud-draft-sync-status';
-export const AUTOSYNC_DEBOUNCE_MS = 1500;
 
-export interface DraftActiveMetadata {
-  baseId: string | null;
-  startedAt?: string;
+function resolveActiveNodeIds(): string[] {
+  return getActiveNodeIds();
 }
 
-export interface DraftStalenessCheck {
-  isStale: boolean;
-  baseId: string | null;
-  currentActiveId: string;
-}
-
-// In-memory draft sandbox state
-let inMemoryDraftActive = false;
-let inMemoryDraftDirty = false;
-let inMemoryDraftBaseId: string | null = null;
-const inMemoryDraftCanvases: Record<string, NodeCanvasDocument> = {};
-let activeInitDraftPromise: Promise<void> | null = null;
-
-let autoSyncTimer: ReturnType<typeof setTimeout> | null = null;
 let currentSyncStatus: CloudDraftSyncStatus = 'saved';
 
-/**
- * Returns the legacy draft canvas storage key for a specific node.
- */
-export function getDraftCanvasKey(nodeId: string): string {
-  return `${getDraftCanvasPrefix()}${nodeId}`;
-}
-
-/**
- * Retrieves in-memory draft canvas for a node.
- */
-export function getInMemoryDraftCanvas(nodeId: string): NodeCanvasDocument | null {
-  const doc = inMemoryDraftCanvases[nodeId];
-  return doc ? JSON.parse(JSON.stringify(doc)) : null;
-}
-
-/**
- * Sets in-memory draft canvas for a node.
- */
-export function setInMemoryDraftCanvas(nodeId: string, doc: NodeCanvasDocument): void {
-  inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(doc));
-}
-
-/**
- * Whether Developer Mode draft sandbox is currently active.
- */
-export function isDraftModeActive(): boolean {
-  if (inMemoryDraftActive) return true;
-  const storage = getStorage();
-  if (!storage) return false;
+async function parseErrorDetail(res: Response): Promise<string> {
   try {
-    const raw = storage.getItem(getDraftActiveKey());
-    if (!raw) return false;
-    if (raw === 'true') return true;
+    const text = await res.text();
+    if (!text) return `HTTP ${res.status}`;
     try {
-      const parsed = JSON.parse(raw);
-      return typeof parsed === 'object' && parsed !== null;
+      const parsed = JSON.parse(text) as { error?: string; message?: string };
+      return parsed.error || parsed.message || `HTTP ${res.status}`;
     } catch {
-      return false;
+      return `${text} (HTTP ${res.status})`;
     }
   } catch {
-    return false;
+    return `HTTP ${res.status}`;
+  }
+}
+
+function buildAuthHeaders(lockToken?: string | null, includeJson = false): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (includeJson) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (lockToken) {
+    headers['Authorization'] = `Bearer ${lockToken}`;
+  }
+  return headers;
+}
+
+function notifySyncStatus(status: CloudDraftSyncStatus, error?: string): void {
+  currentSyncStatus = status;
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    const detail: DraftSyncStatusEventDetail = {
+      status,
+      lastSavedAt: status === 'saved' ? new Date().toISOString() : undefined,
+      error,
+    };
+    window.dispatchEvent(new CustomEvent(EVENT_CLOUD_DRAFT_SYNC_STATUS, { detail }));
   }
 }
 
 /**
- * Retrieves the base snapshot ID that the current draft was cloned from.
+ * Emits global CustomEvent to notify components of draft workspace updates.
  */
-export function getDraftBaseId(): string | null {
-  if (inMemoryDraftBaseId) return inMemoryDraftBaseId;
-  const storage = getStorage();
-  if (!storage) return null;
-  try {
-    const raw = storage.getItem(getDraftActiveKey());
-    if (!raw) return null;
-    if (raw === 'true') return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && 'baseId' in parsed) {
-      return (parsed as DraftActiveMetadata).baseId || null;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Checks whether the current draft is stale compared to the live active published snapshot.
- */
-export function checkDraftStaleness(): DraftStalenessCheck {
-  const currentActiveId = getActivePublishedId();
-  const baseId = getDraftBaseId();
-  const hasActiveDraft = isDraftModeActive() || hasDraftKeys();
-  const isStale = Boolean(
-    currentActiveId && ((hasActiveDraft && !baseId) || (baseId && baseId !== currentActiveId))
-  );
-  return { isStale, baseId, currentActiveId };
-}
-
-/**
- * Boolean convenience helper to check if draft is stale.
- */
-export function isDraftStale(): boolean {
-  return checkDraftStaleness().isStale;
-}
-
-/**
- * Activates or deactivates the draft sandbox mode.
- */
-export function setDraftModeActive(active: boolean, baseId?: string | null): void {
-  inMemoryDraftActive = active;
-  if (!active) {
-    inMemoryDraftBaseId = null;
-  } else if (baseId !== undefined) {
-    inMemoryDraftBaseId = baseId;
-  }
-
-  const storage = getStorage();
-  if (storage) {
-    try {
-      if (active) {
-        const resolvedBaseId = baseId !== undefined ? baseId : getDraftBaseId();
-        const payload: DraftActiveMetadata = {
-          baseId: resolvedBaseId,
-          startedAt: new Date().toISOString(),
-        };
-        storage.setItem(getDraftActiveKey(), JSON.stringify(payload));
-      } else {
-        storage.removeItem(getDraftActiveKey());
-      }
-    } catch {
-      // Storage restricted
-    }
-  }
-  dispatchDraftChange();
-}
-
-/**
- * Checks whether the current draft has uncommitted changes.
- */
-export function isDraftDirty(): boolean {
-  if (inMemoryDraftDirty) return true;
-  const storage = getStorage();
-  if (!storage) return false;
-  try {
-    return storage.getItem(getDraftDirtyKey()) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Sets the draft dirty flag and dispatches draft change event.
- */
-export function setDraftDirty(dirty: boolean): void {
-  inMemoryDraftDirty = dirty;
-  const storage = getStorage();
-  if (storage) {
-    try {
-      if (dirty) {
-        storage.setItem(getDraftDirtyKey(), 'true');
-      } else {
-        storage.removeItem(getDraftDirtyKey());
-      }
-    } catch {
-      // Storage restricted
-    }
-  }
-  dispatchDraftChange();
-}
-
-/**
- * Emits global CustomEvent to notify all components of draft sandbox mutations.
- */
-export function dispatchDraftChange(): void {
+export function dispatchDraftChange(isActive = true, isDirty = false): void {
   if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
 
   window.dispatchEvent(
     new CustomEvent(EVENT_DRAFT_STATUS_CHANGE, {
       detail: {
-        isActive: isDraftModeActive(),
-        isDirty: isDraftDirty(),
+        isActive,
+        isDirty,
         timestamp: new Date().toISOString(),
       },
     })
@@ -254,10 +103,11 @@ export function subscribeToDraftStatus(
 ): () => void {
   if (typeof window === 'undefined') return () => { };
 
-  const handler = () => {
+  const handler = (e: Event) => {
+    const detail = (e as CustomEvent<{ isActive?: boolean; isDirty?: boolean }>).detail;
     callback({
-      isActive: isDraftModeActive(),
-      isDirty: isDraftDirty(),
+      isActive: Boolean(detail?.isActive),
+      isDirty: Boolean(detail?.isDirty),
     });
   };
 
@@ -287,386 +137,168 @@ export function subscribeToCloudDraftSync(
   return () => window.removeEventListener(EVENT_CLOUD_DRAFT_SYNC_STATUS, handler);
 }
 
-function notifySyncStatus(status: CloudDraftSyncStatus, error?: string): void {
-  currentSyncStatus = status;
-  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-    const detail: DraftSyncStatusEventDetail = {
-      status,
-      lastSavedAt: status === 'saved' ? new Date().toISOString() : undefined,
-      error,
-    };
-    window.dispatchEvent(new CustomEvent(EVENT_CLOUD_DRAFT_SYNC_STATUS, { detail }));
-  }
-}
-
 /**
- * Clears all in-memory draft canvas documents, flags, and any lingering storage keys.
+ * Initializes or resumes the live Cloudflare KV draft workspace via POST /api/draft/init.
+ * Fails stop (throws) on non-2xx HTTP status or network error.
  */
-export function clearDraftStorage(): void {
-  activeInitDraftPromise = null;
-  clearDraftTombstones();
-  inMemoryDraftActive = false;
-  inMemoryDraftDirty = false;
-  inMemoryDraftBaseId = null;
-  for (const node of NODE_IDS) {
-    delete inMemoryDraftCanvases[node];
+export async function initDraftSession(
+  nodeIds: string[] = resolveActiveNodeIds(),
+  lockToken?: string | null
+): Promise<DraftWorkspacePayload> {
+  if (typeof fetch !== 'function') {
+    throw new Error('Fetch API is unavailable to initialize draft:workspace.');
   }
 
-  const storage = getStorage();
-  if (storage) {
-    try {
-      for (const node of NODE_IDS) {
-        storage.removeItem(getDraftCanvasKey(node));
-      }
-      storage.removeItem(getDraftContentKey());
-      storage.removeItem(getDraftActiveKey());
-      storage.removeItem(getDraftDirtyKey());
-    } catch {
-      // Ignore
-    }
-  }
-  dispatchDraftChange();
-}
-
-/**
- * Checks whether any draft data currently exists in memory or persistent storage.
- */
-export function hasDraftKeys(): boolean {
-  if (Object.keys(inMemoryDraftCanvases).length > 0) return true;
-  const storage = getStorage();
-  if (!storage) return false;
+  notifySyncStatus('saving');
   try {
-    return storage.getItem(getDraftActiveKey()) !== null;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Queries active draft from Supabase engine_drafts table.
- */
-export async function fetchActiveCloudDraft(): Promise<CloudDraftData | null> {
-  const config = getSupabaseConfig();
-  if (!config || !isTableAvailable('engine_drafts')) return null;
-
-  try {
-    const res = await fetch(`${config.url}/rest/v1/engine_drafts?id=eq.active_draft&select=*`, {
-      headers: {
-        apikey: config.anonKey,
-        Authorization: `Bearer ${config.anonKey}`,
-      },
+    const res = await fetch('/api/draft/init', {
+      method: 'POST',
+      headers: buildAuthHeaders(lockToken, true),
+      body: JSON.stringify({ nodeIds }),
     });
 
-    if (res.status === 404) {
-      markTableMissing('engine_drafts');
-      return null;
+    if (!res.ok) {
+      const detail = await parseErrorDetail(res);
+      throw new Error(`Draft workspace initialization failed: ${detail} (HTTP ${res.status})`);
     }
 
-    if (!res.ok) return null;
-
-    const rows = await res.json();
-    if (!Array.isArray(rows) || rows.length === 0) return null;
-
-    const row = rows[0];
-    return {
-      id: row.id,
-      baseSnapshotId: row.base_snapshot_id,
-      canvases: row.canvases || {},
-      contentOverrides: row.content_overrides || {},
-      updatedAt: row.updated_at,
-      updatedBySession: row.updated_by_session,
-      lockedBySession: row.locked_by_session,
-    };
-  } catch (err) {
-    console.warn('[draftService] Fetch active cloud draft failed:', err);
-    return null;
+    const workspace = (await res.json()) as DraftWorkspacePayload;
+    notifySyncStatus('saved');
+    dispatchDraftChange(true, Boolean(workspace.dirty));
+    dispatchAggregateCanvasChange(true);
+    return workspace;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Draft initialization failed';
+    notifySyncStatus('error', msg);
+    throw err instanceof Error ? err : new Error(msg);
   }
 }
 
-function isValidCanvasDocument(data: unknown, nodeId: string): data is NodeCanvasDocument {
-  if (typeof data !== 'object' || data === null) return false;
-  const doc = data as Record<string, unknown>;
-  return (
-    doc.nodeId === nodeId &&
-    typeof doc.version === 'number' &&
-    Array.isArray(doc.sections)
+/**
+ * Reads the live Cloudflare KV draft workspace via GET /api/draft.
+ * Fails stop (throws) on non-2xx HTTP status or network error.
+ */
+export async function getDraftWorkspace(
+  lockToken?: string | null
+): Promise<DraftWorkspacePayload> {
+  if (typeof fetch !== 'function') {
+    throw new Error('Fetch API is unavailable to read draft:workspace.');
+  }
+
+  const res = await fetch('/api/draft', {
+    method: 'GET',
+    headers: buildAuthHeaders(lockToken, false),
+  });
+
+  if (!res.ok) {
+    const detail = await parseErrorDetail(res);
+    throw new Error(`Draft workspace KV read failed: ${detail} (HTTP ${res.status})`);
+  }
+
+  return (await res.json()) as DraftWorkspacePayload;
+}
+
+/**
+ * Persists updates to Cloudflare KV draft:workspace via PUT /api/draft.
+ * Enforces optimistic concurrency (expectedRevision / expectedUpdatedAt) and fails stop on error.
+ */
+export async function saveDraftWorkspace(
+  workspace: Partial<DraftWorkspacePayload>,
+  lockToken?: string | null,
+  expectedRevision?: number,
+  expectedUpdatedAt?: string
+): Promise<DraftWorkspacePayload> {
+  if (typeof fetch !== 'function') {
+    throw new Error('Fetch API is unavailable to save draft:workspace.');
+  }
+
+  notifySyncStatus('saving');
+  try {
+    const body: Record<string, unknown> = { ...workspace };
+    if (expectedRevision !== undefined) {
+      body.expectedRevision = expectedRevision;
+    }
+    if (expectedUpdatedAt !== undefined) {
+      body.expectedUpdatedAt = expectedUpdatedAt;
+    }
+
+    const res = await fetch('/api/draft', {
+      method: 'PUT',
+      headers: buildAuthHeaders(lockToken, true),
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const detail = await parseErrorDetail(res);
+      throw new Error(`Draft workspace KV write failed: ${detail} (HTTP ${res.status})`);
+    }
+
+    const updated = (await res.json()) as DraftWorkspacePayload;
+    notifySyncStatus('saved');
+    dispatchDraftChange(true, Boolean(updated.dirty));
+    return updated;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Draft workspace save failed';
+    notifySyncStatus('error', msg);
+    throw err instanceof Error ? err : new Error(msg);
+  }
+}
+
+/**
+ * Persists a single node canvas AST into Cloudflare KV draft:workspace via PUT /api/draft.
+ * Fails stop (throws) on non-2xx HTTP status or network error.
+ */
+export async function saveDraftNodeCanvas(
+  nodeId: string,
+  canvas: NodeCanvasDocument,
+  lockToken?: string | null,
+  expectedRevision?: number,
+  expectedUpdatedAt?: string
+): Promise<DraftWorkspacePayload> {
+  return saveDraftWorkspace(
+    { canvases: { [nodeId]: canvas } },
+    lockToken,
+    expectedRevision,
+    expectedUpdatedAt
   );
 }
 
 /**
- * Syncs the current in-memory draft state to Supabase engine_drafts.
+ * Discards uncommitted draft changes in Cloudflare KV via DELETE /api/draft
+ * and re-clones from the live published baseline.
+ * Fails stop (throws) on non-2xx HTTP status or network error.
  */
-export async function syncDraftToCloud(): Promise<boolean> {
-  const config = getSupabaseConfig();
-  if (!config || !isTableAvailable('engine_drafts')) {
-    notifySyncStatus('offline');
-    return false;
+export async function discardDraftWorkspace(
+  nodeIds: string[] = resolveActiveNodeIds(),
+  lockToken?: string | null
+): Promise<DraftWorkspacePayload> {
+  if (typeof fetch !== 'function') {
+    throw new Error('Fetch API is unavailable to discard draft:workspace.');
   }
 
   notifySyncStatus('saving');
-
   try {
-    const baseSnapshotId = getDraftBaseId() || getActivePublishedId();
-    const payload = {
-      id: 'active_draft',
-      base_snapshot_id: baseSnapshotId,
-      canvases: inMemoryDraftCanvases,
-      content_overrides: getAllContentOverrides(true),
-      updated_at: new Date().toISOString(),
-      updated_by_session: getSessionUnlockTime()?.toString() || 'unknown',
-    };
-
-    const res = await fetch(`${config.url}/rest/v1/engine_drafts`, {
-      method: 'POST',
-      headers: {
-        apikey: config.anonKey,
-        Authorization: `Bearer ${config.anonKey}`,
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates',
-      },
-      body: JSON.stringify(payload),
+    const res = await fetch('/api/draft', {
+      method: 'DELETE',
+      headers: buildAuthHeaders(lockToken, true),
+      body: JSON.stringify({ nodeIds }),
     });
 
-    if (res.status === 404) {
-      markTableMissing('engine_drafts');
-      notifySyncStatus('offline');
-      return false;
-    }
-
     if (!res.ok) {
-      throw new Error(`Cloud draft sync failed (${res.status})`);
+      const detail = await parseErrorDetail(res);
+      throw new Error(`Draft workspace discard failed: ${detail} (HTTP ${res.status})`);
     }
 
+    const fresh = (await res.json()) as DraftWorkspacePayload;
     notifySyncStatus('saved');
-    return true;
+    dispatchDraftChange(true, Boolean(fresh.dirty));
+    dispatchAggregateCanvasChange(true);
+    return fresh;
   } catch (err: unknown) {
-    console.warn('[draftService] Cloud draft sync error:', err);
-    notifySyncStatus('error', err instanceof Error ? err.message : 'Sync failed');
-    return false;
+    const msg = err instanceof Error ? err.message : 'Draft workspace discard failed';
+    notifySyncStatus('error', msg);
+    throw err instanceof Error ? err : new Error(msg);
   }
 }
 
-/**
- * Triggers debounced background auto-sync to Supabase engine_drafts.
- */
-export function triggerDebouncedCloudDraftSync(): void {
-  if (autoSyncTimer) {
-    clearTimeout(autoSyncTimer);
-  }
-  notifySyncStatus('saving');
-  autoSyncTimer = setTimeout(() => {
-    syncDraftToCloud().catch(() => { });
-  }, AUTOSYNC_DEBOUNCE_MS);
-}
-
-/**
- * Initializes a Developer Mode draft editing sandbox.
- * Populates in-memory draft state from Supabase engine_drafts or live published baseline.
- * Zero writes of canvas documents to localStorage.
- */
-export function initDraftSession(forceFresh: boolean = false): Promise<void> {
-  if (activeInitDraftPromise && !forceFresh) {
-    return activeInitDraftPromise;
-  }
-
-  activeInitDraftPromise = (async () => {
-    try {
-      const unlockTime = getSessionUnlockTime();
-      const sessionActive = isSessionValid(unlockTime);
-      const draftExists = hasDraftKeys();
-
-      // 1. Resolve active published snapshot ID first
-      let resolvedBaseSnapshotId = getActivePublishedId();
-
-      // If in browser, attempt to resolve authoritative active published snapshot from public edge manifest
-      if (typeof window !== 'undefined' && typeof fetch === 'function') {
-        try {
-          const manifestRes = await fetch('/api/public/manifest');
-          if (manifestRes.ok) {
-            const manifestData = await manifestRes.json();
-            if (manifestData?.activeSnapshotId) {
-              resolvedBaseSnapshotId = manifestData.activeSnapshotId;
-              setActivePublishedId(manifestData.activeSnapshotId);
-            }
-          }
-        } catch {
-          // Edge manifest unreachable; rely on Supabase or local activePublishedId
-        }
-      }
-
-      // 2. Retain existing in-memory draft ONLY IF:
-      // a) forceFresh is false, AND
-      // b) draft has uncommitted changes OR current draft base ID matches current published baseline
-      const isDirty = isDraftDirty();
-      const currentDraftBaseId = inMemoryDraftBaseId || getDraftBaseId();
-      const baseMatches = Boolean(currentDraftBaseId && currentDraftBaseId === resolvedBaseSnapshotId);
-      if (
-        !forceFresh &&
-        (sessionActive || isDraftModeActive()) &&
-        draftExists &&
-        Object.keys(inMemoryDraftCanvases).length > 0 &&
-        (isDirty || baseMatches)
-      ) {
-        setDraftModeActive(true, currentDraftBaseId || resolvedBaseSnapshotId);
-        dispatchAggregateCanvasChange(true);
-        return;
-      }
-
-      // 3. Check for cloud draft in Supabase engine_drafts
-      if (!forceFresh) {
-        try {
-          const cloudDraft = await fetchActiveCloudDraft();
-          if (cloudDraft && Object.keys(cloudDraft.canvases).length > 0) {
-            // Guard against stale cloud drafts: if baseSnapshotId does not match current active published version or is missing, skip
-            const isCloudStale = !cloudDraft.baseSnapshotId || cloudDraft.baseSnapshotId !== resolvedBaseSnapshotId;
-            if (!isCloudStale) {
-              let loadedValidCanvases = false;
-              for (const [nodeId, doc] of Object.entries(cloudDraft.canvases)) {
-                if (isValidCanvasDocument(doc, nodeId)) {
-                  inMemoryDraftCanvases[nodeId] = doc;
-                  loadedValidCanvases = true;
-                }
-              }
-              if (loadedValidCanvases) {
-                if (cloudDraft.contentOverrides && Object.keys(cloudDraft.contentOverrides).length > 0) {
-                  setAllContentOverrides(cloudDraft.contentOverrides, true);
-                }
-                setDraftModeActive(true, cloudDraft.baseSnapshotId || resolvedBaseSnapshotId);
-                dispatchDraftChange();
-                dispatchAggregateCanvasChange(true);
-                invalidateContentCache();
-                return;
-              }
-            }
-          }
-        } catch {
-          // Ignore network errors, fall through to edge clone
-        }
-      }
-
-      // 2. Clone active published baseline strictly from Cloudflare Edge KV (Single Source of Truth)
-      if (typeof window !== 'undefined' && typeof fetch === 'function') {
-        await Promise.all(
-          NODE_IDS.map(async (nodeId) => {
-            try {
-              const res = await fetch(`/api/public/node/${nodeId}`);
-              if (res.ok) {
-                const edgePayload = await res.json();
-                if (edgePayload?.canvas && isValidCanvasDocument(edgePayload.canvas, nodeId)) {
-                  const existingDoc = inMemoryDraftCanvases[nodeId];
-                  const incomingSections = edgePayload.canvas.sections;
-                  // Guard: do not overwrite populated document with cold-miss empty canvas
-                  if (
-                    incomingSections.length > 0 ||
-                    !existingDoc ||
-                    existingDoc.sections.length === 0
-                  ) {
-                    inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(edgePayload.canvas));
-                  }
-                  return;
-                }
-              }
-            } catch {
-              // Network unreachable: retain existing in-memory document
-            }
-          })
-        );
-      }
-
-      setDraftModeActive(true, resolvedBaseSnapshotId);
-      setDraftDirty(false);
-      dispatchDraftChange();
-      dispatchAggregateCanvasChange(true);
-      invalidateContentCache();
-    } finally {
-      activeInitDraftPromise = null;
-    }
-  })();
-
-  return activeInitDraftPromise;
-}
-
-/**
- * Discards all uncommitted draft changes and reverts the workspace to the active live published state.
- */
-export async function discardDraftSession(): Promise<void> {
-  clearDraftTombstones();
-  clearDraftStorage();
-
-  const config = getSupabaseConfig();
-  if (config && isTableAvailable('engine_drafts')) {
-    try {
-      await fetch(`${config.url}/rest/v1/engine_drafts?id=eq.active_draft`, {
-        method: 'DELETE',
-        headers: {
-          apikey: config.anonKey,
-          Authorization: `Bearer ${config.anonKey}`,
-        },
-      });
-    } catch (err) {
-      console.warn('[draftService] Discard cloud draft failed:', err);
-    }
-  }
-
-  // Immediately re-populate draft from authoritative published baseline
-  await initDraftSession(true);
-}
-
-/**
- * Synchronizes draft storage to mirror the newly published live baseline.
- * Resets the draft dirty state to clean (hasUnpublishedChanges = false).
- */
-export function syncDraftWithPublished(
-  canvases: Record<string, NodeCanvasDocument>,
-  contentOverrides?: Record<string, string>,
-  newBaseId?: string
-): void {
-  clearDraftTombstones();
-  const baseId = newBaseId || getActivePublishedId();
-  for (const nodeId of NODE_IDS) {
-    if (canvases[nodeId]) {
-      inMemoryDraftCanvases[nodeId] = JSON.parse(JSON.stringify(canvases[nodeId]));
-    }
-  }
-  inMemoryDraftBaseId = baseId;
-
-  const storage = getStorage();
-  if (storage) {
-    try {
-      storage.setItem(
-        DRAFT_ACTIVE_KEY,
-        JSON.stringify({ baseId, startedAt: new Date().toISOString() })
-      );
-      storage.removeItem(getDraftDirtyKey());
-      // Purge any lingering draft canvas storage keys so they do not shadow published state
-      for (const nodeId of NODE_IDS) {
-        storage.removeItem(getDraftCanvasKey(nodeId));
-      }
-    } catch {
-      // Storage limits
-    }
-  }
-
-  // Clear remote in-progress draft from Supabase engine_drafts upon publishing
-  const config = getSupabaseConfig();
-  if (config && isTableAvailable('engine_drafts')) {
-    try {
-      fetch(`${config.url}/rest/v1/engine_drafts?id=eq.active_draft`, {
-        method: 'DELETE',
-        headers: {
-          apikey: config.anonKey,
-          Authorization: `Bearer ${config.anonKey}`,
-        },
-      }).catch(() => { });
-    } catch {
-      // Non-blocking remote cleanup
-    }
-  }
-
-  if (contentOverrides && Object.keys(contentOverrides).length > 0) {
-    setAllContentOverrides(contentOverrides, true);
-  }
-  setDraftDirty(false);
-  dispatchAggregateCanvasChange(true);
-  invalidateContentCache();
-}
+export const discardDraftSession = discardDraftWorkspace;

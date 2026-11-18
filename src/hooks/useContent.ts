@@ -1,64 +1,70 @@
-import { useSyncExternalStore, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import {
-  subscribeContentKey,
-  getContentSnapshot,
-  setContent,
-  resetContent,
-  hasContentOverride,
+  resolveContent,
+  hasContentOverrideInMap,
+  updateDraftContentOverride,
+  removeDraftContentOverride,
 } from '../utils/contentDb';
 import { useDeveloperMode } from './useDeveloperMode';
+import { usePortalChrome } from '../context/PortalChromeContext';
+
+export { updateDraftContentOverride, removeDraftContentOverride };
 
 export interface UseContentReturn {
-  /** The current resolved text content (from DB or default) */
+  /** The current resolved text content (from PortalChromeContext KV state or default) */
   text: string;
-  /** Whether this content key currently has a custom override saved in DB */
+  /** Whether this content key currently has a custom override saved in KV */
   isModified: boolean;
-  /** Update the text override in the DB */
-  setText: (value: string) => void;
+  /** Update the text override in Cloudflare KV draft:workspace */
+  setText: (value: string) => Promise<void>;
   /** Alias for setText matching useContentObject signature */
-  setValue: (value: string) => void;
-  /** Revert to the hardcoded system default */
-  resetText: () => void;
+  setValue: (value: string) => Promise<void>;
+  /** Revert to the hardcoded system default by deleting the key from draft:workspace */
+  resetText: () => Promise<void>;
   /** Alias for resetText matching useContentObject signature */
-  resetValue: () => void;
+  resetValue: () => Promise<void>;
 }
 
 /**
- * Reactive hook to dynamically consume and modify text content from the Content DB.
- * Rebuilt on React 19's useSyncExternalStore for zero-overhead, flicker-free updates.
- * Guarantees that wildcard and unrelated notifications trigger zero re-renders.
+ * Reactive hook to dynamically consume and modify text content from PortalChromeContext (Cloudflare KV SSOT).
  */
 export function useContent(
   key: string,
   defaultValue: string,
   explicitDevMode?: boolean
 ): UseContentReturn {
-  const { isDevMode: contextDevMode } = useDeveloperMode();
+  const { isDevMode: contextDevMode, lockToken } = useDeveloperMode();
   const isDevMode = explicitDevMode ?? contextDevMode;
+  const portalChrome = usePortalChrome();
 
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => subscribeContentKey(key, onStoreChange, isDevMode),
-    [key, isDevMode]
-  );
-
-  const getSnapshot = useCallback(
-    () => getContentSnapshot(key, defaultValue, isDevMode),
-    [key, defaultValue, isDevMode]
-  );
-
-  const text = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const isModified = hasContentOverride(key, isDevMode);
+  const contentOverrides = portalChrome?.contentOverrides ?? {};
+  const text = resolveContent(contentOverrides, key, defaultValue);
+  const isModified = hasContentOverrideInMap(contentOverrides, key);
 
   const handleSetText = useCallback(
-    (value: string) => {
-      setContent(key, value, isDevMode);
+    async (value: string): Promise<void> => {
+      if (!isDevMode) {
+        throw new Error('Cannot mutate content overrides in Public Mode.');
+      }
+      if (portalChrome) {
+        await portalChrome.updateOverride(key, value);
+      } else {
+        await updateDraftContentOverride(key, value, contentOverrides, { lockToken });
+      }
     },
-    [key, isDevMode]
+    [key, isDevMode, portalChrome, contentOverrides, lockToken]
   );
 
-  const handleResetText = useCallback(() => {
-    resetContent(key, isDevMode);
-  }, [key, isDevMode]);
+  const handleResetText = useCallback(async (): Promise<void> => {
+    if (!isDevMode) {
+      throw new Error('Cannot reset content overrides in Public Mode.');
+    }
+    if (portalChrome) {
+      await portalChrome.removeOverride(key);
+    } else {
+      await removeDraftContentOverride(key, contentOverrides, { lockToken });
+    }
+  }, [key, isDevMode, portalChrome, contentOverrides, lockToken]);
 
   return {
     text,
@@ -71,19 +77,18 @@ export function useContent(
 }
 
 export interface UseContentObjectReturn<T> {
-  /** The current resolved object content (from DB or default) */
+  /** The current resolved object content (from PortalChromeContext KV state or default) */
   value: T;
-  /** Whether this content key currently has a custom override saved in DB */
+  /** Whether this content key currently has a custom override saved in KV */
   isModified: boolean;
-  /** Update the object override in the DB */
-  setValue: (value: T) => void;
+  /** Update the object override in Cloudflare KV draft:workspace */
+  setValue: (value: T) => Promise<void>;
   /** Revert to the hardcoded system default */
-  resetValue: () => void;
+  resetValue: () => Promise<void>;
 }
 
 /**
- * Reactive hook to dynamically consume and modify structured content (e.g. image payloads) from Content DB.
- * Derives its state from useContent's useSyncExternalStore primitive string snapshots, eliminating ghost re-renders.
+ * Reactive hook to dynamically consume and modify structured content from PortalChromeContext.
  */
 export function useContentObject<T>(
   key: string,
@@ -105,7 +110,6 @@ export function useContentObject<T>(
     if (!rawJson) return defaultValue;
     try {
       const parsed = JSON.parse(rawJson);
-      // Gracefully handle image object defaults when override is string or partial object
       if (
         defaultValue &&
         typeof defaultValue === 'object' &&
@@ -137,15 +141,15 @@ export function useContentObject<T>(
   }, [rawJson, defaultValue]);
 
   const handleSetValue = useCallback(
-    (newValue: T) => {
+    async (newValue: T): Promise<void> => {
       const serialized = typeof newValue === 'string' ? newValue : JSON.stringify(newValue);
-      setRawText(serialized);
+      await setRawText(serialized);
     },
     [setRawText]
   );
 
-  const handleResetValue = useCallback(() => {
-    resetText();
+  const handleResetValue = useCallback(async (): Promise<void> => {
+    await resetText();
   }, [resetText]);
 
   return {

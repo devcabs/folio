@@ -1,21 +1,18 @@
 /**
  * Folio Engine — Edge KV Pre-Baking Pipeline Service
  * Location: src/services/edgePreBakeService.ts
- * Specification: docs/tasks/task15_3_edge_kv_pre_baking_pipeline.md
+ * Specification: docs/task/7.6-edge-public-handlers-and-prebake-ssot.md
  *
  * Implements:
- * 1. Publish-time AST compiler for all 5 nodes.
- * 2. Deterministic Google Drive URL rewriting to edge proxy endpoints (/api/media/drive/:fileId?w=800).
- * 3. Pre-calculated multi-density responsive srcSet (400w, 800w, 1600w).
- * 4. Bundles indicator chart datasets & source metadata directly into public payloads.
- * 5. Atomic bulk deployment to Cloudflare KV REST API with resilient offline fallback.
+ * 1. Publish-time self-contained AST compiler for arbitrary consumer nodes.
+ * 2. Deterministic Google Drive URL rewriting to edge proxy endpoints (/api/media/drive/:fileId?w=...).
+ * 3. Pre-calculated multi-density responsive srcSet (400w, 800w, 1600w) on PhotoElement & GalleryElement.syncedPhotos.
+ * 4. Zero-leak ChartElement.config.sheetUrl sanitization while preserving embedded datasets.
  */
 
 import type {
   PublicNodePayload,
   PublicPortalManifestPayload,
-  CachedIndicatorDataset,
-  SyncedSourceMetadata,
 } from '../types/edge';
 import {
   VALID_NODES,
@@ -27,21 +24,24 @@ import type {
   SectionElement,
   SubsectionElement,
   PhotoElement,
+  GalleryElement,
+  ChartElement,
   CanvasChildElement,
   CanvasLeafElement,
 } from '../types/canvas';
-import { isPhotoElement, isSubsectionElement } from '../types/canvas';
+import {
+  isPhotoElement,
+  isGalleryElement,
+  isChartElement,
+  isSubsectionElement,
+} from '../types/canvas';
+import type { SyncedSourceItem } from '../types/source';
 import type { PublishedSnapshot } from '../types/history';
 import {
   extractDriveFileId,
   buildEdgeMediaUrl,
   buildEdgeSrcSet,
 } from '../utils/mediaUrl';
-import bakedChartsData from '../data/baked-charts.json';
-import baselineSourcesRaw from '../data/source-sources.json';
-import type { ChartDataset } from '../types/chart';
-import type { SourceSourceRegistry } from '../types/source';
-import { parseTabularDataset } from './sheetsDataService';
 
 export const TRANSFORM_BREAKPOINTS = [400, 800, 1600] as const;
 export const DEFAULT_SIZES_ATTRIBUTE = '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px';
@@ -49,59 +49,16 @@ export const DEFAULT_PHOTO_ASPECT_RATIO = '16/9';
 
 export interface PreBakeCompileOptions {
   nodeIds?: string[];
-  chartDatasets?: Record<string, CachedIndicatorDataset>;
-  sourceMetadata?: Record<string, SyncedSourceMetadata>;
 }
 
 /**
- * Recursively walks the Canvas AST and pre-bakes responsive edge proxy URLs for all photo elements.
- * Preserves local assets, data URLs, and custom aspect ratios untouched.
+ * Strips private sheetUrl from ChartElement.config for public KV payloads (Zero-Leak Security).
  */
-export function transformCanvasAst(canvasDoc: NodeCanvasDocument): NodeCanvasDocument {
-  if (!canvasDoc || !Array.isArray(canvasDoc.sections)) {
-    return canvasDoc;
-  }
-
-  // Deep clone to ensure immutability
-  const cloned: NodeCanvasDocument = JSON.parse(JSON.stringify(canvasDoc));
-
-  cloned.sections = cloned.sections.map((section: SectionElement) => {
-    if (!section || !Array.isArray(section.elements)) return section;
-
-    const transformedElements = section.elements.map((el: CanvasChildElement) => {
-      // 1. Nested subsection traversal
-      if (isSubsectionElement(el)) {
-        const sub = el as SubsectionElement;
-        if (Array.isArray(sub.elements)) {
-          const transformedSubElements = sub.elements.map((child: CanvasLeafElement) => {
-            if (isPhotoElement(child)) {
-              return transformPhotoElement(child);
-            }
-            return child;
-          });
-          return {
-            ...sub,
-            elements: transformedSubElements,
-          };
-        }
-        return sub;
-      }
-
-      // 2. Direct section photo element
-      if (isPhotoElement(el)) {
-        return transformPhotoElement(el);
-      }
-
-      return el;
-    });
-
-    return {
-      ...section,
-      elements: transformedElements,
-    };
-  });
-
-  return cloned;
+export function sanitizePublicChartConfig<T extends Record<string, unknown>>(
+  config: T
+): Omit<T, 'sheetUrl'> {
+  const { sheetUrl: _stripped, ...publicConfig } = config;
+  return publicConfig;
 }
 
 /**
@@ -120,135 +77,127 @@ function transformPhotoElement(photo: PhotoElement): PhotoElement {
     return photo;
   }
 
-  const edgeSrc = buildEdgeMediaUrl(fileId, { width: 800 });
-  const edgeSrcSet = buildEdgeSrcSet(fileId, TRANSFORM_BREAKPOINTS);
-  const sizes = photo.sizes || DEFAULT_SIZES_ATTRIBUTE;
-  const aspectRatio = photo.aspectRatio || DEFAULT_PHOTO_ASPECT_RATIO;
-
   return {
     ...photo,
-    src: edgeSrc,
-    srcSet: edgeSrcSet,
-    sizes,
-    aspectRatio,
+    src: buildEdgeMediaUrl(fileId, { width: 800 }),
+    srcSet: buildEdgeSrcSet(fileId, TRANSFORM_BREAKPOINTS),
+    sizes: photo.sizes || DEFAULT_SIZES_ATTRIBUTE,
+    aspectRatio: photo.aspectRatio || DEFAULT_PHOTO_ASPECT_RATIO,
     rawDriveUrl: photo.rawDriveUrl || rawSrc,
   };
 }
 
 /**
- * Gathers cached indicator datasets for a node document.
+ * Pre-bakes responsive edge proxy URLs on a GalleryElement's syncedPhotos items.
  */
-export function gatherIndicatorDatasets(
-  nodeId: string,
-  provided?: Record<string, CachedIndicatorDataset>
-): Record<string, CachedIndicatorDataset> {
-  const result: Record<string, CachedIndicatorDataset> = {};
-
-  // 1. Ingest static baseline charts
-  if (Array.isArray(bakedChartsData)) {
-    for (const item of bakedChartsData as ChartDataset[]) {
-      if (item && item.chartId) {
-        if (!item.nodeId || item.nodeId.toLowerCase() === nodeId.toLowerCase()) {
-          result[item.chartId] = item;
-        }
-      }
-    }
+function transformSyncedPhotoItem(item: SyncedSourceItem): SyncedSourceItem {
+  const candidate = item.driveFileId || item.fullImageUrl || item.thumbnailUrl || '';
+  const fileId = extractDriveFileId(candidate);
+  if (!fileId) {
+    return item;
   }
 
-  // 2. Merge provided / dynamic datasets
-  if (provided) {
-    for (const [k, v] of Object.entries(provided)) {
-      result[k] = v;
-    }
+  return {
+    ...item,
+    thumbnailUrl: buildEdgeMediaUrl(fileId, { width: 400 }),
+    fullImageUrl: buildEdgeMediaUrl(fileId, { width: 1600 }),
+    srcSet: buildEdgeSrcSet(fileId, TRANSFORM_BREAKPOINTS),
+    sizes: DEFAULT_SIZES_ATTRIBUTE,
+  } as SyncedSourceItem;
+}
+
+function transformGalleryElement(gallery: GalleryElement): GalleryElement {
+  if (!Array.isArray(gallery.syncedPhotos) || gallery.syncedPhotos.length === 0) {
+    return gallery;
   }
 
-  return result;
+  return {
+    ...gallery,
+    syncedPhotos: gallery.syncedPhotos.map(transformSyncedPhotoItem),
+  };
+}
+
+function transformChartElement(chart: ChartElement): ChartElement {
+  if (!chart.config || typeof chart.config !== 'object') {
+    return chart;
+  }
+
+  if (!('sheetUrl' in chart.config)) {
+    return chart;
+  }
+
+  return {
+    ...chart,
+    config: sanitizePublicChartConfig(
+      chart.config as unknown as Record<string, unknown>
+    ) as ChartElement['config'],
+  };
+}
+
+function transformLeafElement(leaf: CanvasLeafElement): CanvasLeafElement {
+  if (isPhotoElement(leaf)) {
+    return transformPhotoElement(leaf);
+  }
+  if (isGalleryElement(leaf)) {
+    return transformGalleryElement(leaf);
+  }
+  if (isChartElement(leaf)) {
+    return transformChartElement(leaf);
+  }
+  return leaf;
 }
 
 /**
- * Gathers synced source metadata for a node document.
+ * Recursively walks the Canvas AST and pre-bakes responsive edge proxy URLs
+ * (for PhotoElement and GalleryElement.syncedPhotos) and sanitizes ChartElement configs.
  */
-export function gatherSourceMetadata(
-  nodeId: string,
-  provided?: Record<string, SyncedSourceMetadata>
-): Record<string, SyncedSourceMetadata> {
-  const result: Record<string, SyncedSourceMetadata> = {};
+export function transformCanvasAst(canvasDoc: NodeCanvasDocument): NodeCanvasDocument {
+  if (!canvasDoc || !Array.isArray(canvasDoc.sections)) {
+    return canvasDoc;
+  }
 
-  // 1. Ingest baseline sources
-  const baseline = baselineSourcesRaw as SourceSourceRegistry;
-  if (baseline && typeof baseline === 'object') {
-    for (const [pointId, source] of Object.entries(baseline)) {
-      if (pointId.toLowerCase().includes(nodeId.toLowerCase())) {
-        result[pointId] = {
-          pointId,
-          folderUrl: source.folderUrl,
-          folderTitle: source.folderTitle,
-          description: source.description,
-          lastSyncedAt: source.lastVerified,
+  const cloned: NodeCanvasDocument = JSON.parse(JSON.stringify(canvasDoc));
+
+  cloned.sections = cloned.sections.map((section: SectionElement) => {
+    if (!section || !Array.isArray(section.elements)) return section;
+
+    const transformedElements = section.elements.map((el: CanvasChildElement) => {
+      if (isSubsectionElement(el)) {
+        const sub = el as SubsectionElement;
+        if (!Array.isArray(sub.elements)) return sub;
+        return {
+          ...sub,
+          elements: sub.elements.map(transformLeafElement),
         };
       }
-    }
-  }
 
-  // 2. Merge provided
-  if (provided) {
-    for (const [k, v] of Object.entries(provided)) {
-      result[k] = v;
-    }
-  }
+      return transformLeafElement(el as CanvasLeafElement);
+    });
 
-  return result;
+    return {
+      ...section,
+      elements: transformedElements,
+    };
+  });
+
+  return cloned;
 }
 
 /**
  * Compiles a single node's pre-baked PublicNodePayload ready for KV deployment.
+ * Throws if snapshot.canvases[nodeId] is missing.
  */
 export function compilePublicNodePayload(
   nodeId: string,
   snapshot: PublishedSnapshot,
-  options?: PreBakeCompileOptions
+  _options?: PreBakeCompileOptions
 ): PublicNodePayload {
-  const rawCanvas = snapshot.canvases?.[nodeId] || {
-    nodeId,
-    version: snapshot.schemaVersion || 1,
-    sections: [],
-    updatedAt: snapshot.createdAt,
-  };
-
-  const transformedCanvas = transformCanvasAst(rawCanvas);
-
-  // Compile dynamic chart datasets from snapshot.chartConfigs
-  const dynamicCharts: Record<string, CachedIndicatorDataset> = {};
-  if (snapshot.chartConfigs) {
-    for (const [chartId, cfg] of Object.entries(snapshot.chartConfigs)) {
-      if (!cfg.nodeId || cfg.nodeId.toLowerCase() === nodeId.toLowerCase()) {
-        if (cfg.cachedDataset && cfg.cachedDataset.length > 0) {
-          dynamicCharts[chartId] = parseTabularDataset({
-            chartId,
-            title: cfg.titleOverride || '',
-            subtitle: cfg.subtitleOverride,
-            unit: cfg.unitOverride,
-            chartType: cfg.defaultType,
-            nodeId: cfg.nodeId,
-            visualConfig: cfg.visualConfig,
-            rawMatrix: cfg.cachedDataset.map((row) =>
-              Array.isArray(row) ? row.map((c) => (c === null || c === undefined ? '' : String(c))) : []
-            ),
-          });
-        }
-      }
-    }
+  const rawCanvas = snapshot.canvases?.[nodeId];
+  if (!rawCanvas) {
+    throw new Error(`Missing canvas in snapshot for node: ${nodeId}`);
   }
 
-  const chartDatasets = gatherIndicatorDatasets(nodeId, {
-    ...dynamicCharts,
-    ...(options?.chartDatasets || {}),
-  });
-
-  const sourceMetadata = gatherSourceMetadata(
-    nodeId,
-    snapshot.sourceMetadata || options?.sourceMetadata
-  );
+  const transformedCanvas = transformCanvasAst(rawCanvas);
 
   const payload: PublicNodePayload = {
     nodeId,
@@ -256,11 +205,8 @@ export function compilePublicNodePayload(
     version: snapshot.schemaVersion || 1,
     updatedAt: snapshot.createdAt,
     canvas: transformedCanvas,
-    chartDatasets,
-    sourceMetadata,
   };
 
-  // Validate contract schema
   PublicNodePayloadSchema.parse(payload);
 
   return payload;
@@ -273,11 +219,12 @@ export function compilePortalManifest(
   snapshot: PublishedSnapshot,
   nodeIds?: string[]
 ): PublicPortalManifestPayload {
-  const activeNodeIds = nodeIds && nodeIds.length > 0
-    ? nodeIds
-    : (snapshot.canvases && Object.keys(snapshot.canvases).length > 0
-      ? Object.keys(snapshot.canvases)
-      : [...VALID_NODES]);
+  const activeNodeIds =
+    nodeIds && nodeIds.length > 0
+      ? nodeIds
+      : snapshot.canvases && Object.keys(snapshot.canvases).length > 0
+        ? Object.keys(snapshot.canvases)
+        : [...VALID_NODES];
 
   const manifest: PublicPortalManifestPayload = {
     activeSnapshotId: snapshot.id,
@@ -287,7 +234,6 @@ export function compilePortalManifest(
     contentOverrides: snapshot.contentOverrides || {},
   };
 
-  // Validate contract schema
   PublicPortalManifestPayloadSchema.parse(manifest);
 
   return manifest;

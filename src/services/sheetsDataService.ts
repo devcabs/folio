@@ -471,15 +471,20 @@ export interface FetchLiveSheetMatrixParams {
 /**
  * Fetches real-time tabular data from a public Google Sheet via GViz CSV endpoint.
  * Returns a 2D string matrix of cell contents without mocking or synthetic placeholders.
+ * Fails stop by throwing an explicit Error on invalid URL, HTTP error, HTML login redirect, or network failure.
  */
 export async function fetchLiveSheetMatrix(
   params: FetchLiveSheetMatrixParams
 ): Promise<string[][]> {
   const { sheetUrl, tabName, sheetGid, range, timeoutMs = 8000 } = params;
-  if (!sheetUrl || typeof sheetUrl !== 'string') return [];
+  if (!sheetUrl || typeof sheetUrl !== 'string' || !sheetUrl.trim()) {
+    throw new Error('Google Sheet URL is required.');
+  }
 
   const spreadsheetId = extractSpreadsheetId(sheetUrl);
-  if (!spreadsheetId) return [];
+  if (!spreadsheetId) {
+    throw new Error('Invalid Google Sheets URL.');
+  }
 
   const resolvedGid = sheetGid || extractSheetGid(sheetUrl) || undefined;
 
@@ -513,7 +518,7 @@ export async function fetchLiveSheetMatrix(
     if (timeoutId) clearTimeout(timeoutId);
 
     if (!res.ok) {
-      return [];
+      throw new Error(`Google Sheet fetch failed with HTTP ${res.status}.`);
     }
 
     const csvText = await res.text();
@@ -524,13 +529,15 @@ export async function fetchLiveSheetMatrix(
       csvText.includes('accounts.google.com') ||
       csvText.includes('ServiceLogin')
     ) {
-      return [];
+      throw new Error(
+        'Google Sheet returned an HTML login redirect. Ensure sharing is set to "Anyone with the link can view".'
+      );
     }
 
     return parseCsvToMatrix(csvText);
-  } catch {
+  } catch (err: unknown) {
     if (timeoutId) clearTimeout(timeoutId);
-    return [];
+    throw err instanceof Error ? err : new Error('Failed to fetch live Google Sheet data.');
   }
 }
 

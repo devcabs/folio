@@ -1,7 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useContent } from './useContent';
-import { getContent, subscribeToContentChange } from '../utils/contentDb';
-import { useDeveloperMode } from './useDeveloperMode';
 import type { SectionElement } from '../types/canvas';
 
 export interface DynamicSectionItem {
@@ -70,33 +68,17 @@ export function useNodeSectionNumbers(nodeId: string): UseNodeSectionNumbersRetu
 
 /**
  * Reactive hook providing sequential section numbers for dynamic canvas sections.
- * Reactively recalculates whenever a section's numbering toggle is updated in Content DB.
+ * Computes numbers strictly from SectionElement.isNumbered in the Canvas AST.
  */
 export function useDynamicCanvasSectionNumbers(
-  nodeId: string,
+  _nodeId: string,
   sections: SectionElement[]
 ): Record<string, string | null> {
-  const { isDevMode } = useDeveloperMode();
-  const [contentVersion, setContentVersion] = useState(0);
-
-  useEffect(() => {
-    return subscribeToContentChange((detail) => {
-      const changedKey = detail?.key;
-      if (!changedKey || changedKey === '*' || (typeof changedKey === 'string' && changedKey.includes('.isNumbered'))) {
-        setContentVersion((v) => v + 1);
-      }
-    }, isDevMode);
-  }, [isDevMode]);
-
   return useMemo(() => {
     const items: DynamicSectionItem[] = sections.map((sec) => {
-      const titlePointId = sec.titlePointId || `node.${nodeId}.section.${sec.id}.title`;
-      const isNumberedKey = `${titlePointId}.isNumbered`;
-      const stored = getContent(isNumberedKey, '', isDevMode);
-      const defaultNumbered = sec.isNumbered !== undefined
+      const isNumbered = sec.isNumbered !== undefined
         ? sec.isNumbered
         : (sec.number !== undefined && sec.number !== null);
-      const isNumbered = stored !== '' ? stored === 'true' : defaultNumbered;
 
       return {
         id: sec.id,
@@ -105,7 +87,7 @@ export function useDynamicCanvasSectionNumbers(
     });
 
     return computeDynamicSectionNumbers(items);
-  }, [nodeId, sections, contentVersion, isDevMode]);
+  }, [sections]);
 }
 
 export default useNodeSectionNumbers;

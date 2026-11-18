@@ -1,50 +1,45 @@
 /**
- * Reactive Chart Data Hook (SWR + Instant Synchronous Baseline Paint)
- * Folio Engine — Subtask 7.4.6
- * Document Reference: docs/tasks/task7_4_drawer_range_matrix_supabase_deploy.md
+ * Reactive Chart Data Hook (Embedded Canvas AST SSOT)
+ * Folio Engine — Subtask 7.7
  *
- * Implements:
- * 1. Instant <10ms synchronous initial render from baked JSON & local storage cache.
- * 2. SWR background re-validation from Supabase cloud storage.
- * 3. Live in-drawer configuration override support for real-time previewing.
+ * Single Source of Truth:
+ * - Public Mode: renders strictly from ChartElement.dataset and ChartElement.config
+ *   (sanitized PublicChartConfig) hydrated on the NodeCanvasDocument AST.
+ *   Zero Supabase queries, zero localStorage, zero static JSON fallbacks.
+ * - Dev Mode: reads full ChartElement.config (including sheetUrl) and ChartElement.dataset
+ *   from the active NodeCanvasDocument in draft:workspace, and persists live Google Sheet
+ *   syncs directly into the ChartElement AST via onUpdateElement (PUT /api/draft).
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type {
   ChartDataset,
   SheetChartConfig,
+  PublicChartConfig,
   ChartSyncStatus,
 } from '../types/chart';
+import type { ChartElement } from '../types/canvas';
 import type { NodeCode } from '../types/node';
-import {
-  getCachedChartConfig,
-  setCachedChartConfig,
-  fetchChartConfig,
-  saveChartConfigDetailed,
-  notifyChartChange,
-  EVENT_CHART_SOURCE_CHANGE,
-} from '../services/chartSourceService';
 import {
   fetchLiveSheetMatrix,
   parseTabularDataset,
 } from '../services/sheetsDataService';
-import { getStorageKey } from '../config/engine.config';
-import bakedChartsData from '../data/baked-charts.json';
-
-const bakedCharts: ChartDataset[] = bakedChartsData as ChartDataset[];
-export const getMatrixCacheKey = (chartId: string) => getStorageKey('chart_matrix_' + chartId);
 
 export interface UseSheetChartDataOptions {
   chartId: string;
   nodeId?: NodeCode;
+  element?: ChartElement;
   initialDataset?: ChartDataset;
-  pollIntervalMs?: number;
+  initialConfig?: SheetChartConfig | PublicChartConfig | null;
   isDevMode?: boolean;
+  onUpdateElement?: (
+    updates: Partial<ChartElement>
+  ) => Promise<{ ok: boolean; error?: string } | void> | void;
 }
 
 export interface UseSheetChartDataReturn {
   dataset: ChartDataset | null;
-  config: SheetChartConfig | null;
+  config: SheetChartConfig | PublicChartConfig | null;
   status: ChartSyncStatus;
   errorMessage?: string;
   lastSyncedAt?: string;
@@ -58,7 +53,7 @@ export interface UseSheetChartDataReturn {
  */
 function applyConfigToDataset(
   baseDataset: ChartDataset,
-  cfg?: Partial<SheetChartConfig> | null
+  cfg?: Partial<SheetChartConfig | PublicChartConfig> | null
 ): ChartDataset {
   if (!cfg) return baseDataset;
 
@@ -77,7 +72,7 @@ function applyConfigToDataset(
 }
 
 /**
- * Normalizes raw JSONB matrix cells to string[][] for parseTabularDataset ingestion.
+ * Normalizes raw matrix cells to string[][] for parseTabularDataset ingestion.
  */
 function normalizeMatrixToStrings(matrix: (string | number | null)[][]): string[][] {
   return matrix.map((row) =>
@@ -87,161 +82,97 @@ function normalizeMatrixToStrings(matrix: (string | number | null)[][]): string[
   );
 }
 
+function resolveDatasetFromAst(
+  chartId: string,
+  nodeId: NodeCode | undefined,
+  astDataset: ChartDataset | undefined,
+  astConfig: SheetChartConfig | PublicChartConfig | null | undefined
+): ChartDataset | null {
+  if (astDataset) {
+    return applyConfigToDataset(astDataset, astConfig);
+  }
+  if (astConfig?.cachedDataset && astConfig.cachedDataset.length > 0) {
+    return parseTabularDataset({
+      chartId,
+      title: astConfig.titleOverride || '',
+      subtitle: astConfig.subtitleOverride,
+      unit: astConfig.unitOverride,
+      chartType: astConfig.defaultType,
+      nodeId,
+      visualConfig: astConfig.visualConfig,
+      rawMatrix: normalizeMatrixToStrings(astConfig.cachedDataset),
+    });
+  }
+  return null;
+}
+
 export function useSheetChartData({
   chartId,
   nodeId,
+  element,
   initialDataset,
-  pollIntervalMs,
+  initialConfig,
   isDevMode = false,
+  onUpdateElement,
 }: UseSheetChartDataOptions): UseSheetChartDataReturn {
-  // Synchronous Initial Resolution for Instant <10ms Paint
-  const [cachedConfig] = useState<SheetChartConfig | null>(() => {
-    return getCachedChartConfig(chartId);
-  });
+  const astConfig = element?.config ?? initialConfig ?? null;
+  const astDataset = element?.dataset ?? initialDataset;
 
-  const [initialResolvedDataset] = useState<ChartDataset | null>(() => {
-    // 1. Check if cached liveMatrix exists in localStorage for instant real-world paint (Developer Mode only)
-    if (isDevMode) {
-      try {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          const raw = window.localStorage.getItem(getMatrixCacheKey(chartId));
-          if (raw) {
-            const parsedMatrix = JSON.parse(raw);
-            if (Array.isArray(parsedMatrix) && parsedMatrix.length > 0) {
-              return parseTabularDataset({
-                chartId,
-                title: cachedConfig?.titleOverride || '',
-                subtitle: cachedConfig?.subtitleOverride,
-                unit: cachedConfig?.unitOverride,
-                chartType: cachedConfig?.defaultType,
-                nodeId,
-                visualConfig: cachedConfig?.visualConfig,
-                rawMatrix: parsedMatrix,
-              });
-            }
-          }
-        }
-      } catch {
-        // Fall through to baseline
-      }
-    }
+  const resolvedFromAst = useMemo(
+    () => resolveDatasetFromAst(chartId, nodeId, astDataset, astConfig),
+    [chartId, nodeId, astDataset, astConfig]
+  );
 
-    // 2. Check if cachedConfig has cachedDataset
-    if (cachedConfig?.cachedDataset && cachedConfig.cachedDataset.length > 0) {
-      return parseTabularDataset({
-        chartId,
-        title: cachedConfig?.titleOverride || '',
-        subtitle: cachedConfig?.subtitleOverride,
-        unit: cachedConfig?.unitOverride,
-        chartType: cachedConfig?.defaultType,
-        nodeId,
-        visualConfig: cachedConfig?.visualConfig,
-        rawMatrix: normalizeMatrixToStrings(cachedConfig.cachedDataset),
-      });
-    }
-
-    if (initialDataset) {
-      return applyConfigToDataset(initialDataset, cachedConfig);
-    }
-    if (chartId) {
-      const matchedBaked = bakedCharts.find((c) => c.chartId === chartId);
-      if (matchedBaked) {
-        return applyConfigToDataset(matchedBaked, cachedConfig);
-      }
-    }
-    return null;
-  });
-
-  const [dataset, setDataset] = useState<ChartDataset | null>(initialResolvedDataset);
-  const [config, setConfig] = useState<SheetChartConfig | null>(cachedConfig);
+  const [dataset, setDataset] = useState<ChartDataset | null>(resolvedFromAst);
+  const [config, setConfig] = useState<SheetChartConfig | PublicChartConfig | null>(astConfig);
   const [overrideConfig, setOverrideConfig] = useState<Partial<SheetChartConfig> | null>(null);
-  const [status, setStatus] = useState<ChartSyncStatus>(() => {
-    return initialResolvedDataset ? 'success' : 'pending_data';
-  });
+  const [status, setStatus] = useState<ChartSyncStatus>(() =>
+    resolvedFromAst ? 'success' : 'pending_data'
+  );
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
-  const [lastSyncedAt, setLastSyncedAt] = useState<string | undefined>(() => {
-    return cachedConfig?.updatedAt || (initialResolvedDataset ? new Date().toISOString() : undefined);
-  });
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | undefined>(() =>
+    astConfig?.updatedAt || (resolvedFromAst ? new Date().toISOString() : undefined)
+  );
 
   const isMountedRef = useRef(true);
   const inFlightSyncRef = useRef<Promise<(string | number | null)[][] | null> | null>(null);
 
-  // Background SWR fetch from Supabase (Zero GViz calls on load)
-  const loadCloudConfig = useCallback(async () => {
-    if (!chartId) return;
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-    try {
-      // Force refresh ensures we actually query Supabase cloud instead of stalling on stale local cache
-      const remoteConfig = await fetchChartConfig(chartId, { forceRefresh: true });
-
-      if (!isMountedRef.current) return;
-
-      if (remoteConfig) {
-        setConfig(remoteConfig);
-        setCachedChartConfig(remoteConfig);
-        setLastSyncedAt(remoteConfig.updatedAt || new Date().toISOString());
-
-        // Zero GViz read path (both dev and public): parse from cached_dataset if present
-        if (remoteConfig.cachedDataset && remoteConfig.cachedDataset.length > 0) {
-          const parsedDataset = parseTabularDataset({
-            chartId,
-            title: remoteConfig.titleOverride || '',
-            subtitle: remoteConfig.subtitleOverride,
-            unit: remoteConfig.unitOverride,
-            chartType: remoteConfig.defaultType,
-            nodeId,
-            visualConfig: remoteConfig.visualConfig,
-            rawMatrix: normalizeMatrixToStrings(remoteConfig.cachedDataset),
-          });
-          if (isMountedRef.current) {
-            setDataset(parsedDataset);
-            setStatus('success');
-          }
-          return;
-        }
-
-        // Fallback: update dataset with remote overrides on top of baseline
-        let hasResolvedData = false;
-        setDataset((prev) => {
-          if (!prev) {
-            const baked = chartId ? bakedCharts.find((c) => c.chartId === chartId) : undefined;
-            if (baked) {
-              hasResolvedData = true;
-              return applyConfigToDataset(baked, remoteConfig);
-            }
-            return null;
-          }
-          hasResolvedData = true;
-          return applyConfigToDataset(prev, remoteConfig);
-        });
-
-        setStatus(hasResolvedData ? 'success' : 'pending_data');
-      } else {
-        // Fall back to baked if available
-        setDataset((prev) => {
-          if (prev) return prev;
-          const baked = bakedCharts.find((c) => c.chartId === chartId);
-          return baked ? applyConfigToDataset(baked, getCachedChartConfig(chartId)) : null;
-        });
-        setStatus((prev) => (prev === 'syncing' ? 'success' : prev));
-      }
-    } catch (err: unknown) {
-      if (!isMountedRef.current) return;
-      const msg = err instanceof Error ? err.message : 'Failed to sync chart configuration';
-      setErrorMessage(msg);
-      setStatus((prev) => (prev === 'syncing' ? 'success' : prev));
+  // Keep local state synchronized with Canvas AST updates
+  useEffect(() => {
+    setConfig(astConfig);
+    setDataset(resolvedFromAst);
+    setStatus(resolvedFromAst ? 'success' : 'pending_data');
+    if (astConfig?.updatedAt) {
+      setLastSyncedAt(astConfig.updatedAt);
     }
-  }, [chartId, nodeId]);
+  }, [astConfig, resolvedFromAst]);
 
-  // Explicit manual sync from Google Sheet (ONLY on user click)
+  const reload = useCallback(async () => {
+    setConfig(astConfig);
+    setDataset(resolvedFromAst);
+    setStatus(resolvedFromAst ? 'success' : 'pending_data');
+    setErrorMessage(undefined);
+  }, [astConfig, resolvedFromAst]);
+
+  // Explicit manual sync from Google Sheet (Dev Mode only)
   const syncLiveSheet = useCallback((): Promise<(string | number | null)[][] | null> => {
     if (!chartId) return Promise.resolve(null);
+    if (!isDevMode) {
+      return Promise.reject(new Error('Live Google Sheet sync is only available in Developer Mode.'));
+    }
     if (inFlightSyncRef.current) {
       return inFlightSyncRef.current;
     }
 
-    const activeConfig = config || cachedConfig;
-    if (!activeConfig?.sheetUrl) {
+    const activeConfig = (config || astConfig) as SheetChartConfig | null;
+    if (!activeConfig || !('sheetUrl' in activeConfig) || !activeConfig.sheetUrl) {
       return Promise.reject(new Error('No Google Sheet linked to this chart.'));
     }
 
@@ -268,17 +199,6 @@ export function useSheetChartData({
           throw new Error(emptyMsg);
         }
 
-        try {
-          if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem(
-              getMatrixCacheKey(chartId),
-              JSON.stringify(liveMatrix)
-            );
-          }
-        } catch {
-          // Ignore quota errors
-        }
-
         const liveDataset = parseTabularDataset({
           chartId,
           title: activeConfig.titleOverride || '',
@@ -296,9 +216,20 @@ export function useSheetChartData({
           updatedAt: new Date().toISOString(),
         };
 
-        await saveChartConfigDetailed(updatedConfig);
-        setCachedChartConfig(updatedConfig);
-        notifyChartChange(chartId, updatedConfig);
+        if (onUpdateElement) {
+          const updateResult = await onUpdateElement({
+            config: updatedConfig,
+            dataset: liveDataset,
+            title: updatedConfig.titleOverride || liveDataset.title || element?.title || '',
+            subtitle: updatedConfig.subtitleOverride ?? liveDataset.subtitle,
+          });
+
+          if (updateResult && typeof updateResult === 'object' && 'ok' in updateResult && !updateResult.ok) {
+            throw new Error(updateResult.error || 'Failed to persist synced chart to draft KV.');
+          }
+        }
+
+        if (!isMountedRef.current) return liveMatrix;
 
         setDataset(liveDataset);
         setConfig(updatedConfig);
@@ -318,75 +249,7 @@ export function useSheetChartData({
 
     inFlightSyncRef.current = syncPromise;
     return syncPromise;
-  }, [chartId, config, cachedConfig, nodeId]);
-
-  // Initial SWR mount effect & optional polling
-  useEffect(() => {
-    isMountedRef.current = true;
-    loadCloudConfig();
-
-    let intervalId: number | null = null;
-    if (isDevMode && pollIntervalMs && pollIntervalMs > 0) {
-      intervalId = window.setInterval(loadCloudConfig, pollIntervalMs);
-    }
-
-    return () => {
-      isMountedRef.current = false;
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [loadCloudConfig, pollIntervalMs, isDevMode]);
-
-  // Real-time event listener for live chart configuration updates
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const handleChartChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{ chartId: string; config: SheetChartConfig }>;
-      if (customEvent.detail && customEvent.detail.chartId === chartId) {
-        if (customEvent.detail.config) {
-          const freshConfig = customEvent.detail.config;
-          setConfig(freshConfig);
-          if (freshConfig.cachedDataset && freshConfig.cachedDataset.length > 0) {
-            const freshDataset = parseTabularDataset({
-              chartId,
-              title: freshConfig.titleOverride || '',
-              subtitle: freshConfig.subtitleOverride,
-              unit: freshConfig.unitOverride,
-              chartType: freshConfig.defaultType,
-              nodeId,
-              visualConfig: freshConfig.visualConfig,
-              rawMatrix: normalizeMatrixToStrings(freshConfig.cachedDataset),
-            });
-            setDataset(freshDataset);
-            setStatus('success');
-            return;
-          }
-
-          let hasData = false;
-          setDataset((prev) => {
-            if (!prev) {
-              const baked = chartId ? bakedCharts.find((c) => c.chartId === chartId) : undefined;
-              if (baked) {
-                hasData = true;
-                return applyConfigToDataset(baked, freshConfig);
-              }
-              return null;
-            }
-            hasData = true;
-            return applyConfigToDataset(prev, freshConfig);
-          });
-          setStatus(hasData ? 'success' : 'pending_data');
-          return;
-        }
-        loadCloudConfig();
-      }
-    };
-
-    window.addEventListener(EVENT_CHART_SOURCE_CHANGE, handleChartChange);
-    return () => {
-      window.removeEventListener(EVENT_CHART_SOURCE_CHANGE, handleChartChange);
-    };
-  }, [chartId, nodeId, loadCloudConfig]);
+  }, [chartId, isDevMode, config, astConfig, nodeId, onUpdateElement, element?.title]);
 
   // Derived effective dataset with live in-drawer overrides
   const effectiveDataset = useMemo<ChartDataset | null>(() => {
@@ -395,12 +258,12 @@ export function useSheetChartData({
   }, [dataset, overrideConfig]);
 
   // Derived effective config
-  const effectiveConfig = useMemo<SheetChartConfig | null>(() => {
+  const effectiveConfig = useMemo<SheetChartConfig | PublicChartConfig | null>(() => {
     if (!config && !overrideConfig) return null;
     return {
       ...(config || ({} as SheetChartConfig)),
       ...(overrideConfig || {}),
-    } as SheetChartConfig;
+    } as SheetChartConfig | PublicChartConfig;
   }, [config, overrideConfig]);
 
   return {
@@ -409,7 +272,7 @@ export function useSheetChartData({
     status,
     errorMessage,
     lastSyncedAt,
-    reload: loadCloudConfig,
+    reload,
     syncLiveSheet,
     setOverrideConfig,
   };

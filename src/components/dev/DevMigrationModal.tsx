@@ -127,8 +127,13 @@ export const DevMigrationModal: React.FC<DevMigrationModalProps> = ({
     }
   }, [onGeneratePromptProp, migration, pendingReport, showToast]);
 
-  const handleMarkAsMigrated = useCallback(() => {
+  const handleMarkAsMigrated = useCallback(async () => {
     const targetVersion = pendingReport?.currentEngineVersion;
+    const configSnippet = targetVersion ? `contentVersion: '${targetVersion}'` : '';
+
+    if (configSnippet) {
+      await copyTextToClipboard(configSnippet);
+    }
 
     if (onMarkAsMigratedProp) {
       onMarkAsMigratedProp();
@@ -140,8 +145,8 @@ export const DevMigrationModal: React.FC<DevMigrationModalProps> = ({
 
     showToast(
       targetVersion
-        ? `Marked content as migrated to v${targetVersion}.`
-        : 'Content migrations marked as complete.',
+        ? `Acknowledged v${targetVersion}. Set EngineConfig.contentVersion = '${targetVersion}' (copied to clipboard).`
+        : 'Content migrations acknowledged. Update EngineConfig.contentVersion in your app config.',
       'success'
     );
   }, [pendingReport, onMarkAsMigratedProp, migration, handleDismiss, showToast]);

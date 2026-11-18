@@ -7,10 +7,11 @@
  */
 
 import type { PublicApiContext } from './_shared';
+import { resolveKVNamespace } from '../../src/edge/router';
 import { handlePublicManifestRoute } from '../../src/edge/handlers/publicHandler';
 
 export async function onRequestGet(context: PublicApiContext): Promise<Response> {
   const { request, env } = context;
-  const kv = env?.KV_ENGINE_PUBLIC || env?.KV_MASID_PUBLIC || null;
+  const kv = resolveKVNamespace(env);
   return handlePublicManifestRoute(request, kv, context);
 }

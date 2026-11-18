@@ -4,6 +4,9 @@
  * Specification: docs/tasks/task8_1_data_models_and_default_factory.md
  */
 
+import type { ChartDataset, SheetChartConfig, PublicChartConfig } from './chart';
+import type { SyncedSourceItem } from './source';
+
 export type CanvasElementType = 'section' | 'subsection' | 'text' | 'photo' | 'gallery' | 'chart';
 
 export interface CanvasElementBase {
@@ -44,6 +47,9 @@ export interface GalleryElement extends CanvasElementBase {
   subtitle?: string;
   subtitlePointId?: string;
   driveUrl?: string;
+  description?: string;
+  lastVerified?: string;
+  syncedPhotos?: SyncedSourceItem[];
 }
 
 export interface ChartElement extends CanvasElementBase {
@@ -51,6 +57,8 @@ export interface ChartElement extends CanvasElementBase {
   chartId: string;
   title: string;
   subtitle?: string;
+  config?: SheetChartConfig | PublicChartConfig;
+  dataset?: ChartDataset;
 }
 
 export type CanvasLeafElement = TextElement | PhotoElement | GalleryElement | ChartElement;

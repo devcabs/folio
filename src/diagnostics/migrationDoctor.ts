@@ -669,7 +669,8 @@ export function formatLedgerChangelog(ledger: MigrationEntry[] = FOLIO_MIGRATION
 }
 
 /**
- * Reads `@devcabs/folio-engine` own package version from the package root.
+ * Reads `@devcabs/folio-engine` own package version strictly from package.json.
+ * Fails stop if package.json cannot be located or parsed.
  */
 export function getEnginePackageVersion(): string {
   const candidates = ['../package.json', '../../package.json'];
@@ -688,8 +689,7 @@ export function getEnginePackageVersion(): string {
       // Try next candidate path.
     }
   }
-  const sorted = [...FOLIO_MIGRATION_LEDGER].sort((a, b) => compareSemver(a.version, b.version));
-  return sorted[sorted.length - 1]?.version ?? '0.0.0';
+  throw new Error('Unable to resolve @devcabs/folio-engine version from package.json.');
 }
 
 function getDoctorHelpText(): string {

@@ -8,10 +8,11 @@ describe('Subpath Exports & Multi-Entry Architecture', () => {
     expect(rootExports.App).toBeDefined();
     expect(typeof rootExports.App).toBe('function');
     expect(rootExports.getEngineConfig).toBeDefined();
+    expect(rootExports.getActiveNodes).toBeDefined();
+    expect(rootExports.getActiveNodeIds).toBeDefined();
     expect(rootExports.MigrationProvider).toBeDefined();
     expect(rootExports.useMigrationContext).toBeDefined();
     expect(rootExports.resolveContentWatermark).toBeDefined();
-    expect(rootExports.updateWatermark).toBeDefined();
     expect(rootExports.compareSemver).toBeDefined();
     expect(rootExports.isValidSemver).toBeDefined();
     expect(rootExports.generateAiMigrationPrompt).toBeDefined();

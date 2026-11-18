@@ -7,14 +7,13 @@
  * CRITICAL ARCHITECTURAL CONSTRAINTS:
  * 1. ZERO IMPORTS from developer mode context (prevent circular dependencies).
  * 2. Developer mode provider must never re-render on migration modal lifecycle changes.
- * 3. All storage operations strictly delegated to injected StorageAdapter.
+ * 3. Single-source watermark: resolved strictly from EngineConfig.contentVersion.
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { EngineConfig } from '../config/engine.config';
 import { getEngineConfig } from '../config/engine.config';
-import { localStorageAdapter, type StorageAdapter } from '../utils/storageAdapter';
-import { resolveContentWatermark, updateWatermark } from '../utils/watermarkResolver';
+import { resolveContentWatermark } from '../utils/watermarkResolver';
 import { getPendingMigrations } from '../services/migrationService';
 import { generateAiMigrationPrompt } from '../utils/migrationPromptFormatter';
 import type { PendingMigrationReport } from '../types/migration';
@@ -30,7 +29,6 @@ export interface MigrationContextType {
 
 export interface MigrationProviderProps {
   engineConfig?: EngineConfig;
-  storage?: StorageAdapter;
   children?: React.ReactNode;
 }
 
@@ -38,21 +36,19 @@ const MigrationContext = createContext<MigrationContextType | null>(null);
 
 export const MigrationProvider: React.FC<MigrationProviderProps> = ({
   engineConfig,
-  storage,
   children,
 }) => {
   const [pendingReport, setPendingReport] = useState<PendingMigrationReport | null>(null);
   const [isMigrationModalOpen, setIsMigrationModalOpen] = useState<boolean>(false);
 
-  const activeStorage = storage ?? localStorageAdapter;
   const activeConfig = engineConfig ?? getEngineConfig();
 
-  // On mount, inspect ledger against resolved watermark
+  // On mount, inspect ledger against EngineConfig.contentVersion
   useEffect(() => {
-    const watermark = resolveContentWatermark(activeConfig?.contentVersion, activeStorage);
-    const report = getPendingMigrations(watermark, activeStorage);
+    const watermark = resolveContentWatermark(activeConfig?.contentVersion);
+    const report = getPendingMigrations(watermark);
     setPendingReport(report);
-  }, [activeConfig?.contentVersion, activeStorage]);
+  }, [activeConfig?.contentVersion]);
 
   const openMigrationModal = useCallback(() => {
     setIsMigrationModalOpen(true);
@@ -65,14 +61,16 @@ export const MigrationProvider: React.FC<MigrationProviderProps> = ({
   const markAsMigrated = useCallback(() => {
     const targetVersion =
       pendingReport?.currentEngineVersion ??
-      getPendingMigrations(undefined, activeStorage).currentEngineVersion;
+      getPendingMigrations().currentEngineVersion;
 
-    updateWatermark(targetVersion, activeStorage);
-
-    const refreshedWatermark = resolveContentWatermark(activeConfig?.contentVersion, activeStorage);
-    const refreshedReport = getPendingMigrations(refreshedWatermark, activeStorage);
-    setPendingReport(refreshedReport);
-  }, [pendingReport, activeConfig?.contentVersion, activeStorage]);
+    setPendingReport({
+      currentEngineVersion: targetVersion,
+      contentVersionWatermark: targetVersion,
+      hasPendingContentChanges: false,
+      pendingContentChanges: [],
+      unappliedVersions: [],
+    });
+  }, [pendingReport]);
 
   const generatePrompt = useCallback((): string => {
     if (!pendingReport) {
@@ -113,8 +111,4 @@ export function useMigrationContext(): MigrationContextType {
     throw new Error('useMigrationContext must be used within a <MigrationProvider>');
   }
   return context;
-}
-
-export function useOptionalMigrationContext(): MigrationContextType | null {
-  return useContext(MigrationContext);
 }

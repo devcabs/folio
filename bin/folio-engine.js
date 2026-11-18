@@ -17,14 +17,14 @@ async function main() {
 
   if (fs.existsSync(distCliPath)) {
     const mod = await import(pathToFileURL(distCliPath).href);
-    const exitCode = mod.runFolioCli(args);
-    process.exit(exitCode);
+    process.exitCode = mod.runFolioCli(args);
+    return;
   }
 
   // Fallback for local source checkouts before `npm run build:lib` has been executed.
   const tsxBin = path.join(pkgRoot, 'node_modules', '.bin', 'tsx');
   if (fs.existsSync(srcDoctorPath) && fs.existsSync(tsxBin)) {
-    const script = `import { runFolioCli } from ${JSON.stringify(pathToFileURL(srcDoctorPath).href)}; process.exit(runFolioCli(process.argv.slice(1)));`;
+    const script = `import { runFolioCli } from ${JSON.stringify(pathToFileURL(srcDoctorPath).href)}; process.exitCode = runFolioCli(process.argv.slice(1));`;
     const result = spawnSync(tsxBin, ['--input-type=module', '-e', script, ...args], {
       stdio: 'inherit',
       cwd: process.cwd(),

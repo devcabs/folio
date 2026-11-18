@@ -1,12 +1,10 @@
 import React, { memo } from 'react';
-import { EditableText } from './EditableText';
-import { useContent } from '../../hooks/useContent';
 import styles from './SectionTitle.module.css';
 
 export interface SectionTitleProps {
   /** The primary section title text */
   title: string;
-  /** Content DB pointId for title */
+  /** @deprecated Content DB pointId no longer used; titles are read from Canvas AST */
   titlePointId?: string;
   /** Optional section numbering (e.g. "01", 1, or "Section 01") */
   number?: string | number | null;
@@ -40,12 +38,11 @@ export interface SectionTitleProps {
  * - Serif section numbering (italic or classical numeral)
  * - Configurable heading level (defaults to h2)
  * - Pure token-driven styling
- * - Integrated live editing via Content DB pointIds
- * - Subtitles removed: only the page title (PageTitle) gets a subtitle
+ * - Renders strictly from AST props (zero ContentDB lookups)
  */
 export const SectionTitle: React.FC<SectionTitleProps> = memo(({
   title,
-  titlePointId,
+  titlePointId: _titlePointId,
   number,
   defaultNumbered,
   subtitle: _subtitle,
@@ -55,19 +52,13 @@ export const SectionTitle: React.FC<SectionTitleProps> = memo(({
   accentColor,
   className,
   children,
-  editTriggerId,
-  onEdit,
+  editTriggerId: _editTriggerId,
+  onEdit: _onEdit,
 }) => {
   const Heading = HeadingTag as React.ElementType;
-  const hasDefaultNumber = defaultNumbered !== undefined
+  const isNumbered = defaultNumbered !== undefined
     ? defaultNumbered
     : (number !== undefined && number !== null);
-  const isNumberedKey = titlePointId ? `${titlePointId}.isNumbered` : '';
-  const { text: isNumberedOverride } = useContent(
-    isNumberedKey,
-    hasDefaultNumber ? 'true' : 'false'
-  );
-  const isNumbered = isNumberedKey ? isNumberedOverride === 'true' : hasDefaultNumber;
 
   const sectionNum = number ?? 1;
   const formattedNumber = isNumbered
@@ -87,30 +78,9 @@ export const SectionTitle: React.FC<SectionTitleProps> = memo(({
         </span>
       )}
 
-      {titlePointId ? (
-        <EditableText
-          pointId={titlePointId}
-          defaultText={title}
-          as={Heading}
-          className={styles.sectionTitle}
-          ariaLabel={id}
-          isSection={true}
-          isNumbered={isNumbered}
-          defaultNumbered={hasDefaultNumber}
-          editTriggerId={editTriggerId}
-          onEditText={onEdit}
-        >
-          {(resolvedTitle) => (
-            <Heading id={id} className={styles.sectionTitle}>
-              {resolvedTitle}
-            </Heading>
-          )}
-        </EditableText>
-      ) : (
-        <Heading id={id} className={styles.sectionTitle}>
-          {title}
-        </Heading>
-      )}
+      <Heading id={id} className={styles.sectionTitle}>
+        {title}
+      </Heading>
 
       {/* Subtitles removed for sections: only the page title (PageTitle) gets a subtitle */}
 

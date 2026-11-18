@@ -33,8 +33,6 @@ export const LightboxPhotoStrip: React.FC<LightboxPhotoStripProps> = ({
   const stripRef = useRef<HTMLDivElement | null>(null);
   const activeThumbRef = useRef<HTMLButtonElement | null>(null);
 
-  const [retriedIndices, setRetriedIndices] = useState<Record<number, boolean>>({});
-
   // Auto-scroll active thumbnail into center of the visible strip
   useEffect(() => {
     if (activeThumbRef.current) {
@@ -46,13 +44,9 @@ export const LightboxPhotoStrip: React.FC<LightboxPhotoStripProps> = ({
     }
   }, [currentIndex]);
 
-  const handleImageError = useCallback((index: number, fallbackUrl?: string) => {
-    if (fallbackUrl && !retriedIndices[index]) {
-      setRetriedIndices((prev) => ({ ...prev, [index]: true }));
-    } else {
-      setFailedImages((prev) => ({ ...prev, [index]: true }));
-    }
-  }, [retriedIndices]);
+  const handleImageError = useCallback((index: number) => {
+    setFailedImages((prev) => ({ ...prev, [index]: true }));
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, index: number) => {
@@ -106,11 +100,6 @@ export const LightboxPhotoStrip: React.FC<LightboxPhotoStripProps> = ({
           ? buildEdgeMediaUrl(driveFileId, { width: 320 })
           : existingThumb;
 
-        const fallbackUrl = driveFileId
-          ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(driveFileId)}&sz=w320`
-          : undefined;
-        const isRetried = retriedIndices[index];
-        const effectiveSrc = isRetried && fallbackUrl ? fallbackUrl : baseSrc;
         const captionText = item.photo?.caption || item.title || `Photo ${index + 1}`;
         const hasFailed = failedImages[index];
 
@@ -134,16 +123,16 @@ export const LightboxPhotoStrip: React.FC<LightboxPhotoStripProps> = ({
                 : undefined
             }
           >
-            {effectiveSrc && !hasFailed ? (
+            {baseSrc && !hasFailed ? (
               <img
-                src={effectiveSrc}
+                src={baseSrc}
                 alt=""
                 aria-hidden="true"
                 loading="lazy"
                 decoding="async"
                 draggable={false}
                 className={styles.thumbImage}
-                onError={() => handleImageError(index, fallbackUrl)}
+                onError={() => handleImageError(index)}
               />
             ) : (
               <span className={styles.thumbFallback} aria-hidden="true">

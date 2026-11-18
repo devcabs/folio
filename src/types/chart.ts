@@ -143,6 +143,11 @@ export interface SheetChartConfig {
   updatedBy?: string;
 }
 
+/**
+ * Publicly safe version of SheetChartConfig with private Google Sheet URL omitted.
+ */
+export type PublicChartConfig = Omit<SheetChartConfig, 'sheetUrl'>;
+
 export type ChartSyncStatus = 
   | 'idle' 
   | 'syncing' 

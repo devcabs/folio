@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { NodeCode } from "../types/node";
 import { cancelCinematicScroll } from "../utils/smooth-scroll";
-import { getEngineConfig } from "../config/engine.config";
+import { getEngineConfig, getActiveNodes } from "../config/engine.config";
 
 export type RouteType = "home" | "node" | "page" | "not-found";
 
@@ -15,29 +15,13 @@ export interface RouteState {
   pathname?: string;
 }
 
-export const VALID_NODES: NodeCode[] = [
-  "access",
-  "equity",
-  "quality",
-  "resiliency",
-  "governance",
-];
-
-export const NODE_TO_STAGE: Record<NodeCode, number> = {
-  access: 1,
-  equity: 2,
-  quality: 3,
-  resiliency: 4,
-  governance: 5,
-};
-
-export const STAGE_TO_NODE: Record<number, NodeCode> = {
-  1: "access",
-  2: "equity",
-  3: "quality",
-  4: "resiliency",
-  5: "governance",
-};
+function resolveStageForNode(code: string): number | null {
+  const configNodes = getActiveNodes();
+  if (configNodes.length === 0) return null;
+  const idx = configNodes.findIndex((n) => n.id.toLowerCase() === code.toLowerCase());
+  if (idx === -1) return null;
+  return configNodes[idx].nodeNumber ?? idx + 1;
+}
 
 /**
  * Universal route parser supporting both modern HTML5 path routes (/node/:id/)
@@ -69,14 +53,7 @@ export function parseRoute(
     const isAllowed = validNodes ? validNodes.includes(candidateId) : true;
     if (isAllowed) {
       const code = candidateId;
-      let stage: number | null = NODE_TO_STAGE[code] ?? null;
-      if (stage === null) {
-        const configNodes = getEngineConfig().nodes;
-        if (configNodes && configNodes.length > 0) {
-          const idx = configNodes.findIndex((n) => n.id.toLowerCase() === candidateId);
-          if (idx !== -1) stage = idx + 1;
-        }
-      }
+      const stage = resolveStageForNode(code);
 
       return {
         type: "node",
@@ -108,7 +85,7 @@ export function parseRoute(
         type: "node",
         nodeId: code,
         pageId: code,
-        targetStage: NODE_TO_STAGE[code] ?? null,
+        targetStage: resolveStageForNode(code),
         rawHash: hash,
         pathname: "/node/" + code + "/",
       };

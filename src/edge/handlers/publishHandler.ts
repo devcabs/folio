@@ -1,14 +1,22 @@
 /**
- * Folio Engine — Edge Publish Handler
+ * Folio Engine — Edge Publish Handler (Two-Phase Versioned Cloudflare KV SSOT)
  * Location: src/edge/handlers/publishHandler.ts
+ * Specification: docs/task/7.5-revision-history-and-publish-pipeline-ssot.md
+ *
+ * Implements split-brain-safe two-phase publishing exclusively in Cloudflare KV:
+ * - Phase A: Stage immutable history:snapshot:${id}, node:${id}:${nodeId}, and node:${nodeId}
+ * - Phase B: Flip portal:manifest, history:index, and reset draft:workspace (dirty: false)
  */
 
-import type { PublishedSnapshot } from '../../types/history';
-import type { KVNamespace } from '../../types/edge';
+import type { HistoryIndex, HistoryIndexEntry, PublishedSnapshot } from '../../types/history';
+import type { DraftWorkspacePayload, KVNamespace } from '../../types/edge';
 import {
   compilePublicNodePayload,
   compilePortalManifest,
 } from '../../services/edgePreBakeService';
+import { verifyLockToken } from './lockHandler';
+import { KV_DRAFT_WORKSPACE_KEY, KV_HISTORY_INDEX_KEY, KV_PORTAL_MANIFEST_KEY } from './draftHandler';
+import { KV_HISTORY_SNAPSHOT_PREFIX } from './historyHandler';
 
 export interface PublishRequestBody {
   snapshot: PublishedSnapshot;
@@ -18,11 +26,20 @@ export interface PublishResponseBody {
   success: boolean;
   snapshotId?: string;
   publishedAt?: string;
-  cloudSynced?: boolean;
   edgeDeployed?: boolean;
-  cloudError?: string;
   edgeError?: string;
   error?: string;
+}
+
+function jsonResponse(body: PublishResponseBody, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Access-Control-Allow-Origin': '*',
+    },
+  });
 }
 
 /**
@@ -30,27 +47,43 @@ export interface PublishResponseBody {
  */
 export async function handlePublishRoute(
   request: Request,
-  env: any,
+  _env: unknown,
   kv: KVNamespace | null,
-  _ctx?: any
+  _ctx?: unknown
 ): Promise<Response> {
   try {
+    if (!kv) {
+      return jsonResponse(
+        {
+          success: false,
+          error: 'KV namespace binding not configured on edge runtime',
+        },
+        503
+      );
+    }
+
+    // Verify coordinator lock token
+    const auth = await verifyLockToken(request, kv);
+    if (!auth.valid) {
+      return jsonResponse(
+        {
+          success: false,
+          error: auth.error || 'Unauthorized: Invalid coordinator lock token',
+        },
+        auth.status
+      );
+    }
+
     let body: PublishRequestBody;
     try {
       body = (await request.json()) as PublishRequestBody;
     } catch {
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           success: false,
           error: 'Invalid JSON request payload',
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
+        },
+        400
       );
     }
 
@@ -65,193 +98,114 @@ export async function handlePublishRoute(
       !snapshot.canvases ||
       typeof snapshot.canvases !== 'object'
     ) {
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           success: false,
           error: 'Malformed snapshot payload: id and canvases are required',
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
+        },
+        400
       );
     }
 
-    // Validate author session
     if (!snapshot.authorSessionId) {
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           success: false,
           error: 'Unauthorized: Missing author session ID',
-        }),
-        {
-          status: 401,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
-      );
-    }
-
-    let cloudSynced = false;
-    let edgeDeployed = false;
-    let cloudError: string | undefined;
-
-    // 1. Persist to Supabase if configured in env
-    const supabaseUrl = env?.VITE_SUPABASE_URL || env?.SUPABASE_URL;
-    const supabaseKey =
-      env?.SUPABASE_SERVICE_ROLE_KEY ||
-      env?.VITE_SUPABASE_ANON_KEY ||
-      env?.SUPABASE_ANON_KEY;
-
-    if (supabaseUrl && supabaseKey) {
-      const payload = {
-        id: snapshot.id,
-        schema_version: snapshot.schemaVersion || 1,
-        title: snapshot.title,
-        description: snapshot.description,
-        snapshot_data: {
-          canvases: snapshot.canvases,
-          contentOverrides: snapshot.contentOverrides || {},
         },
-        summary: snapshot.summary,
-        is_active: true,
-        author_session_id: snapshot.authorSessionId,
-        created_at: snapshot.createdAt,
-      };
-
-      try {
-        const insertRes = await fetch(`${supabaseUrl}/rest/v1/engine_history`, {
-          method: 'POST',
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-            Prefer: 'return=representation',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (insertRes.ok) {
-          cloudSynced = true;
-          // Demote previous active snapshots
-          try {
-            const patchRes = await fetch(
-              `${supabaseUrl}/rest/v1/engine_history?is_active=eq.true&id=neq.${snapshot.id}`,
-              {
-                method: 'PATCH',
-                headers: {
-                  apikey: supabaseKey,
-                  Authorization: `Bearer ${supabaseKey}`,
-                  'Content-Type': 'application/json',
-                  Prefer: 'return=minimal',
-                },
-                body: JSON.stringify({ is_active: false }),
-              }
-            );
-            if (!patchRes.ok) {
-              console.warn(
-                `[publish] Demote previous active snapshots returned HTTP ${patchRes.status}`
-              );
-            }
-          } catch (patchErr) {
-            console.warn('[publish] Failed to demote previous active snapshots:', patchErr);
-          }
-        } else {
-          cloudError = `Cloud sync failed with HTTP ${insertRes.status}`;
-        }
-      } catch (err: unknown) {
-        cloudError = err instanceof Error ? err.message : 'Supabase network error';
-      }
-    }
-
-    // 2. Pre-bake directly into Cloudflare KV using edge binding
-    if (!kv) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'KV namespace binding not configured on edge runtime',
-        }),
-        {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
+        401
       );
     }
 
     try {
       const targetNodes = Object.keys(snapshot.canvases);
+
+      // ───────────────────────────────────────────────────────────────────────
+      // Phase A: Stage Immutable Payloads First
+      // ───────────────────────────────────────────────────────────────────────
+      // 1. Write full self-contained snapshot (preserves ChartElement.config.sheetUrl for rollbacks)
+      await kv.put(`${KV_HISTORY_SNAPSHOT_PREFIX}${snapshot.id}`, JSON.stringify(snapshot));
+
+      // 2. Compile & stage versioned immutable node payloads + active node keys
       for (const nodeId of targetNodes) {
         const compiled = compilePublicNodePayload(nodeId, snapshot);
-        await kv.put(`node:${nodeId}`, JSON.stringify(compiled));
-
-        // Also register individual chart datasets in KV for fast chart endpoint hits
-        if (compiled.chartDatasets) {
-          for (const [chartId, chartDataset] of Object.entries(compiled.chartDatasets)) {
-            await kv.put(`chart:${chartId}`, JSON.stringify(chartDataset));
-          }
-        }
+        const serialized = JSON.stringify(compiled);
+        await kv.put(`node:${snapshot.id}:${nodeId}`, serialized);
+        await kv.put(`node:${nodeId}`, serialized);
       }
 
+      // ───────────────────────────────────────────────────────────────────────
+      // Phase B: Flip Active Pointers Last (Zero Split-Brain Guarantee)
+      // ───────────────────────────────────────────────────────────────────────
+      const nowIso = new Date().toISOString();
+
+      // 3. Flip portal:manifest
       const manifestPayload = compilePortalManifest(snapshot, targetNodes);
-      await kv.put('portal:manifest', JSON.stringify(manifestPayload));
-      edgeDeployed = true;
+      await kv.put(KV_PORTAL_MANIFEST_KEY, JSON.stringify(manifestPayload));
+
+      // 4. Update history:index
+      const existingIndex = await kv.get<HistoryIndex>(KV_HISTORY_INDEX_KEY, 'json');
+      const entry: HistoryIndexEntry = {
+        id: snapshot.id,
+        schemaVersion: snapshot.schemaVersion || 1,
+        title: snapshot.title,
+        description: snapshot.description,
+        createdAt: snapshot.createdAt,
+        authorSessionId: snapshot.authorSessionId,
+        summary: snapshot.summary,
+      };
+      const prevEntries = Array.isArray(existingIndex?.entries)
+        ? existingIndex.entries.filter((e) => e.id !== snapshot.id)
+        : [];
+      const nextIndex: HistoryIndex = {
+        activeSnapshotId: snapshot.id,
+        updatedAt: nowIso,
+        entries: [entry, ...prevEntries],
+      };
+      await kv.put(KV_HISTORY_INDEX_KEY, JSON.stringify(nextIndex));
+
+      // 5. Reset draft:workspace to clean state anchored at this published snapshot
+      const existingDraft = await kv.get<DraftWorkspacePayload>(KV_DRAFT_WORKSPACE_KEY, 'json');
+      const nextDraft: DraftWorkspacePayload = {
+        baseSnapshotId: snapshot.id,
+        dirty: false,
+        revision: (existingDraft?.revision ?? 0) + 1,
+        updatedAt: nowIso,
+        authorSessionId: snapshot.authorSessionId,
+        canvases: JSON.parse(JSON.stringify(snapshot.canvases)),
+        contentOverrides: { ...(snapshot.contentOverrides || {}) },
+      };
+      await kv.put(KV_DRAFT_WORKSPACE_KEY, JSON.stringify(nextDraft));
+
+      return jsonResponse(
+        {
+          success: true,
+          snapshotId: snapshot.id,
+          publishedAt: snapshot.createdAt,
+          edgeDeployed: true,
+        },
+        200
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Edge KV deployment error';
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Cloudflare KV deployment failed: ${msg}`,
-          cloudSynced,
-        }),
+      return jsonResponse(
         {
-          status: 502,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
+          success: false,
+          edgeDeployed: false,
+          edgeError: msg,
+          error: `Cloudflare KV deployment failed: ${msg}`,
+        },
+        502
       );
     }
-
-    // Success response strictly when KV deployment confirmed
-    const responsePayload: PublishResponseBody = {
-      success: true,
-      snapshotId: snapshot.id,
-      publishedAt: snapshot.createdAt,
-      cloudSynced,
-      edgeDeployed,
-      cloudError,
-    };
-
-    return new Response(JSON.stringify(responsePayload), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown publish failure';
-    return new Response(
-      JSON.stringify({
+    return jsonResponse(
+      {
         success: false,
         error: msg,
-      }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
+      },
+      500
     );
   }
 }
