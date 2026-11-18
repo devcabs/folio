@@ -6,41 +6,45 @@ This document provides an in-depth architectural analysis of Folio Engine (`@dev
 
 ## 🏛️ High-Level System Architecture
 
-Folio Engine is organized as a client-first, edge-accelerated technical storytelling platform. It decouples authoring, storage, computation, and rendering into distinct layers:
+Folio Engine is organized as a strict **Single Source of Truth (SSOT)** platform backed exclusively by **Cloudflare Edge KV** and **Cloudflare Pages Functions**—with zero Supabase dependencies, zero browser-side shadow stores (`localStorage`, `sessionStorage`, `IndexedDB`), and zero silent fallbacks.
 
 ```mermaid
 graph TD
     subgraph Client ["Client Browser Runtime (React 19)"]
         UI["Layout Shell (AppHeader, HeroWelcome, AppFooter)"]
         Track["Stepped Sequence (RoadmapTrack + Bézier Curve Math)"]
-        Canvas["Recursive Document Canvas (AST Renderer)"]
+        Canvas["Self-Contained Document Canvas (AST Renderer)"]
         Chart["Vector Chart Studio (D3 Scales + SVG Renderers)"]
-        Coord["Coordinator Mode (Mutex Lock + Undo/Redo + Drafts)"]
+        Coord["Coordinator Mode (Bearer lockToken + Undo/Redo + Drafts)"]
     end
 
-    subgraph Persistence ["Persistence & Sync Channels"]
-        Local["Client LocalStorage (Draft Overrides & Locks)"]
-        Supa["Supabase Postgres (Live Database + Mutex Ledger)"]
+    subgraph Edge ["Cloudflare Edge Runtime (/api/*)"]
+        Router["Universal Edge Router (handleFolioEdgeRequest)"]
+        Auth["Lock & PIN Auth (/api/lock)"]
+        DraftAPI["Draft Workspace (/api/draft, /api/draft/init)"]
+        PublishAPI["Two-Phase Atomic Publish (/api/publish)"]
+        HistoryAPI["Revision History (/api/history, /api/history/restore)"]
+        PublicAPI["Public Read & Media Proxy (/api/public/*, /api/media/drive/*)"]
+    end
+
+    subgraph Storage ["Cloudflare Edge KV (KV_ENGINE_PUBLIC) & External Feeds"]
+        KV["Cloudflare KV (portal:manifest, node:*, draft:workspace, history:*, lock:*)"]
         Sheets["External Google Sheets / CSV Feeds"]
-    end
-
-    subgraph Edge ["Distribution & Edge Acceleration"]
-        PreBake["Node.js Pre-Bake Pipeline (scripts/prebake-edge-kv.ts)"]
-        CF_Functions["Cloudflare Pages Functions (functions/api/)"]
-        KV["Cloudflare Edge KV Cache (<15ms Global TTFB)"]
+        Drive["External Google Drive Folders"]
     end
 
     UI --> Track
     Track --> Canvas
     Canvas --> Chart
-    Coord --> Local
-    Coord --> Supa
+    Coord --> Auth
+    Coord --> DraftAPI
+    Coord --> PublishAPI
+    Coord --> HistoryAPI
+    UI --> PublicAPI
     Chart -.-> Sheets
-    Supa --> PreBake
-    Sheets --> PreBake
-    PreBake --> KV
-    KV --> CF_Functions
-    CF_Functions --> Client
+    Canvas -.-> Drive
+    Router --> Auth & DraftAPI & PublishAPI & HistoryAPI & PublicAPI
+    Auth & DraftAPI & PublishAPI & HistoryAPI & PublicAPI --> KV
 ```
 
 ---
@@ -49,24 +53,21 @@ graph TD
 
 The lifecycle of data within Folio Engine progresses through three distinct operational phases:
 
-### Phase 1: Authoring & Draft Isolation
-1. **Interactive Entry**: A coordinator authenticates using a 6-digit PIN verified via SHA-256 in `devSecurity.ts`.
-2. **Distributed Mutex**: `devLockService.ts` claims an exclusive lease in Supabase to prevent concurrent edits across tabs or machines.
-3. **Draft Mutations**: Text edits, canvas structural operations, and chart parameter tweaks write immediately to namespaced `localStorage` keys via `contentDb.ts` and `draftService.ts`.
-4. **Instant Reactive Feedback**: React contexts (`DeveloperModeContext`, `UndoRedoContext`) push immutable state frames, updating the live DOM at 60fps while public viewers continue seeing unchanged live content.
+### Phase 1: Edge-Authenticated Authoring & Draft Isolation
+1. **Edge PIN Authentication**: A coordinator enters a 4-digit PIN, which `POST /api/lock` verifies on the Cloudflare Edge against `env.DEV_SECURITY_SALT` and `env.DEV_PIN_HASH` with brute-force rate limiting stored in KV (`lock:pin_ratelimit`).
+2. **Opaque Lock Token**: Upon verification, `lockHandler.ts` claims `lock:coordinator` (60s KV TTL, renewed via 30s `PATCH /api/lock` heartbeats) and issues an opaque `lockToken` passed as `Authorization: Bearer <lockToken>` on all mutating edge requests.
+3. **Direct KV Draft Mutations**: `POST /api/draft/init` initializes or loads `draft:workspace` in Cloudflare KV (supporting cold-boot bootstrap when `portal:manifest === null && history:index === null`). Copy edits, self-contained AST block mutations, embedded `ChartElement` configs/datasets, and embedded `GalleryElement` photo lists write directly to `PUT /api/draft` with optimistic concurrency (`expectedRevision` / `expectedUpdatedAt` → HTTP 409 on conflict).
+4. **Instant Reactive Feedback**: React contexts (`PortalChromeContext`, `DeveloperModeContext`, `UndoRedoContext`) update the live DOM at 60fps while public visitors continue reading the active published snapshot.
 
-### Phase 2: Publishing & Ledger Commit
-1. **Atomic Publish**: The coordinator triggers `publishAllDrafts()`.
-2. **Schema Gate**: All modified `NodeCanvasDocument` ASTs pass through strict Zod validators (`NodeCanvasDocumentSchema`).
-3. **Database Upsert**: Verified payloads commit to the live channel in Supabase.
-4. **Audit Ledger**: A permanent change record is written to the `engine_history` ledger detailing the author, timestamp, affected document, and diff.
-5. **Lock Relinquish**: The distributed mutex lease is released.
+### Phase 2: Two-Phase Atomic Publishing & History Ledger
+1. **Authorized Publish**: The coordinator triggers `publishNewSnapshot()` (`POST /api/publish` with `Authorization: Bearer <lockToken>`).
+2. **Phase A — Immutable Versioned Staging**: `edgePreBakeService.ts` compiles self-contained `PublicNodePayload` documents (rewriting Google Drive URLs to `/api/media/drive/:fileId?w=...` with responsive `srcSet` candidates and stripping private `ChartElement.config.sheetUrl` values). The handler writes immutable `history:snapshot:${id}`, `node:${id}:${nodeId}`, and `node:${nodeId}` keys first.
+3. **Phase B — Atomic Pointer Flip**: Once all immutable keys succeed, `publishHandler.ts` flips `portal:manifest.activeSnapshotId`, updates `history:index`, and resets `draft:workspace` (`dirty: false`), preventing multi-key split-brain on partial failures.
+4. **Rollback**: `POST /api/history/restore` atomically restores both `canvases` and `contentOverrides` from any `history:snapshot:${id}` (or `snap-system-baseline`) into `draft:workspace`.
 
-### Phase 3: Edge Pre-Baking & Global Distribution
-1. **Static Compilation**: The prebake pipeline (`scripts/prebake-edge-kv.ts`) reads live records from Supabase and Google Sheets CSV endpoints.
-2. **Asset Pre-Resolution**: Google Drive images are verified and responsive `srcSet` candidates are calculated.
-3. **Edge Hydration**: Pre-baked JSON bundles deploy to Cloudflare KV storage.
-4. **Zero-Latency Serving**: When public viewers navigate to the site, Cloudflare Pages Functions serve pre-baked payloads from edge memory without touching the primary database.
+### Phase 3: Fail-Stop Edge Serving & Global Distribution
+1. **Zero-Latency Serving**: Public visitors read `GET /api/public/manifest` (`portal:manifest`) and `GET /api/public/node/:nodeId` (`node:${activeSnapshotId}:${nodeId}`) directly from Cloudflare KV via `handleFolioEdgeRequest`.
+2. **Strict Fail-Stop**: Missing KV keys or unconfigured bindings fail stop immediately with HTTP `404`/`503` (never returning fabricated HTTP 200 fallback payloads or static bundled JSON). Client contexts surface `<TopErrorBanner />` with explicit retry controls.
 
 ---
 

@@ -138,13 +138,18 @@ export interface GalleryElement extends CanvasElementBase {
   subtitle?: string;
   subtitlePointId?: string;
   driveUrl?: string;                        // Synchronized Google Drive folder URL
+  description?: string;                     // Embedded gallery description
+  lastVerified?: string;                    // ISO timestamp of last Drive verification
+  syncedPhotos?: SyncedSourceItem[];        // Embedded synced Drive photo items
 }
 
 export interface ChartElement extends CanvasElementBase {
   type: 'chart';
-  chartId: string;                          // Identifier referencing ChartConfig
+  chartId: string;                          // Unique chart identifier
   title: string;
   subtitle?: string;
+  config?: SheetChartConfig | PublicChartConfig; // Embedded chart config (sheetUrl stripped in public KV)
+  dataset?: ChartDataset;                   // Embedded chart dataset
 }
 ```
 
@@ -209,26 +214,33 @@ export interface ChartVisualConfig {
 export interface PublicNodePayload {
   nodeId: string;
   snapshotId: string;
-  canvas: NodeCanvasDocument;
-  charts: CachedIndicatorDataset[];
-  sources: Record<string, SyncedSourceMetadata>;
-  compiledAt: string;
+  version: number;
+  updatedAt: string;
+  canvas: NodeCanvasDocument;               // Self-contained AST with embedded charts & galleries
 }
 ```
 
 ### `PublicPortalManifestPayload`
 ```typescript
 export interface PublicPortalManifestPayload {
-  appId: string;
-  appName: string;
-  version: string;
-  nodes: {
-    id: string;
-    index: number;
-    title: string;
-    hash: string;
-  }[];
-  generatedAt: string;
+  activeSnapshotId: string;
+  publishedAt: string;
+  nodeIds: string[];
+  schemaVersion: number;
+  contentOverrides?: Record<string, string>;
+}
+```
+
+### `DraftWorkspacePayload`
+```typescript
+export interface DraftWorkspacePayload {
+  baseSnapshotId: string;
+  dirty: boolean;
+  revision: number;
+  updatedAt: string;
+  authorSessionId: string;
+  canvases: Record<string, NodeCanvasDocument>;
+  contentOverrides: Record<string, string>;
 }
 ```
 

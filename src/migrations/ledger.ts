@@ -610,6 +610,63 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.2.0',
+    releaseDate: '2026-11-18',
+    title: 'Epic 7: Cloudflare KV Single Source of Truth (SSOT) & Self-Contained AST',
+    summary:
+      'Completed the Epic 7 Single Source of Truth architecture on Cloudflare KV. Removed legacy Supabase and localStorage persistence modules, embedded chart configs/datasets and source galleries directly inside self-contained Document ASTs, added Cloudflare KV edge handlers (draftHandler, historyHandler, lockHandler), introduced PortalChromeContext, and standardized on KV_ENGINE_PUBLIC.',
+    breakingChanges: [
+      'Removed legacy Supabase config/write-guard, browser storage adapter, runtime-env, history storage, media, source, and chart source service modules from @devcabs/folio-engine in favor of Cloudflare KV SSOT.',
+      'Removed handlePublicChartRoute (/api/public/chart/:chartId) and renderPlaceholderSvg from @devcabs/folio-engine/edge; chart configs and datasets now live inline within each node AST.',
+      'Removed fallback to KV_MASID_PUBLIC in resolveKVNamespace; Edge Workers must bind KV_ENGINE_PUBLIC (or pass options.kvBinding).',
+    ],
+    codeActions: [
+      {
+        description:
+          'Remove imports of deleted legacy Supabase, browser storage, history storage, media, source, and chart source modules, and delegate all edge API routes (/api/draft, /api/history, /api/lock, /api/publish, /api/public/*, /api/media/*) to handleFolioEdgeRequest.',
+        affectedFiles: ['src/App.tsx', 'worker.ts'],
+        exampleBefore: 'import { isSupabaseConfigured } from "@devcabs/folio-engine";',
+        exampleAfter: 'import { handleFolioEdgeRequest } from "@devcabs/folio-engine/edge";',
+      },
+      {
+        description:
+          'Update Cloudflare KV binding to KV_ENGINE_PUBLIC and wrap the app with PortalChromeProvider (PortalChromeContext) when consuming portal chrome state.',
+        affectedFiles: ['wrangler.toml', 'src/App.tsx'],
+        exampleBefore: 'kv_namespaces = [{ binding = "KV_MASID_PUBLIC", id = "..." }]',
+        exampleAfter: 'kv_namespaces = [{ binding = "KV_ENGINE_PUBLIC", id = "..." }]',
+      },
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.2.0 to acknowledge the Epic 7 SSOT architecture and breaking module removals.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.1.16" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.2.0" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'kv-ssot-self-contained-ast-0.2.0',
+        title: 'Cloudflare KV SSOT & Self-Contained Node AST Migration',
+        required: true,
+        description:
+          'Node payloads in Cloudflare KV (KV_ENGINE_PUBLIC) now store self-contained Document ASTs with embedded chart configurations, datasets, and source gallery items, eliminating separate /api/public/chart/:chartId fetches and Supabase/localStorage dependencies.',
+        affectedEntities: ['KV_ENGINE_PUBLIC', 'DocumentCanvas', 'draftHandler', 'historyHandler', 'lockHandler', 'PortalChromeContext'],
+        migrationPrompt:
+          'Ensure KV_ENGINE_PUBLIC is bound in Cloudflare, re-publish or run prebake-edge-kv to populate self-contained node AST payloads, and verify /api/draft, /api/history, and /api/lock route through handleFolioEdgeRequest.',
+      },
+      {
+        id: 'content-version-watermark-0.2.0',
+        title: 'Advance contentVersion Watermark to 0.2.0',
+        required: true,
+        description:
+          'Update contentVersion watermark in EngineConfig to 0.2.0 to acknowledge the Epic 7 SSOT architecture and clear pending migration warnings.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.2.0"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

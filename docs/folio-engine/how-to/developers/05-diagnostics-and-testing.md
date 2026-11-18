@@ -19,25 +19,18 @@ graph LR
 
 ---
 
-## 1. Runtime Diagnostic Verification (`verifyEngineSetup`)
+## 1. Runtime Diagnostic Verification (`verifyEngineWiring`)
 
-The engine provides a runtime pre-flight diagnostic module exported from `@devcabs/folio-engine/diagnostics`:
+The engine provides runtime pre-flight diagnostic helpers exported from `@devcabs/folio-engine/diagnostics`:
 
 ```typescript
-import { verifyEngineSetup } from '@devcabs/folio-engine/diagnostics';
+import { verifyEngineWiring, validateNodePayload } from '@devcabs/folio-engine/diagnostics';
 
-async function checkSystemIntegrity() {
-  const result = await verifyEngineSetup({
-    checkSupabaseConnection: true,
-    validateConfigSchemas: true,
-    verifyStorageAccess: true,
-  });
-
-  if (!result.isValid) {
-    console.error('Diagnostic errors found:', result.errors);
-  } else {
-    console.log('✅ Engine configuration and persistence verified.');
-  }
+const wiring = verifyEngineWiring();
+if (!wiring.ok) {
+  console.error('Diagnostic errors found:', wiring.errors);
+} else {
+  console.log('✅ Engine configuration and stylesheet wiring verified.');
 }
 ```
 
@@ -87,25 +80,12 @@ npx vitest run tests/components/vector-chart-studio.test.ts
 npx vitest run --coverage
 ```
 
-### Storage Isolation & Deterministic Test Ordering
+### Zero Browser Storage & Deterministic Test Isolation
 
-All migration and watermark tests (such as `tests/migration.test.ts`, `tests/services/migration-service.test.ts`, and `tests/utils/watermark-resolver.test.ts`) MUST isolate persistence state between test cases using `createInMemoryAdapter()` in `beforeEach`:
-
-```typescript
-import { createInMemoryAdapter, type StorageAdapter } from '../src/utils/storageAdapter';
-
-describe('watermark resolution', () => {
-  let storage: StorageAdapter;
-
-  beforeEach(() => {
-    storage = createInMemoryAdapter();
-  });
-
-  // Pass `storage` explicitly to all service and resolver functions
-});
-```
-
-- Direct `localStorage`, `window.localStorage`, or `globalThis.localStorage` calls are forbidden in test files.
+Folio Engine operates with **zero browser storage** (`localStorage`, `sessionStorage`, `IndexedDB`). All watermark, migration, and edge/service tests isolate state between test cases by:
+- Calling `resetEngineConfig()` in `beforeEach` before invoking `setEngineConfig(...)` or `resolveContentWatermark(config.contentVersion)`.
+- Passing in-memory `KVNamespace` mocks to edge route handlers (`handleFolioEdgeRequest`, `handleDraftRoute`, `handlePublishRoute`, `handleHistoryRoute`, `handleLockRoute`).
+- Stubbing `globalThis.fetch` in `beforeEach` / `afterEach` for client service tests.
 - `vitest.config.ts` sets `globals: true` and `clearMocks: true` (under `environment: 'node'`) so test state and mock call histories never leak across test ordering or parallel runs.
 
 ---

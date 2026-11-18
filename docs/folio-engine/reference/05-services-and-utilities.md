@@ -16,39 +16,28 @@ Manages tree traversal, block insertion, reordering, and deletion for `NodeCanva
 
 ---
 
-### `chartSourceService.ts`
-Resolves chart data from pre-baked local JSON caches or live Google Sheets endpoints.
-- `fetchChartConfig(chartId: string): Promise<ChartConfig | null>`
-- `fetchChartConfigsByNode(nodeId: string): Promise<ChartConfig[]>`
-- `saveChartConfig(chart: ChartConfig, isDevMode?: boolean): Promise<boolean>`
-
----
-
 ### `draftService.ts`
-Coordinates the dual-channel persistence model between local storage and Supabase.
-- `getDraftOverrides(): Record<string, string>`
-- `saveDraftOverride(key: string, value: string): void`
-- `clearDraftOverrides(): void`
-- `publishAllDrafts(): Promise<{ success: boolean; count: number }>`
-- `discardAllDrafts(): void`
+Coordinates Cloudflare KV draft workspace persistence (`draft:workspace` via `/api/draft` and `/api/draft/init`) with optimistic concurrency (`expectedRevision` / `expectedUpdatedAt`) and `Authorization: Bearer <lockToken>`.
+- `initDraftSession(options?)`: Initializes or resumes `draft:workspace` from Cloudflare KV (with cold-boot bootstrap when `portal:manifest === null && history:index === null`).
+- `saveDraftWorkspace(...)`: Persists draft `canvases` and `contentOverrides` directly to `PUT /api/draft`.
+- `discardDraftSession()`: Discards active draft changes via `DELETE /api/draft`.
 
 ---
 
 ### `devLockService.ts`
-Distributed coordinator mutex lock manager backed by Supabase.
-- `acquireLock(pin: string): Promise<{ success: boolean; lockId?: string; error?: string }>`
-- `renewLock(lockId: string): Promise<boolean>`
-- `releaseLock(lockId: string): Promise<void>`
-- `checkLockStatus(): Promise<{ isLocked: boolean; holderName?: string; expiresAt?: string }>`
-- `forceReleaseLock(): Promise<void>`
+Edge-authenticated coordinator mutex lock manager backed by Cloudflare KV (`lock:coordinator` via `/api/lock`).
+- `acquireDevLock(options)`: Authenticates 4-digit PIN on the edge (`POST /api/lock`) and returns an opaque `lockToken`.
+- `renewDevLock(lockToken)`: Sends heartbeat (`PATCH /api/lock`) extending the 60-second KV TTL.
+- `releaseDevLock(lockToken)`: Releases the active lock (`DELETE /api/lock`).
+- `checkDevLockStatus(lockToken?)`: Queries lock availability (`GET /api/lock`).
 
 ---
 
-### `historyService.ts` & `historyStorage.ts`
-Audit ledger tracking all coordinator edits, actor timestamps, and diff snapshots.
-- `recordEdit(action: string, entityId: string, diff: DraftDiff): Promise<void>`
-- `getRecentHistory(limit?: number): Promise<HistoryEntry[]>`
-- `clearHistoryLedger(): Promise<void>`
+### `historyService.ts`
+Cloudflare KV revision history and two-phase atomic publish client (`/api/history`, `/api/history/restore`, `/api/publish`).
+- `fetchHistoryIndex()` / `fetchSnapshotById(id)`: Queries `history:index` and `history:snapshot:${id}` from Cloudflare KV.
+- `publishNewSnapshot(...)`: Executes two-phase atomic publish via `POST /api/publish` with `Authorization: Bearer <lockToken>`.
+- `restoreSnapshotToDraft(snapshotId, lockToken)`: Restores `canvases` and `contentOverrides` into `draft:workspace` via `POST /api/history/restore`.
 
 ---
 
@@ -97,7 +86,7 @@ Strips HTML injection and converts malformed cell strings into safe numbers or `
 ---
 
 ### `contentDb.ts`
-Key-value text database driving dynamic copy authoring.
+Key-value text override store hydrated from Cloudflare KV (`portal:manifest.contentOverrides` in Public Mode, `draft:workspace.contentOverrides` in Dev Mode) with zero browser storage.
 - `getContent(key: string, fallback?: string): string`
 - `setContent(key: string, value: string): void`
 - `getAllOverrides(): Record<string, string>`
@@ -106,9 +95,8 @@ Key-value text database driving dynamic copy authoring.
 ---
 
 ### `devSecurity.ts`
-SHA-256 PIN hashing and session token verification.
+Pure salted SHA-256 hashing (`hashPin`) and session/lockout constants (`SESSION_DURATION_MS`, `LOCKOUT_DURATION_MS`, `MAX_ATTEMPTS`). Authoritative PIN verification and rate-limiting (`lock:pin_ratelimit`) execute on the Cloudflare Edge in `lockHandler.ts`.
 - `hashPin(pin: string, salt: string): Promise<string>`
-- `verifyPin(pin: string, expectedHash: string, salt: string): Promise<boolean>`
 
 ---
 

@@ -65,14 +65,14 @@ import { ... } from '@devcabs/folio-engine';
 - **`useLightboxHistory()`**: Manages browser back-button behavior for fullscreen media lightboxes.
 
 ### Services & Utilities
-- **`canvasLayoutService`**: AST manipulation utilities (add, move, delete, renumber).
-- **`chartSourceService`**: Resolves chart datasets from pre-baked JSON or live Google Sheets endpoints.
-- **`draftService`**: Dual-channel persistence bridge saving drafts locally and syncing to Supabase.
-- **`devLockService`**: Distributed coordinator mutex lock manager.
-- **`historyService`**: Append-only ledger recording coordinator actions.
+- **`canvasLayoutService`**: Pure AST manipulation utilities (add, move, delete, renumber) and direct KV draft/public canvas accessors.
+- **`draftService`**: Cloudflare KV draft workspace persistence bridge (`GET / PUT /api/draft`, `POST /api/draft/init`).
+- **`devLockService`**: Edge-authenticated Cloudflare KV coordinator mutex lock manager (`lock:coordinator`).
+- **`historyService`**: Cloudflare KV revision history and two-phase atomic publish client (`/api/history`, `/api/publish`).
 - **`undoRedoService`**: In-memory state history stack.
 - **`unsavedChangesService`**: Tracks dirty drafts and intercepts uncommitted browser exits.
-- **`contentDb`**: Local key-value text database for dynamic copy authoring.
+- **`contentDb`**: In-memory + React-hydrated key-value text accessor backed by Cloudflare KV (`portal:manifest` / `draft:workspace`).
+- **`watermarkResolver`**: Single-source content watermark resolver reading strictly from `EngineConfig.contentVersion`.
 - **`smoothScrollTo(target: string | number)`**: Eased programmatic scrolling.
 - **`lockScroll() / unlockScroll()`**: Body scroll management for modal and drawer overlays.
 - **`parseAccentText(text: string): React.ReactNode`**: Parses markdown accent syntax (`*highlight*`).
@@ -88,11 +88,16 @@ import { ... } from '@devcabs/folio-engine/edge';
 
 Designed with **zero DOM references** and **zero React imports**, safe for Cloudflare Workers, Cloudflare Pages Functions, Vercel Edge Middleware, and Node.js pre-bake scripts.
 
+### Exported Router & Handlers
+- **`handleFolioEdgeRequest(request, env, ctx?, options?)`**: Universal Cloudflare edge router dispatching `/api/lock`, `/api/draft`, `/api/draft/init`, `/api/publish`, `/api/history`, `/api/history/restore`, `/api/public/manifest`, `/api/public/node/:nodeId`, and `/api/media/drive/:fileId`.
+- **`resolveKVNamespace(env, options?)`**: Resolves the active `KVNamespace` (`options.kv`, `env[options.kvBinding]`, or `env.KV_ENGINE_PUBLIC`).
+- **`handleCorsPreflight(options?)`**: Handles `OPTIONS /api/*` CORS preflight requests.
+- **`handlePublishRoute`**, **`handlePublicNodeRoute`**, **`handlePublicManifestRoute`**, **`handleDriveMediaRoute`**: Direct route handlers.
+
 ### Exported Functions & Services
-- **`compilePublicNodePayload(nodeId: string, snapshot: unknown, options?: unknown): PublicNodePayload`**: Compiles node metadata, AST canvas, chart datasets, and source attachments into an edge payload.
-- **`compilePublicPortalManifest(nodes: NodeItem[], options?: unknown): PublicPortalManifestPayload`**: Compiles navigation manifest of available waypoints.
-- **`gatherSourceMetadata(nodeId: string, options?: unknown): Record<string, SyncedSourceMetadata>`**: Gathers external source attachments.
-- **`getMediaUrl(fileId: string, format?: 'webp' | 'jpeg', size?: number): string`**: Generates edge CDN proxy URLs for Google Drive or Cloudflare Images.
+- **`compilePublicNodePayload(nodeId: string, snapshot: PublishedSnapshot): PublicNodePayload`**: Compiles a self-contained node AST payload with rewritten `/api/media/drive/:fileId` URLs and stripped `sheetUrl` values.
+- **`compilePortalManifest(snapshot: PublishedSnapshot, options?: PreBakeCompileOptions): PublicPortalManifestPayload`**: Compiles the active portal manifest (`activeSnapshotId`, `nodeIds`, `contentOverrides`).
+- **`buildEdgeMediaUrl(fileId: string, options?)`** & **`buildEdgeSrcSet(fileId: string, widths?)`**: Generates edge CDN proxy URLs for Google Drive media.
 
 ### Exported Edge Types & Schemas
 - `PublicNodePayload` & `PublicNodePayloadSchema`

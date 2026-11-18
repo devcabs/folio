@@ -39,9 +39,9 @@ export default function Main() {
 
 ---
 
-## Step 1: Generate a 4-Digit PIN Hash & Salt
+## Step 1: Configure Edge PIN Hash & Salt
 
-Dev Mode authenticates users with a **4-digit numeric PIN** (`0000`–`9999`), never stored in cleartext. `devSecurity.ts` computes:
+Dev Mode authenticates users with a **4-digit numeric PIN** (`0000`–`9999`), verified on the Cloudflare Edge—never stored in cleartext or bundled into client JS. `devSecurity.ts` and `lockHandler.ts` compute:
 
 ```
 SHA-256("${salt}:${pin}")
@@ -60,22 +60,18 @@ Or compute it in Node.js:
 node -e "console.log(require('crypto').createHash('sha256').update('my_portal_salt_2026:4829').digest('hex'))"
 ```
 
-3. Store the values in your `.env` (or pass them via `EngineConfig`):
+3. Store the credentials as **Cloudflare Edge secrets** (and optionally `.dev.vars` for local `wrangler` development):
 
 ```env
-VITE_DEV_SALT=my_portal_salt_2026
-VITE_DEV_PIN_HASH=<64-char-hex-digest>
-
-# Optional: Cloud persistence & single-coordinator mutex lock
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-public-anon-key
+DEV_SECURITY_SALT=my_portal_salt_2026
+DEV_PIN_HASH=<64-char-hex-digest>
 
 # Optional: Google Drive photo verification & folder sync
 VITE_GOOGLE_DRIVE_API_KEY=your-google-api-key
 ```
 
 > [!IMPORTANT]
-> **Fallback Resolution Order**: `verifyPin()` checks `EngineConfig.expectedPinHash` first, then `import.meta.env.VITE_DEV_PIN_HASH`, and finally falls back to the built-in default hash. Always configure your own `VITE_DEV_SALT` and `VITE_DEV_PIN_HASH` before deploying to production.
+> **Zero Client Credential Fallback**: `POST /api/lock` verifies the PIN strictly against `env.DEV_PIN_HASH` and `env.DEV_SECURITY_SALT` on the edge runtime and returns HTTP `503` if unconfigured. Never pass production PIN hashes into client `VITE_*` variables.
 
 ---
 
@@ -159,8 +155,8 @@ By default, `devSecurity.ts` and `DeveloperModeContext.tsx` enforce:
 | :--- | :--- | :--- |
 | **Desktop-only editing** | Viewport `>= 1024px` (or `>= 720px` with a fine pointer) | Prevents accidental edits on mobile/touch-only devices |
 | **Session timeout** | `30 minutes` (`SESSION_DURATION_MS`) | Auto-prompts for renewal or expires idle browser sessions |
-| **Brute-force lockout** | `5` failed attempts → `60s` cooldown (`MAX_ATTEMPTS`, `LOCKOUT_DURATION_MS`) | Persists across tabs/refreshes via `localStorage` |
-| **Distributed lock** | 1 active coordinator at a time (via Supabase `engine_lock`) | Displays `DevLockBlockedModal` if another user is editing |
+| **Brute-force lockout** | `5` failed attempts → `60s` cooldown (`MAX_ATTEMPTS`, `LOCKOUT_DURATION_MS`) | Persisted on the edge in Cloudflare KV (`lock:pin_ratelimit`) |
+| **Distributed lock** | 1 active coordinator at a time (`lock:coordinator`, `60s` TTL / `30s` heartbeat) | Displays `DevLockBlockedModal` if another coordinator holds the lease |
 
 ---
 

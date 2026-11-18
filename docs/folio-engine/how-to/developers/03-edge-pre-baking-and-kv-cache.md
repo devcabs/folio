@@ -1,107 +1,72 @@
-# How-To: Edge Pre-Baking & Cloudflare KV Static Cache
+# How-To: Edge Pre-Baking & Cloudflare KV Distribution
 
-This guide demonstrates how to pre-bake dynamic application datasets into static JSON bundles for distribution on Cloudflare Pages Functions and KV storage.
+This guide demonstrates how Folio Engine compiles self-contained `NodeCanvasDocument` ASTs at publish time and serves them directly from Cloudflare Edge KV with strict fail-stop semantics.
 
 ---
 
 ## 🎯 Problem Statement
 
-Calling Supabase and Google Sheets APIs dynamically on every user page load introduces latency, rate limiting, and egress costs. Folio Engine includes an **Edge Pre-Baking Pipeline** that compiles AST documents, remote images, and sheet datasets into static payloads served from Cloudflare's global edge network in $<15\text{ms}$.
+Calling external APIs dynamically on every user page load introduces latency, rate limiting, and egress costs. Folio Engine includes an **Edge Pre-Baking Pipeline** (`edgePreBakeService.ts`) that compiles self-contained AST documents—with embedded chart configs/datasets, embedded gallery photos, and rewritten `/api/media/drive/:fileId` URLs—into versioned Cloudflare KV payloads served in $<15\text{ms}$.
 
 ---
 
 ## 🏗️ The Pre-Baking & Distribution Pipeline
 
 ```
-[ Build Machine / CI ]
+[ Coordinator Publish (POST /api/publish) ]
          │
          ▼
-[ scripts/prebake-edge-kv.ts ]
+[ edgePreBakeService.ts ]
          │
-         ├── Fetches live Node items and Canvas ASTs
-         ├── Pre-fetches and verifies Google Sheets CSV matrices
-         ├── Resolves Google Drive photo candidates & creates responsive srcSet
-         │
-         ▼
-[ Compiled JSON Payloads in dist/api/ ]
-         ├── manifest.json
-         ├── node/[nodeId].json
-         └── chart/[chartId].json
+         ├── Compiles self-contained NodeCanvasDocument AST per node
+         ├── Strips private ChartElement.config.sheetUrl (zero-leak)
+         ├── Rewrites Google Drive URLs to /api/media/drive/:fileId?w=...
+         └── Generates responsive srcSet (400w, 800w, 1600w)
          │
          ▼
-[ wrangler pages deploy ] ──> [ Cloudflare Global Edge KV ]
-                                          │
-                                          ▼
-                               [ Client Instant Hydration ]
+[ Two-Phase Cloudflare KV Write (KV_ENGINE_PUBLIC) ]
+         ├── Phase A: history:snapshot:${id}, node:${id}:${nodeId}, node:${nodeId}
+         └── Phase B: portal:manifest (activeSnapshotId) & history:index
+         │
+         ▼
+[ Client Instant Hydration via /api/public/* ]
 ```
 
 ---
 
-## Step 1: Run the Pre-Bake Script
+## Step 1: Delegate Edge Routes in Your Worker / Pages Function
 
-Execute the pre-bake script from the root of the repository:
-
-```bash
-npx tsx scripts/prebake-edge-kv.ts
-```
-
-The script performs the following actions:
-1. Connects to `edgePreBakeService.ts` via the `@devcabs/folio-engine/edge` entrypoint.
-2. Compiles `PublicPortalManifestPayloadSchema`, recording all available nodes, titles, and hash routes.
-3. For each node, compiles `PublicNodePayloadSchema`, combining:
-   - Node metadata and hero photo configurations.
-   - Recursive `NodeCanvasDocument` AST.
-   - Synchronized source attachment records (`SyncedSourceMetadata`).
-   - Baked chart series data (`CachedIndicatorDataset`).
-4. Emits compiled JSON files into `public/api/` or `dist/api/`.
-
----
-
-## Step 2: Configure Cloudflare Pages Functions
-
-Cloudflare Pages Functions reside in the `functions/api/` directory:
-
-```
-functions/
-├── api/
-│   ├── public/
-│   │   ├── manifest.ts          # GET /api/public/manifest
-│   │   └── node/
-│   │       └── [id].ts          # GET /api/public/node/:id
-│   └── media/
-│       └── drive/
-│           └── [fileId].ts      # Media edge proxy & WebP stream cache
-```
-
-### Example: Dynamic Node Edge Route
+Mount `handleFolioEdgeRequest` from `@devcabs/folio-engine/edge` in your Cloudflare Worker or Pages Function:
 
 ```typescript
-// functions/api/public/node/[id].ts
-import type { EventContext } from '@cloudflare/workers-types';
+// src/worker.ts (or functions/[[path]].ts)
+import { handleFolioEdgeRequest } from '@devcabs/folio-engine/edge';
 
-interface Env {
-  FOLIO_KV?: KVNamespace;
-}
+export default {
+  async fetch(request: Request, env: unknown, ctx: ExecutionContext) {
+    return handleFolioEdgeRequest(request, env, ctx);
+  },
+};
+```
 
-export async function onRequestGet(context: EventContext<Env, 'id', unknown>) {
-  const { params, env } = context;
-  const nodeId = params.id as string;
+`handleFolioEdgeRequest` resolves `env.KV_ENGINE_PUBLIC` (or a custom `kvBinding` option) and routes:
+- `GET /api/public/manifest` → reads `portal:manifest` (returns HTTP 404/503 on miss; never fabricates a 200 fallback).
+- `GET /api/public/node/:nodeId` → resolves `portal:manifest.activeSnapshotId` and reads `node:${activeSnapshotId}:${nodeId}` (with ETag conditional `304 Not Modified` support).
+- `GET /api/media/drive/:fileId` → streams Google Drive images with `w` width sizing.
+- `POST /api/publish`, `/api/draft`, `/api/history`, `/api/lock` → coordinator authoring endpoints.
 
-  // 1. Attempt edge KV cache retrieval
-  if (env.FOLIO_KV) {
-    const cachedPayload = await env.FOLIO_KV.get(`node_${nodeId}`, 'text');
-    if (cachedPayload) {
-      return new Response(cachedPayload, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400',
-        },
-      });
-    }
-  }
+---
 
-  // 2. Fallback to pre-baked static file
-  return context.next();
+## Step 2: Optional Build-Time Verification
+
+You can validate compiled `PublicNodePayload` and `PublicPortalManifestPayload` objects in CI using `@devcabs/folio-engine/diagnostics`:
+
+```typescript
+import { validateNodePayload } from '@devcabs/folio-engine/diagnostics';
+
+const result = validateNodePayload(payload);
+if (!result.ok) {
+  throw new Error(result.errors.join('\n'));
 }
 ```
 
@@ -109,17 +74,16 @@ export async function onRequestGet(context: EventContext<Env, 'id', unknown>) {
 
 ## Step 3: Deploy to Cloudflare
 
-Deploy the application and edge functions atomically using the official deploy pipeline:
+Deploy the application and edge worker atomically using the official deploy pipeline:
 
 ```bash
 npm run deploy
 ```
 
 This runs:
-1. `npm run test:tokens` & `npm test`.
+1. `npm run test:tokens`, `npm run test:purity`, `tsc --noEmit`, and `npm test`.
 2. `npm run build` & `npm run build:lib`.
-3. Pre-bakes KV assets.
-4. Executes `wrangler pages deploy dist`.
+3. Commits, pushes, and executes `wrangler` deployment.
 
 ---
 
@@ -131,10 +95,10 @@ Verify the edge deployment using curl:
 curl -I https://your-domain.com/api/public/node/architecture
 ```
 
-Expected response headers:
+Expected response headers when published:
 ```http
 HTTP/2 200
-content-type: application/json
-cf-cache-status: HIT
-cache-control: public, max-age=300, s-maxage=3600
+content-type: application/json; charset=utf-8
+etag: "..."
+cache-control: public, max-age=60, s-maxage=300, stale-while-revalidate=86400
 ```

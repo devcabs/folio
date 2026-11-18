@@ -820,17 +820,18 @@ if (isCliEntrypoint()) {
     const parsed = parseDoctorArgs(process.argv.slice(2));
     if (parsed.help) {
       console.log(getDoctorHelpText());
-      process.exit(0);
+      process.exitCode = 0;
+    } else {
+      const exitCode = runMigrationDoctor({
+        cwd: parsed.cwd,
+        format: parsed.format,
+        fromVersion: parsed.fromVersion,
+        noColor: parsed.noColor,
+      });
+      process.exitCode = exitCode;
     }
-    const exitCode = runMigrationDoctor({
-      cwd: parsed.cwd,
-      format: parsed.format,
-      fromVersion: parsed.fromVersion,
-      noColor: parsed.noColor,
-    });
-    process.exit(exitCode);
   } catch (err: unknown) {
     console.error(`❌ ${err instanceof Error ? err.message : String(err)}`);
-    process.exit(1);
+    process.exitCode = 1;
   }
 }

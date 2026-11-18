@@ -21,8 +21,8 @@ NodeCanvasDocument
         │   └── elements: CanvasLeafElement[]
         │       ├── TextElement (content: string, as: 'p' | 'blockquote')
         │       └── PhotoElement (src: string, alt: string, caption: string)
-        ├── GalleryElement (driveUrl: string)
-        └── ChartElement (chartId: string)
+        ├── GalleryElement (driveUrl, title, description, lastVerified, syncedPhotos)
+        └── ChartElement (chartId, title, subtitle, config, dataset)
 ```
 
 ---

@@ -1,6 +1,6 @@
 # Folio Engine Technical Documentation
 
-**Folio Engine** (`@devcabs/folio-engine`) is an installable React 19 application engine and component library for rich, data-driven narrative experiences. It provides a parametric stepped sequence graph, recursive document canvas AST, in-browser vector chart studio, dual-channel content persistence, and edge pre-baking.
+**Folio Engine** (`@devcabs/folio-engine`) is an installable React 19 application engine and component library for rich, data-driven narrative experiences. It provides a parametric stepped sequence graph, self-contained recursive document canvas AST, in-browser vector chart studio, Cloudflare KV single-source persistence, and edge pre-baking.
 
 ---
 
@@ -11,25 +11,25 @@ Folio Engine is organized around five modular, decoupled technical subsystems:
 ```mermaid
 graph TD
     A["Folio Engine Core"] --> B["1. Stepped Sequence Graph"]
-    A --> C["2. Recursive Document Canvas"]
+    A --> C["2. Self-Contained Document AST"]
     A --> D["3. Vector Chart Studio"]
-    A --> E["4. Dual-Channel Content DB"]
+    A --> E["4. Cloudflare KV Single-Source Persistence"]
     A --> F["5. Edge Pre-Baking & Distribution"]
 
     B --> B1["Continuous-Scroll Bézier Track"]
     B --> B2["Discrete Waypoint Navigation"]
     
     C --> C1["Block AST Tree (Section / Subsection / Leaf)"]
-    C --> C2["Dynamic Sequential Numbering"]
+    C --> C2["Embedded Chart & Gallery Payloads"]
     
     D --> D1["D3-Scale SVG Renderers (Bar, Line, Donut, Scatter, Histogram)"]
     D --> D2["Live Google Sheets / CSV Sync Drawer"]
     
-    E --> E1["Live vs. Draft Dual-Channel Isolation"]
-    E --> E2["Distributed Mutex Lock & History Ledger"]
+    E --> E1["Live vs. Draft KV Isolation (draft:workspace)"]
+    E --> E2["Edge-Authenticated Lock & History Ledger"]
     
-    F --> F1["Cloudflare Pages Functions"]
-    F --> F2["Static KV Payload Cache Acceleration"]
+    F --> F1["Cloudflare Pages Functions (/api/*)"]
+    F --> F2["Versioned Snapshot KV Payloads"]
 ```
 
 ---

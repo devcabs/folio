@@ -11,7 +11,7 @@ The engine configuration is defined via `EngineConfig`:
 ```typescript
 export interface EngineConfig {
   appId: string;                            // Unique application ID (e.g. 'showcase-app')
-  appNamespace: string;                     // Storage prefix for localStorage & events (default: 'folio')
+  appNamespace: string;                     // Event & namespace prefix (default: 'folio')
   basePath?: string;                        // Hosting base path (e.g. '/portal' or '')
   contentVersion?: string;                  // Content watermark declared by consumer app
   nodes: NodeItem[];                        // Array of sequence waypoints
@@ -43,15 +43,14 @@ export interface EngineBrandingConfig {
 
 ---
 
-## 2. Environment Variables (`.env`)
+## 2. Environment Variables & Edge Bindings
 
-| Variable | Type | Description |
+| Variable / Binding | Runtime | Description |
 | :--- | :--- | :--- |
-| `VITE_SUPABASE_URL` | String | Cloud Supabase project URL (`https://xyz.supabase.co`). |
-| `VITE_SUPABASE_ANON_KEY` | String | Public Supabase anonymous client key. |
-| `VITE_DEV_PIN_HASH` | String | Salted SHA-256 hash (`SHA-256("${salt}:${pin}")`) of 4-digit coordinator PIN. |
-| `VITE_DEV_SALT` | String | Salt string prepended with `:` before hashing the PIN. |
-| `VITE_GOOGLE_DRIVE_API_KEY` | String | Google Drive API key used to verify public Drive folders and sync photos. |
+| `KV_ENGINE_PUBLIC` | Cloudflare Edge | Authoritative Cloudflare KV namespace binding for `portal:manifest`, `node:*`, `draft:workspace`, `history:*`, and `lock:*`. |
+| `DEV_PIN_HASH` | Cloudflare Edge Secret | Salted SHA-256 hash (`SHA-256("${salt}:${pin}")`) of the 4-digit coordinator PIN verified by `POST /api/lock`. |
+| `DEV_SECURITY_SALT` | Cloudflare Edge Secret | Salt string prepended with `:` before hashing the PIN on the edge. |
+| `VITE_GOOGLE_DRIVE_API_KEY` | Client (Vite) | Google Drive API key used to verify public Drive folders and sync photos. |
 
 ---
 

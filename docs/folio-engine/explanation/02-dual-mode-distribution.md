@@ -40,7 +40,7 @@ graph TD
 In Mode A, the repository behaves as a self-contained, runnable web application:
 - **Command**: `npm run dev` (starts Vite dev server on port `5174`).
 - **Entrypoint**: `index.html` &rarr; `src/main.tsx` &rarr; `src/App.tsx`.
-- **Data Source**: Uses mock sample datasets (`src/data/sample-nodes.json`, `src/data/baked-charts.json`).
+- **Data Source**: Uses sample node configurations (`src/data/sample-nodes.json`) and optional local Cloudflare Worker/Pages KV emulation (`wrangler`).
 - **Utility**: Enables frontend designers, core maintainers, and reviewers to interactively test Bézier tracks, canvas block reordering, and chart drawer configurations without needing a production tenant environment.
 
 ---
@@ -76,6 +76,6 @@ Downstream applications consume Folio Engine as a pure dependency:
 The tenant application is responsible for:
 1. Providing tenant-specific branding (`appName`, `logoText`, `heroTitle`).
 2. Providing tenant-specific waypoints (`NodeItem[]`).
-3. Configuring storage credentials (`VITE_SUPABASE_URL`).
+3. Binding Cloudflare KV (`KV_ENGINE_PUBLIC`) and edge PIN secrets (`DEV_SECURITY_SALT`, `DEV_PIN_HASH`).
 
 Folio Engine provides all interactive scrollytelling mechanics, SVG curve geometry, AST block rendering, modal dialogs, and D3 vector charts.
