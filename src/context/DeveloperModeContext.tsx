@@ -44,7 +44,7 @@ import {
 } from '../services/draftService';
 import type { CloudDraftSyncStatus } from '../types/draft';
 import { Toast } from '../components/feedback/Toast';
-import { handleBeforeUnloadGuard } from '../services/unsavedChangesService';
+import { handleBeforeUnloadGuard, clearAllDirtyEditors } from '../services/unsavedChangesService';
 import { useMigrationContext } from './MigrationContext';
 
 export interface ToastState {
@@ -169,6 +169,8 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
   const isLockBlockedRef = useRef<boolean>(isLockBlocked);
   const isPinModalOpenRef = useRef<boolean>(isPinModalOpen);
   const isExitConfirmOpenRef = useRef<boolean>(isExitConfirmOpen);
+  const isExitingRef = useRef<boolean>(false);
+  const hasInitializedDraftRef = useRef<boolean>(false);
 
   useEffect(() => {
     isLockBlockedRef.current = isLockBlocked;
@@ -211,18 +213,25 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
     return unsubscribe;
   }, []);
 
-  // Initialize draft session whenever Dev Mode is enabled or refreshed across F5/Cmd+R
+  // Initialize draft session whenever Dev Mode is enabled on mount
   useEffect(() => {
-    if (isDevMode) {
-      initDraftSession(undefined, lockToken).catch((err) => {
-        console.error('Draft initialization failed:', err);
-        setToastState({
-          message: 'Draft Initialization Failed: Could not initialize draft workspace.',
-          type: 'error',
-        });
-        setIsDevMode(false);
-      });
+    if (!isDevMode) {
+      hasInitializedDraftRef.current = false;
+      return;
     }
+    if (hasInitializedDraftRef.current) {
+      return;
+    }
+    hasInitializedDraftRef.current = true;
+    initDraftSession(undefined, lockToken).catch((err) => {
+      hasInitializedDraftRef.current = false;
+      console.error('Draft initialization failed:', err);
+      setToastState({
+        message: 'Draft Initialization Failed: Could not initialize draft workspace.',
+        type: 'error',
+      });
+      setIsDevMode(false);
+    });
   }, [isDevMode, lockToken]);
 
   // 1. Desktop & Viewport Responsiveness Audit
@@ -344,6 +353,9 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
 
     // Universal guard preventing accidental reload/closure while on draft or when in-flight edits exist
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isExitingRef.current) {
+        return undefined;
+      }
       if (isDevMode) {
         e.preventDefault();
         e.returnValue = '';
@@ -548,14 +560,21 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
   }, [lockToken, openPinModal]);
 
   const exitDevMode = useCallback(
-    (options?: { discard?: boolean }) => {
+    async (options?: { discard?: boolean }) => {
+      if (isExitingRef.current) {
+        return;
+      }
+      isExitingRef.current = true;
+      clearAllDirtyEditors();
+
+      const pendingCleanup: Promise<unknown>[] = [];
       if (options?.discard === true) {
-        discardDraftSession(undefined, lockToken).catch(() => { });
+        pendingCleanup.push(discardDraftSession(undefined, lockToken).catch(() => { }));
       } else {
         dispatchDraftChange(false, false);
       }
       setHasUnpublishedChanges(false);
-      releaseDevLock(lockToken);
+      pendingCleanup.push(releaseDevLock(lockToken).catch(() => false));
       setLockToken(null);
       clearSessionUnlockTime();
       setIsDevMode(false);
@@ -593,8 +612,14 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
       } catch {
         // Ignore URL manipulation error in restricted contexts
       }
+
+      await Promise.allSettled(pendingCleanup);
+
+      if (typeof window !== 'undefined' && typeof window.location?.reload === 'function') {
+        window.location.reload();
+      }
     },
-    [sessionId]
+    [sessionId, lockToken]
   );
 
   const requestExitDevMode = useCallback(() => {
@@ -647,6 +672,27 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
           if (lockRes.sessionId) {
             setSessionId(lockRes.sessionId);
           }
+
+          if (!isRenewal) {
+            hasInitializedDraftRef.current = true;
+            try {
+              await initDraftSession(undefined, lockRes.lockToken);
+            } catch (err) {
+              hasInitializedDraftRef.current = false;
+              console.error('Draft initialization failed:', err);
+              await releaseDevLock(lockRes.lockToken).catch(() => false);
+              setLockToken(null);
+              clearSessionUnlockTime();
+              setPinState('error');
+              setToastState({
+                message: 'Draft Initialization Failed: Could not initialize draft workspace.',
+                type: 'error',
+              });
+              setIsDevMode(false);
+              return false;
+            }
+          }
+
           setLockToken(lockRes.lockToken);
 
           const now = Date.now();
@@ -656,19 +702,6 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
           setAttemptsRemaining(MAX_ATTEMPTS);
           setSessionRemainingMinutes(30);
           setPinState('success');
-          try {
-            initDraftSession(undefined, lockRes.lockToken).catch((err) => {
-              console.error('Draft initialization failed:', err);
-            });
-          } catch (err) {
-            console.error('Draft initialization failed:', err);
-            setToastState({
-              message: 'Draft Initialization Failed: Could not initialize draft workspace.',
-              type: 'error',
-            });
-            setIsDevMode(false);
-            return false;
-          }
           setIsDevMode(true);
           setIsRenewal(false);
           isLockBlockedRef.current = false;

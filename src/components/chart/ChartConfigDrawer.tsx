@@ -90,14 +90,29 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
     },
   });
 
+  const initialPreviewSource = previewMatrix || initialConfig?.cachedDataset;
+  const isUsingInitialSource = Boolean(
+    mode === 'edit' &&
+    initialConfig?.sheetUrl &&
+    form.sheetUrl.trim() === initialConfig.sheetUrl.trim() &&
+    (!initialConfig.tabName || form.tabName === initialConfig.tabName) &&
+    initialPreviewSource &&
+    initialPreviewSource.length > 0 &&
+    initialConfig.range
+  );
+
   // Live Sheet Data Matrix Sync
   const matrixSync = useLiveMatrixSync({
     sheetUrl: form.sheetUrl,
     tabName: form.tabName,
     sheetGid: form.sheetGid,
     range: form.range,
-    previewMatrix: previewMatrix || initialConfig?.cachedDataset || undefined,
+    previewMatrix: isUsingInitialSource ? initialPreviewSource : undefined,
   });
+
+  const isTabRefreshed =
+    verification.accessStatus === 'public' &&
+    (matrixSync.hasSyncedForCurrentTarget || isUsingInitialSource);
 
   // Reset/sync form when opening drawer or changing target chart
   useEffect(() => {
@@ -106,7 +121,9 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
     if (isJustOpening) {
       setActiveStep(1);
       setSetupSubTab('data');
+      setIsSelectingRange(false);
       form.resetForm(initialConfig);
+      matrixSync.resetSync();
       verification.resetVerification(
         initialConfig?.sheetUrl,
         initialConfig?.tabName,
@@ -116,19 +133,25 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
 
     prevIsOpenRef.current = isOpen;
     prevChartIdRef.current = chartId;
-  }, [isOpen, chartId, initialConfig, form, verification]);
+  }, [isOpen, chartId, initialConfig, form, verification, matrixSync]);
 
-  // Track tab changes and manual range selections
+  // Track URL/tab changes and manual range selections
+  const prevUrlRef = useRef(form.sheetUrl);
   const prevTabNameRef = useRef(form.tabName);
   const userManuallySelectedRangeRef = useRef(false);
 
-  // When tab changes, reset manual range selection flag
+  // When URL or tab changes, reset sync state, range selection mode, and manual range flag
   useEffect(() => {
-    if (form.tabName !== prevTabNameRef.current) {
+    const urlChanged = form.sheetUrl !== prevUrlRef.current;
+    const tabChanged = form.tabName !== prevTabNameRef.current;
+    if (urlChanged || tabChanged) {
+      prevUrlRef.current = form.sheetUrl;
       prevTabNameRef.current = form.tabName;
       userManuallySelectedRangeRef.current = false;
+      setIsSelectingRange(false);
+      matrixSync.resetSync();
     }
-  }, [form.tabName]);
+  }, [form.sheetUrl, form.tabName, matrixSync]);
 
   // Dynamically set default range based on sheet content (using bounding filled cells)
   useEffect(() => {
@@ -220,10 +243,10 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
   const isStepAccessible = useCallback(
     (step: WizardStep) => {
       if (step === 1) return true;
-      if (step === 2) return verification.isStep1Valid && isRangeValid;
+      if (step === 2) return verification.isStep1Valid && isTabRefreshed && isRangeValid;
       return false;
     },
-    [verification.isStep1Valid, isRangeValid]
+    [verification.isStep1Valid, isTabRefreshed, isRangeValid]
   );
 
   const accentColor = NODE_ACCENT_TOKENS[nodeId] || 'var(--folio-primary)';
@@ -491,8 +514,8 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
       {
         id: 1,
         label: 'Source & Range',
-        badge: verification.isStep1Valid && isRangeValid && activeStep !== 1 ? '✓' : '1',
-        completed: verification.isStep1Valid && isRangeValid,
+        badge: verification.isStep1Valid && isTabRefreshed && isRangeValid && activeStep !== 1 ? '✓' : '1',
+        completed: verification.isStep1Valid && isTabRefreshed && isRangeValid,
       },
       {
         id: 2,
@@ -501,7 +524,7 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
         disabled: !isStepAccessible(2),
       },
     ],
-    [activeStep, verification.isStep1Valid, isRangeValid, isStepAccessible]
+    [activeStep, verification.isStep1Valid, isTabRefreshed, isRangeValid, isStepAccessible]
   );
 
   const companionContent = useMemo(() => {
@@ -589,7 +612,7 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
               type="button"
               className={styles.saveButton}
               onClick={handleSave}
-              disabled={isSaving || !verification.isStep1Valid || !isRangeValid}
+              disabled={isSaving || !verification.isStep1Valid || !isTabRefreshed || !isRangeValid}
             >
               {isSaving ? (
                 <>
@@ -605,7 +628,7 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
             variant="primary"
             size="sm"
             type="button"
-            disabled={!verification.isStep1Valid || !isRangeValid}
+            disabled={!verification.isStep1Valid || !isTabRefreshed || !isRangeValid}
             onClick={() => setActiveStep(2)}
           >
             Next: Chart Setup →
@@ -694,6 +717,7 @@ export const ChartConfigDrawer: React.FC<ChartConfigDrawerProps> = ({
             isSelectingRange={isSelectingRange}
             setIsSelectingRange={setIsSelectingRange}
             executeSync={matrixSync.executeSync}
+            isTabRefreshed={isTabRefreshed}
           />
         )}
 

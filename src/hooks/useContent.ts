@@ -38,7 +38,8 @@ export function useContent(
   const portalChrome = usePortalChrome();
 
   const contentOverrides = portalChrome?.contentOverrides ?? {};
-  const text = resolveContent(contentOverrides, key, defaultValue);
+  const isInitialHydrating = Boolean(portalChrome && portalChrome.isHydrating && !portalChrome.hasHydrated);
+  const text = isInitialHydrating ? '' : resolveContent(contentOverrides, key, defaultValue);
   const isModified = hasContentOverrideInMap(contentOverrides, key);
 
   const handleSetText = useCallback(

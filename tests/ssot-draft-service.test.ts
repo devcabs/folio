@@ -235,7 +235,7 @@ describe('Subtask 7.4: Live Cloudflare KV Draft Workspace (draft:workspace) SSOT
       expect(await kv.get('draft:workspace')).toBeNull();
     });
 
-    it('POST /api/draft/init returns existing active dirty draft without overwriting', async () => {
+    it('POST /api/draft/init overwrites stale or dirty draft:workspace with live portal:manifest and history:snapshot baseline', async () => {
       const existingDraft: DraftWorkspacePayload = {
         baseSnapshotId: 'snap-99',
         dirty: true,
@@ -243,8 +243,53 @@ describe('Subtask 7.4: Live Cloudflare KV Draft Workspace (draft:workspace) SSOT
         updatedAt: '2026-11-18T00:10:00Z',
         authorSessionId: 'coord-1',
         canvases: { access: createDefaultCanvasDocument('access') },
-        contentOverrides: { 'hero.title': 'Unsaved Edit' },
+        contentOverrides: { 'hero.title': 'Stale Unsaved Edit' },
       };
+
+      const liveCanvas = createDefaultCanvasDocument('access');
+      liveCanvas.sections = [
+        {
+          id: 'sec-live-100',
+          type: 'section',
+          title: 'Live Published Section',
+          elements: [
+            {
+              id: 'chart-1',
+              type: 'chart',
+              chartId: 'c-1',
+              title: 'Live Chart',
+              config: {
+                chartId: 'c-1',
+                nodeId: 'access',
+                sheetUrl: 'https://docs.google.com/spreadsheets/d/live-sheet/edit',
+                defaultType: 'bar',
+              },
+            },
+          ],
+        },
+      ];
+
+      const prebakedCanvas = createDefaultCanvasDocument('access');
+      prebakedCanvas.sections = [
+        {
+          id: 'sec-live-100',
+          type: 'section',
+          title: 'Live Published Section',
+          elements: [
+            {
+              id: 'chart-1',
+              type: 'chart',
+              chartId: 'c-1',
+              title: 'Live Chart',
+              config: {
+                chartId: 'c-1',
+                nodeId: 'access',
+                defaultType: 'bar',
+              },
+            },
+          ],
+        },
+      ];
 
       const kv = createMockKV({
         'portal:manifest': {
@@ -252,6 +297,25 @@ describe('Subtask 7.4: Live Cloudflare KV Draft Workspace (draft:workspace) SSOT
           publishedAt: '2026-11-18T00:15:00Z',
           nodeIds: ['access'],
           schemaVersion: 1,
+          contentOverrides: { 'hero.title': 'Live Published Title' },
+        },
+        'node:snap-100:access': {
+          nodeId: 'access',
+          snapshotId: 'snap-100',
+          version: 1,
+          updatedAt: '2026-11-18T00:15:00Z',
+          canvas: prebakedCanvas,
+        },
+        'history:snapshot:snap-100': {
+          id: 'snap-100',
+          schemaVersion: 1,
+          title: 'Live Snapshot 100',
+          description: 'Live release',
+          createdAt: '2026-11-18T00:15:00Z',
+          authorSessionId: 'coord-1',
+          isActive: true,
+          canvases: { access: liveCanvas },
+          contentOverrides: { 'hero.title': 'Live Published Title' },
         },
         'draft:workspace': existingDraft,
       });
@@ -272,8 +336,13 @@ describe('Subtask 7.4: Live Cloudflare KV Draft Workspace (draft:workspace) SSOT
 
       expect(res.status).toBe(200);
       const data = (await res.json()) as DraftWorkspacePayload;
-      expect(data.revision).toBe(4);
-      expect(data.contentOverrides['hero.title']).toBe('Unsaved Edit');
+      expect(data.baseSnapshotId).toBe('snap-100');
+      expect(data.dirty).toBe(false);
+      expect(data.revision).toBe(1);
+      expect(data.contentOverrides['hero.title']).toBe('Live Published Title');
+      expect(data.canvases.access.sections[0].title).toBe('Live Published Section');
+      const restoredChart = data.canvases.access.sections[0].elements[0] as any;
+      expect(restoredChart.config.sheetUrl).toBe('https://docs.google.com/spreadsheets/d/live-sheet/edit');
     });
 
     it('GET /api/draft returns HTTP 404 when no draft:workspace exists and HTTP 200 with no-store when present', async () => {

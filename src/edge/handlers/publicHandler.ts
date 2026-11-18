@@ -7,7 +7,7 @@ import type { KVNamespace } from '../../types/edge';
 import { computeWeakEtag } from '../../types/edge';
 
 export const CACHE_CONTROL_MANIFEST = 'public, max-age=0, must-revalidate';
-export const CACHE_CONTROL_NODE = 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
+export const CACHE_CONTROL_NODE = 'public, max-age=0, must-revalidate';
 export const CACHE_CONTROL_FALLBACK = 'public, max-age=0, must-revalidate';
 export const CACHE_CONTROL_EDGE = CACHE_CONTROL_NODE;
 

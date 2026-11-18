@@ -667,6 +667,47 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.2.1',
+    releaseDate: '2026-11-18',
+    title: 'KV Hydration Freshness, Chart Step 1 Progressive Disclosure & History Ledger UI',
+    summary:
+      'Fixed stale KV reads with no-store/must-revalidate caching, rebuilt draft baselines from unstripped snapshot ASTs, added PortalChromeContext hasHydrated & canvas/content sync events, refined Dev Mode publish-and-exit lifecycle, added progressive disclosure to ChartConfigDrawer Step 1, and upgraded HistoryHubModal to a vertical timeline ledger.',
+    breakingChanges: [
+      'No breaking API changes; additive hydration, draft baseline, and UI refinements only.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.2.1 to acknowledge KV hydration, chart drawer, and history ledger updates.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.2.0" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.2.1" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'kv-hydration-and-chart-step1-0.2.1',
+        title: 'KV Cache Revalidation & Authoring Draft Baseline Sync',
+        required: false,
+        description:
+          'Public node responses now use must-revalidate caching, client KV fetches use cache: "no-store", draft init rebuilds from unstripped snapshot ASTs (preserving sheetUrl and Drive URLs), and PortalChromeContext exposes hasHydrated.',
+        affectedEntities: ['draftHandler', 'publicHandler', 'PortalChromeContext', 'useDocumentCanvas', 'ChartConfigDrawer', 'HistoryHubModal'],
+        migrationPrompt:
+          'No manual content migration required. Redeploy your Worker/Pages bundle so edge handlers serve must-revalidate headers and fresh draft baselines.',
+      },
+      {
+        id: 'content-version-watermark-0.2.1',
+        title: 'Advance contentVersion Watermark to 0.2.1',
+        required: true,
+        description:
+          'Update contentVersion watermark in EngineConfig to 0.2.1 to clear pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.2.1"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

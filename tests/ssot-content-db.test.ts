@@ -298,9 +298,34 @@ describe('Subtask 7.2: Direct KV Content Overrides & Portal Chrome Hydration SSO
       const root = createRoot(container);
       roots.push(root);
 
-      // 1. Public Mode mount -> fetches /api/public/manifest
+      // 1. Public Mode mount -> does NOT flash Fallback Title while hydrating, then shows Live KV Title
+      let resolveManifest!: (res: Response) => void;
+      fetchMock.mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveManifest = resolve;
+          })
+      );
+
       await React.act(async () => {
         root.render(React.createElement(Harness, { isDev: false }));
+      });
+      expect(latestHydrating).toBe(true);
+      expect(latestText).toBe('');
+
+      await React.act(async () => {
+        resolveManifest(
+          new Response(
+            JSON.stringify({
+              activeSnapshotId: 'snap-1',
+              publishedAt: '2026-11-18T00:00:00Z',
+              nodeIds: ['access'],
+              schemaVersion: 1,
+              contentOverrides: { 'hero.title': 'Live KV Title' },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          )
+        );
         await new Promise((r) => setTimeout(r, 20));
       });
       expect(latestHydrating).toBe(false);

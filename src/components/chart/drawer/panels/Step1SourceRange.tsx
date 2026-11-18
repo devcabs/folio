@@ -27,6 +27,7 @@ export interface Step1SourceRangeProps {
   isSelectingRange: boolean;
   setIsSelectingRange: (val: boolean | ((prev: boolean) => boolean)) => void;
   executeSync: (url?: string, tab?: string, gid?: string) => Promise<void> | void;
+  isTabRefreshed?: boolean;
 }
 
 /**
@@ -55,6 +56,7 @@ export const Step1SourceRange: React.FC<Step1SourceRangeProps> = ({
   isSelectingRange,
   setIsSelectingRange,
   executeSync,
+  isTabRefreshed = false,
 }) => {
   const hasSpreadsheetId = Boolean(extractSpreadsheetId(sheetUrl.trim()));
 
@@ -192,7 +194,7 @@ export const Step1SourceRange: React.FC<Step1SourceRangeProps> = ({
       </div>
 
       {/* 2. Sheet Tab Selection */}
-      {(sheetUrl.trim() || accessStatus === 'public') && (
+      {accessStatus === 'public' && (
         <div className={styles.sectionGroup}>
           <div className={styles.formGroup}>
             <div className={styles.labelRow}>
@@ -232,44 +234,46 @@ export const Step1SourceRange: React.FC<Step1SourceRangeProps> = ({
       )}
 
       {/* 3. Cell Range & Extraction */}
-      <div className={styles.sectionGroup}>
-        <div className={styles.formGroup}>
-          <div className={styles.labelRow}>
-            <label className={styles.label}>
-              <span>
-                3. Select Range
-                <DevHelpTooltip
-                  text="The box of cells to use for this chart, like A1:D10."
-                  label="Data Range"
-                />
-              </span>
-            </label>
-          </div>
-
-          <div className={styles.rangeRow}>
-            <div className={styles.rangeDisplayWrapper}>
-              <span className={range ? styles.rangeBadge : styles.rangeBadgeEmpty}>
-                {range || '—'}
-              </span>
+      {accessStatus === 'public' && isTabRefreshed && (
+        <div className={styles.sectionGroup}>
+          <div className={styles.formGroup}>
+            <div className={styles.labelRow}>
+              <label className={styles.label}>
+                <span>
+                  3. Select Range
+                  <DevHelpTooltip
+                    text="The box of cells to use for this chart, like A1:D10."
+                    label="Data Range"
+                  />
+                </span>
+              </label>
             </div>
 
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={() => setIsSelectingRange((prev) => !prev)}
-              className={styles.selectRangeBtn}
-              aria-label={isSelectingRange ? 'Finish range selection' : 'Select range on sheet'}
-            >
-              {isSelectingRange ? 'Done' : 'Select'}
-            </Button>
-          </div>
+            <div className={styles.rangeRow}>
+              <div className={styles.rangeDisplayWrapper}>
+                <span className={range ? styles.rangeBadge : styles.rangeBadgeEmpty}>
+                  {range || '—'}
+                </span>
+              </div>
 
-          {!isRangeValid && range && (
-            <p className={styles.errorText}>Invalid range</p>
-          )}
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => setIsSelectingRange((prev) => !prev)}
+                className={styles.selectRangeBtn}
+                aria-label={isSelectingRange ? 'Finish range selection' : 'Select range on sheet'}
+              >
+                {isSelectingRange ? 'Done' : 'Select'}
+              </Button>
+            </div>
+
+            {!isRangeValid && range && (
+              <p className={styles.errorText}>Invalid range</p>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -45,8 +45,7 @@ export const DevExitConfirmModal: React.FC = memo(() => {
   const handlePublishedAndExit = useCallback(() => {
     setIsPublishAndExitOpen(false);
     clearHistory();
-    confirmExitDevMode({ discard: false });
-  }, [clearHistory, confirmExitDevMode]);
+  }, [clearHistory]);
 
   if (!isExitConfirmOpen && !isPublishAndExitOpen) {
     return null;

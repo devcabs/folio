@@ -25,7 +25,7 @@ export const DevPublishModal: React.FC<DevPublishModalProps> = ({
 
   const isSubmitting = publishStep === 'publishing';
 
-  const { showToast, lockToken } = useDeveloperMode();
+  const { showToast, lockToken, exitDevMode } = useDeveloperMode();
 
   useEffect(() => {
     if (!isOpen) {
@@ -106,6 +106,7 @@ export const DevPublishModal: React.FC<DevPublishModalProps> = ({
       showToast('Published changes live to portal.', 'success');
       onPublished?.(result.snapshot, result.cloudSynced);
       onClose();
+      exitDevMode({ discard: false });
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'Unexpected error during publishing.');
       setPublishStep('idle');

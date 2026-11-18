@@ -17,12 +17,15 @@ import {
   fetchDraftWorkspaceOverrides,
   updateDraftContentOverride,
   removeDraftContentOverride,
+  EVENT_DRAFT_CONTENT_CHANGE,
+  EVENT_LIVE_CONTENT_CHANGE,
 } from '../utils/contentDb';
 import { TopErrorBanner } from '../components/feedback/TopErrorBanner';
 
 export interface PortalChromeContextValue {
   contentOverrides: Record<string, string>;
   isHydrating: boolean;
+  hasHydrated: boolean;
   hydrationError: string | null;
   error: string | null;
   draftUpdatedAt: string | null;
@@ -57,6 +60,9 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
     }
     return true;
   });
+  const [hasHydrated, setHasHydrated] = useState<boolean>(() => {
+    return typeof window === 'undefined' || typeof fetch !== 'function';
+  });
   const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [draftUpdatedAt, setDraftUpdatedAt] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState<number>(0);
@@ -71,8 +77,23 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
   }, []);
 
   useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+      return;
+    }
+    const eventName = isDevMode ? EVENT_DRAFT_CONTENT_CHANGE : EVENT_LIVE_CONTENT_CHANGE;
+    const handleExternalSync = () => {
+      retry();
+    };
+    window.addEventListener(eventName, handleExternalSync);
+    return () => {
+      window.removeEventListener(eventName, handleExternalSync);
+    };
+  }, [isDevMode, retry]);
+
+  useEffect(() => {
     if (typeof window === 'undefined' || typeof fetch !== 'function') {
       setIsHydrating(false);
+      setHasHydrated(true);
       return;
     }
 
@@ -94,6 +115,7 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
           setDraftUpdatedAt(null);
         }
         setHydrationError(null);
+        setHasHydrated(true);
       } catch (err) {
         if (isCancelled) return;
         const message = err instanceof Error ? err.message : 'Failed to load portal chrome from KV.';
@@ -149,6 +171,7 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
   const value: PortalChromeContextValue = {
     contentOverrides,
     isHydrating,
+    hasHydrated,
     hydrationError,
     error: hydrationError,
     draftUpdatedAt,

@@ -27,6 +27,9 @@ import {
   removeCanvasItem,
   updateCanvasItem,
   findCanvasItemLocation,
+  EVENT_DRAFT_CANVAS_CHANGE,
+  EVENT_LIVE_CANVAS_CHANGE,
+  type CanvasChangeEventDetail,
 } from '../services/canvasLayoutService';
 import {
   createDefaultSection,
@@ -140,7 +143,43 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
   const documentRef = useRef(document);
   documentRef.current = document;
 
+  const prevNodeIdRef = useRef(nodeId);
+  if (prevNodeIdRef.current !== nodeId) {
+    prevNodeIdRef.current = nodeId;
+    const emptyDoc = createDefaultCanvasDocument(nodeId);
+    documentRef.current = emptyDoc;
+    setDocument(emptyDoc);
+  }
+
   const draftUpdatedAtRef = useRef<string | null>(null);
+
+  // Subscribe to aggregate draft/live canvas change events (init, discard, history restore, publish)
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+      return;
+    }
+    const eventName = isDevMode ? EVENT_DRAFT_CANVAS_CHANGE : EVENT_LIVE_CANVAS_CHANGE;
+    const handleCanvasEvent = (e: Event) => {
+      const detail = (e as CustomEvent<CanvasChangeEventDetail>).detail;
+      if (!detail) return;
+      if (detail.nodeId === '*') {
+        retryFetch();
+      } else if (detail.nodeId === nodeId && detail.document) {
+        const nextDoc: NodeCanvasDocument = {
+          ...detail.document,
+          sections: renumberSections(detail.document.sections || []),
+        };
+        documentRef.current = nextDoc;
+        startTransition(() => {
+          setDocument(nextDoc);
+        });
+      }
+    };
+    window.addEventListener(eventName, handleCanvasEvent);
+    return () => {
+      window.removeEventListener(eventName, handleCanvasEvent);
+    };
+  }, [nodeId, isDevMode, retryFetch]);
 
   // Direct Cloudflare KV hydration:
   // - Public Mode: GET /api/public/node/:nodeId
@@ -161,7 +200,11 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
       headers['Authorization'] = `Bearer ${lockToken}`;
     }
 
-    fetch(url, { method: 'GET', ...(Object.keys(headers).length > 0 ? { headers } : {}) })
+    fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      ...(Object.keys(headers).length > 0 ? { headers } : {}),
+    })
       .then(async (res) => {
         if (!res.ok) {
           let errorMsg = isDevMode

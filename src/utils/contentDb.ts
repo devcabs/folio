@@ -123,7 +123,7 @@ export async function fetchPublicManifestOverrides(): Promise<Record<string, str
   if (typeof fetch !== 'function') {
     throw new Error('Fetch API is unavailable to read portal:manifest.');
   }
-  const res = await fetch('/api/public/manifest', { method: 'GET' });
+  const res = await fetch('/api/public/manifest', { method: 'GET', cache: 'no-store' });
   if (!res.ok) {
     throw new Error(`Manifest KV read failed (HTTP ${res.status})`);
   }
@@ -145,7 +145,7 @@ export async function fetchDraftWorkspaceOverrides(
   if (lockToken) {
     headers['Authorization'] = `Bearer ${lockToken}`;
   }
-  const res = await fetch('/api/draft', { method: 'GET', headers });
+  const res = await fetch('/api/draft', { method: 'GET', cache: 'no-store', headers });
   if (!res.ok) {
     const detail = await parseErrorDetail(res);
     throw new Error(`Draft workspace KV read failed: ${detail} (HTTP ${res.status})`);

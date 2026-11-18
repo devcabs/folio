@@ -21,6 +21,17 @@ export function useLiveMatrixSync({
   const [fetchedMatrix, setFetchedMatrix] = useState<(string | number | null)[][]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncedTarget, setSyncedTarget] = useState<{
+    url: string;
+    tab: string;
+    gid: string;
+  } | null>(null);
+
+  const resetSync = useCallback(() => {
+    setFetchedMatrix([]);
+    setSyncError(null);
+    setSyncedTarget(null);
+  }, []);
 
   const executeSync = useCallback(
     async (
@@ -32,6 +43,7 @@ export function useLiveMatrixSync({
       setSyncError(null);
       if (!trimmedUrl || !extractSpreadsheetId(trimmedUrl)) {
         setFetchedMatrix([]);
+        setSyncedTarget(null);
         return;
       }
 
@@ -44,9 +56,16 @@ export function useLiveMatrixSync({
           sheetGid: targetGid ? targetGid.trim() : undefined,
           timeoutMs: 8000,
         });
-        setFetchedMatrix(matrix || []);
+        const resolved = matrix || [];
+        setFetchedMatrix(resolved);
+        setSyncedTarget(
+          resolved.length > 0
+            ? { url: trimmedUrl, tab: targetTab, gid: targetGid }
+            : null
+        );
       } catch (err: unknown) {
         setFetchedMatrix([]);
+        setSyncedTarget(null);
         const msg = err instanceof Error ? err.message : 'Failed to fetch live Google Sheet data.';
         setSyncError(msg);
         throw err;
@@ -113,15 +132,26 @@ export function useLiveMatrixSync({
     }));
   }, [headerRow]);
 
+  const hasSyncedForCurrentTarget = useMemo(() => {
+    if (!syncedTarget || syncError || fetchedMatrix.length === 0) return false;
+    return (
+      syncedTarget.url === sheetUrl.trim() &&
+      syncedTarget.tab === tabName &&
+      syncedTarget.gid === sheetGid
+    );
+  }, [syncedTarget, syncError, fetchedMatrix.length, sheetUrl, tabName, sheetGid]);
+
   return {
     fetchedMatrix,
     fullMatrix,
     isSyncing,
     syncError,
+    hasSyncedForCurrentTarget,
     liveMatrix,
     activeMatrix,
     detectedColumns,
     detectedRange,
     executeSync,
+    resetSync,
   };
 }

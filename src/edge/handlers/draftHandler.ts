@@ -16,9 +16,11 @@ import type {
   PublicNodePayload,
   PublicPortalManifestPayload,
 } from '../../types/edge';
+import type { PublishedSnapshot } from '../../types/history';
 import type { NodeCanvasDocument } from '../../types/canvas';
 import { createDefaultCanvasDocument } from '../../utils/canvasDefaults';
 import { verifyLockToken } from './lockHandler';
+import { KV_HISTORY_SNAPSHOT_PREFIX } from './historyHandler';
 
 export const KV_DRAFT_WORKSPACE_KEY = 'draft:workspace';
 export const KV_PORTAL_MANIFEST_KEY = 'portal:manifest';
@@ -55,28 +57,41 @@ function extractCanvasFromNodeRecord(raw: unknown): NodeCanvasDocument | null {
 async function readNodeCanvasBaseline(
   kv: KVNamespace,
   snapshotId: string,
-  nodeId: string
+  nodeId: string,
+  activeSnapshot?: PublishedSnapshot | null
 ): Promise<NodeCanvasDocument | null> {
+  let nodeRecordCanvas: NodeCanvasDocument | null = null;
+
   try {
     const versioned = await kv.get<PublicNodePayload | NodeCanvasDocument>(
       `node:${snapshotId}:${nodeId}`,
       'json'
     );
-    const parsedVersioned = extractCanvasFromNodeRecord(versioned);
-    if (parsedVersioned) return parsedVersioned;
+    nodeRecordCanvas = extractCanvasFromNodeRecord(versioned);
   } catch {
-    return null;
+    nodeRecordCanvas = null;
   }
 
-  try {
-    const unversioned = await kv.get<PublicNodePayload | NodeCanvasDocument>(
-      `node:${nodeId}`,
-      'json'
-    );
-    return extractCanvasFromNodeRecord(unversioned);
-  } catch {
-    return null;
+  if (!nodeRecordCanvas) {
+    try {
+      const unversioned = await kv.get<PublicNodePayload | NodeCanvasDocument>(
+        `node:${nodeId}`,
+        'json'
+      );
+      nodeRecordCanvas = extractCanvasFromNodeRecord(unversioned);
+    } catch {
+      nodeRecordCanvas = null;
+    }
   }
+
+  // Prefer the unstripped authoring AST from history:snapshot:${snapshotId} when available
+  // (preserves ChartElement.config.sheetUrl and raw Drive URLs while still requiring node:* presence)
+  const snapshotCanvas = extractCanvasFromNodeRecord(activeSnapshot?.canvases?.[nodeId]);
+  if (nodeRecordCanvas && snapshotCanvas) {
+    return JSON.parse(JSON.stringify(snapshotCanvas)) as NodeCanvasDocument;
+  }
+
+  return nodeRecordCanvas;
 }
 
 type BaselineBuildResult =
@@ -102,12 +117,27 @@ async function buildBaselineDraftWorkspace(
   const nowIso = new Date().toISOString();
 
   if (manifest !== null) {
+    let activeSnapshot: PublishedSnapshot | null = null;
+    try {
+      activeSnapshot = await kv.get<PublishedSnapshot>(
+        `${KV_HISTORY_SNAPSHOT_PREFIX}${manifest.activeSnapshotId}`,
+        'json'
+      );
+    } catch {
+      activeSnapshot = null;
+    }
+
     const manifestNodeIds = Array.isArray(manifest.nodeIds) ? manifest.nodeIds : [];
     const targetNodeIds = Array.from(new Set([...manifestNodeIds, ...requestedNodeIds]));
     const canvases: Record<string, NodeCanvasDocument> = {};
 
     for (const nodeId of targetNodeIds) {
-      const baseline = await readNodeCanvasBaseline(kv, manifest.activeSnapshotId, nodeId);
+      const baseline = await readNodeCanvasBaseline(
+        kv,
+        manifest.activeSnapshotId,
+        nodeId,
+        activeSnapshot
+      );
       if (!baseline) {
         if (manifestNodeIds.includes(nodeId)) {
           return {
@@ -122,6 +152,13 @@ async function buildBaselineDraftWorkspace(
       }
     }
 
+    const liveOverrides =
+      manifest.contentOverrides && Object.keys(manifest.contentOverrides).length > 0
+        ? { ...manifest.contentOverrides }
+        : activeSnapshot?.contentOverrides
+          ? { ...activeSnapshot.contentOverrides }
+          : {};
+
     return {
       ok: true,
       workspace: {
@@ -131,7 +168,7 @@ async function buildBaselineDraftWorkspace(
         updatedAt: nowIso,
         authorSessionId,
         canvases,
-        contentOverrides: manifest.contentOverrides ? { ...manifest.contentOverrides } : {},
+        contentOverrides: liveOverrides,
       },
     };
   }
@@ -184,23 +221,6 @@ async function handleInitDraft(request: Request, kv: KVNamespace): Promise<Respo
     typeof body.authorSessionId === 'string' && body.authorSessionId.trim()
       ? body.authorSessionId.trim()
       : 'coordinator';
-
-  let existingDraft: DraftWorkspacePayload | null = null;
-  let manifest: PublicPortalManifestPayload | null = null;
-  try {
-    existingDraft = await kv.get<DraftWorkspacePayload>(KV_DRAFT_WORKSPACE_KEY, 'json');
-    manifest = await kv.get<PublicPortalManifestPayload>(KV_PORTAL_MANIFEST_KEY, 'json');
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'KV read failure';
-    return jsonResponse({ error: `Failed to read draft workspace from KV: ${msg}` }, 502);
-  }
-
-  if (existingDraft) {
-    const matchesActive = manifest !== null && existingDraft.baseSnapshotId === manifest.activeSnapshotId;
-    if (existingDraft.dirty === true || matchesActive) {
-      return jsonResponse(existingDraft, 200);
-    }
-  }
 
   const built = await buildBaselineDraftWorkspace(kv, requestedNodeIds, authorSessionId);
   if (!built.ok) {

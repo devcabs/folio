@@ -531,8 +531,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
   }, [relocateItem]);
 
 
-  // Subtask 2.8: Zero Flash-of-Baseline — render calm skeleton wireframe on cold public load
-  if (!isDevMode && isHydrating && (!document || document.sections.length === 0)) {
+  // Subtask 2.8: Zero Flash-of-Baseline — render calm skeleton wireframe on cold load
+  if (isHydrating && (!document || document.sections.length === 0)) {
     return <CanvasGhostWireframe nodeId={nodeId} className={className} />;
   }
 
