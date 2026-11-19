@@ -881,6 +881,63 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.2.6',
+    releaseDate: '2026-11-19',
+    title: 'Lightweight Canvas PDF Support (Epic 11): Inline PdfElement & Drive DocumentsElement',
+    summary:
+      'Added lightweight canvas PDF support without heavy client dependencies: single PdfElement (CanvasPdf) with Google Drive /preview iframe and "Open in New Tab" escape hatch, and Google Drive PDF folder sync via DocumentsElement (CanvasDocuments, SourceDocuments, PdfPreviewModal, EditDocumentModal, driveDocumentSyncService, useDriveDocumentSync), plus edge Zod schema validation, --pdf-* / --doc-* design tokens, and streamlined collapsible DevMigrationModal UI.',
+    breakingChanges: [
+      'No breaking API removals; additive "pdf" (PdfElement) and "documents" (DocumentsElement) variants in CanvasElementType and CanvasLeafElement unions. Consumers with exhaustive switch (leaf.type) statements without a default branch should handle "pdf" and "documents" or delegate leaf rendering to <DocumentCanvas>.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Handle "pdf" and "documents" leaf element types in any custom CanvasLeafElement switch statements or AST traversals (or delegate rendering to <DocumentCanvas>).',
+        affectedFiles: ['src/components/canvas/DocumentCanvas.tsx'],
+        exampleBefore:
+          'switch (leaf.type) {\n  case "text": return ...;\n  case "photo": return ...;\n  case "gallery": return ...;\n  case "chart": return ...;\n}',
+        exampleAfter:
+          'switch (leaf.type) {\n  case "text": return ...;\n  case "photo": return ...;\n  case "gallery": return ...;\n  case "chart": return ...;\n  case "pdf": return <CanvasPdf element={leaf} nodeId={nodeId} />;\n  case "documents": return <CanvasDocuments element={leaf} nodeId={nodeId} />;\n}',
+      },
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.2.6 to acknowledge Epic 11 PDF and Drive document folder support.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.2.5" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.2.6" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'canvas-pdf-and-documents-0.2.6',
+        title: 'Canvas Single PDF & Google Drive PDF Folder Support',
+        required: false,
+        description:
+          'Coordinators can now embed Single PDFs (drive.google.com/file/d/{id}/view) via CanvasPdf and synchronize Google Drive PDF folders (drive.google.com/drive/folders/{id}) via CanvasDocuments / SourceDocuments directly inside any canvas section or subsection.',
+        affectedEntities: [
+          'CanvasPdf',
+          'CanvasDocuments',
+          'SourceDocuments',
+          'PdfPreviewModal',
+          'useDriveDocumentSync',
+          'CanvasAddBar',
+        ],
+        migrationPrompt:
+          'No manual database migration required. Coordinators can insert Single PDF or PDF Folder blocks via the + Add Element menu in Developer Mode.',
+      },
+      {
+        id: 'content-version-watermark-0.2.6',
+        title: 'Advance contentVersion Watermark to 0.2.6',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.2.6 to acknowledge Epic 11 PDF support and clear pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.2.6"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

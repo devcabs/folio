@@ -246,6 +246,16 @@
    --text-subhead-size: var(--text-subhead);
    --tracking-mono: -0.01em;
    --tracking-normal: 0em;
+   /* PDF Viewer & Document Repository Tokens (Epic 11) */
+   --pdf-viewer-aspect-ratio: 4 / 3;
+   --pdf-viewer-min-height: 480px;
+   --pdf-viewer-max-height: 760px;
+   --pdf-modal-frame-height: 75vh;
+   --pdf-frame-bg: var(--bg-surface-muted);
+   --doc-card-bg: var(--bg-surface);
+   --doc-card-hover-bg: var(--bg-surface-subtle);
+   --doc-icon-bg: var(--brand-primary-tint);
+   --doc-icon-color: var(--folio-primary);
    /* Dev, Title & Layout Aliases */
    --font-data: var(--font-mono);
    --font-size-2xl: 24px;

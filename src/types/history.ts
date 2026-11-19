@@ -60,6 +60,8 @@ export interface SnapshotMetricsSummary {
   totalTextElements?: number;
   totalPhotoElements?: number;
   totalChartElements?: number;
+  totalPdfElements?: number;
+  totalDocumentElements?: number;
 }
 
 export interface UnifiedPortalSnapshot {

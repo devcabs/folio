@@ -30,10 +30,12 @@
 }
 
 @keyframes skeletonPulse {
+
   0%,
   100% {
     opacity: 0.45;
   }
+
   50% {
     opacity: 0.9;
   }

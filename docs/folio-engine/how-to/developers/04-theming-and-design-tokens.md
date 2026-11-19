@@ -111,7 +111,29 @@ Provide your custom font faces to the semantic typography tokens:
 
 ---
 
-## Step 4: Universal Zero Outline Policy
+## Step 4: PDF Viewer & Document List Tokens
+
+Folio Engine exposes dedicated `--pdf-*` and `--doc-*` CSS custom properties in `src/styles/tokens.css` for `<CanvasPdf>`, `<SourceDocuments>`, and `<PdfPreviewModal>`:
+
+```css
+:root {
+  --pdf-viewer-aspect-ratio: 4 / 3;
+  --pdf-viewer-min-height: 480px;
+  --pdf-viewer-max-height: 760px;
+  --pdf-modal-frame-height: 75vh;
+  --pdf-frame-bg: var(--bg-surface-muted);
+  --doc-card-bg: var(--bg-surface);
+  --doc-card-hover-bg: var(--bg-surface-subtle);
+  --doc-icon-bg: var(--brand-primary-tint);
+  --doc-icon-color: var(--folio-primary);
+}
+```
+
+Override any of these variables in your Consumer stylesheet to adjust the inline PDF frame aspect ratio, maximum height, or document row card surface tints.
+
+---
+
+## Step 5: Universal Zero Outline Policy
 
 Folio Engine strictly enforces calm focus across all interactive controls:
 
@@ -128,7 +150,7 @@ Interactive states must communicate through subtle background surface shifts, ty
 
 ---
 
-## Step 5: Verify Token Purity & Aliases
+## Step 6: Verify Token Purity & Aliases
 
 Run the token alias verification script to guarantee no broken references exist:
 

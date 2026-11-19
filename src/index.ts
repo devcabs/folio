@@ -96,3 +96,15 @@ export * from "./hooks/useUndoRedo";
 
 // Vector Chart Studio
 export * from './components/chart';
+
+// Google Drive Document Sync (Epic 11)
+export {
+  cleanDriveDocumentName,
+  reconcileDriveDocuments,
+  fetchDriveFolderPdfs,
+  syncFolderDocuments,
+} from './services/driveDocumentSyncService';
+export {
+  useDriveDocumentSync,
+  type UseDriveDocumentSyncOptions,
+} from './hooks/useDriveDocumentSync';

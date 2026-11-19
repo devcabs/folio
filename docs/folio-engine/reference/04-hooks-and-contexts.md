@@ -168,6 +168,18 @@ Coordinates browser back-button behavior with media lightboxes. Pressing the bro
 
 ---
 
+### `useDriveDocumentSync(nodeId: string, options?: UseDriveDocumentSyncOptions)`
+Non-blocking React 19 hook for synchronizing `application/pdf` files from a linked Google Drive folder into a `DocumentsElement` AST node with a deterministic 5-state lifecycle (`never_synced` | `syncing` | `synced_success` | `synced_empty` | `sync_error`).
+
+```typescript
+function useDriveDocumentSync(
+  nodeId: string,
+  options?: UseDriveDocumentSyncOptions
+): UseDriveDocumentSyncResult;
+```
+
+---
+
 ## 5. React Context Providers
 
 ### `<DeveloperModeContext />`

@@ -15,6 +15,8 @@ import type {
   PhotoElement,
   GalleryElement,
   ChartElement,
+  PdfElement,
+  DocumentsElement,
   SubsectionElement,
   SectionElement,
   NodeCanvasDocument,
@@ -23,6 +25,10 @@ import type {
 export const AUTHORING_PLACEHOLDERS = new Set<string>([
   'Click Edit to add narrative text for this section.',
   'Photo documentation.',
+  'Document Title',
+  'PDF document attachment.',
+  'Document Repository',
+  'Supporting PDF documents and references',
   'Milestone initiatives and summary of progress',
   'Subsection details and documentation',
   'Subsection Title',
@@ -102,6 +108,37 @@ export function createDefaultChart(nodeId: string): ChartElement {
     chartId: `chart-${nodeId}-${Date.now().toString(36)}`,
     title: 'Data Chart',
     subtitle: 'Metrics and summary data',
+  };
+}
+
+/**
+ * Generate a default single PDF document viewer block.
+ */
+export function createDefaultPdf(nodeId: string): PdfElement {
+  const id = generateCanvasId('pdf');
+  return {
+    id,
+    type: 'pdf',
+    pointId: `node.${nodeId}.pdf.${id}`,
+    title: 'Document Title',
+    caption: 'PDF document attachment.',
+    showCaption: true,
+  };
+}
+
+/**
+ * Generate a default Google Drive PDF Document Repository block.
+ */
+export function createDefaultDocuments(nodeId: string): DocumentsElement {
+  const id = generateCanvasId('documents');
+  return {
+    id,
+    type: 'documents',
+    pointId: `node.${nodeId}.documents.${id}`,
+    title: 'Document Repository',
+    titlePointId: `node.${nodeId}.documents.${id}.title`,
+    subtitle: 'Supporting PDF documents and references',
+    subtitlePointId: `node.${nodeId}.documents.${id}.subtitle`,
   };
 }
 

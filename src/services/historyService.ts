@@ -43,6 +43,8 @@ export function computeMetricsSummary(
   let totalTextElements = 0;
   let totalPhotoElements = 0;
   let totalChartElements = 0;
+  let totalPdfElements = 0;
+  let totalDocumentElements = 0;
 
   for (const nodeId of Object.keys(canvases || {})) {
     const doc = canvases[nodeId];
@@ -63,6 +65,8 @@ export function computeMetricsSummary(
               if (leaf.type === 'text') totalTextElements += 1;
               else if (leaf.type === 'photo') totalPhotoElements += 1;
               else if (leaf.type === 'chart') totalChartElements += 1;
+              else if (leaf.type === 'pdf') totalPdfElements += 1;
+              else if (leaf.type === 'documents') totalDocumentElements += 1;
             }
           }
         } else {
@@ -70,6 +74,8 @@ export function computeMetricsSummary(
           if (el.type === 'text') totalTextElements += 1;
           else if (el.type === 'photo') totalPhotoElements += 1;
           else if (el.type === 'chart') totalChartElements += 1;
+          else if (el.type === 'pdf') totalPdfElements += 1;
+          else if (el.type === 'documents') totalDocumentElements += 1;
         }
       }
     }
@@ -83,6 +89,8 @@ export function computeMetricsSummary(
     totalTextElements,
     totalPhotoElements,
     totalChartElements,
+    totalPdfElements,
+    totalDocumentElements,
   };
 }
 

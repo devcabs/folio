@@ -11,6 +11,8 @@ import type {
   PhotoElement,
   GalleryElement,
   ChartElement,
+  PdfElement,
+  DocumentsElement,
 } from '../../types/canvas';
 import type { NodeCode } from '../../types/node';
 import type { SheetChartConfig } from '../../types/chart';
@@ -18,12 +20,15 @@ import { useDocumentCanvas } from '../../hooks/useNodeCanvas';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { generateCanvasId, createDefaultSection } from '../../utils/canvasDefaults';
+import { resolveSingleDrivePdfUrl } from '../../utils/mediaUrl';
 import { CanvasSection } from './CanvasSection';
 import { CanvasSubsection } from './CanvasSubsection';
 import { CanvasText } from './CanvasText';
 import { CanvasPhoto } from './CanvasPhoto';
 import { CanvasGallery, type GalleryElementUpdates } from './CanvasGallery';
 import { CanvasChart } from './CanvasChart';
+import { CanvasPdf } from './CanvasPdf';
+import { CanvasDocuments, type DocumentsElementUpdates } from './CanvasDocuments';
 import { CanvasAddBar } from './CanvasAddBar';
 import { CanvasGhostWireframe } from './CanvasGhostWireframe';
 import { CanvasEmptyNotice } from './CanvasEmptyNotice';
@@ -69,6 +74,7 @@ interface ActiveChartDrawerState {
 interface ActiveGalleryModalState {
   isOpen: boolean;
   mode: 'add' | 'edit';
+  elementType: 'gallery' | 'documents';
   itemId?: string;
   pointId: string;
   initialTitle: string;
@@ -96,6 +102,10 @@ function renderCanvasLeaf(
   onUpdateChart?: (
     leafId: string,
     updates: Partial<ChartElement>
+  ) => Promise<{ ok: boolean; error?: string } | void> | void,
+  onUpdateDocuments?: (
+    leafId: string,
+    updates: DocumentsElementUpdates
   ) => Promise<{ ok: boolean; error?: string } | void> | void
 ): React.ReactNode {
   switch (leaf.type) {
@@ -142,9 +152,45 @@ function renderCanvasLeaf(
           onEdit={onEditLeaf ? () => onEditLeaf(leaf) : undefined}
         />
       );
+    case 'pdf':
+      return (
+        <CanvasPdf
+          element={leaf}
+          nodeId={nodeId}
+          accentColor={accentColor}
+          onEdit={onEditLeaf ? () => onEditLeaf(leaf) : undefined}
+        />
+      );
+    case 'documents':
+      return (
+        <CanvasDocuments
+          element={leaf}
+          nodeId={nodeId}
+          accentColor={accentColor}
+          onUpdateDocuments={
+            onUpdateDocuments
+              ? (updates) => onUpdateDocuments(leaf.id, updates)
+              : undefined
+          }
+          onEdit={onEditLeaf ? () => onEditLeaf(leaf) : undefined}
+        />
+      );
     default:
       return null;
   }
+}
+
+function buildPdfElementFields(data: CanvasElementFormData): Omit<PdfElement, 'id' | 'type' | 'pointId'> {
+  const rawInput = data.driveUrl?.trim() || data.src?.trim() || '';
+  const resolved = resolveSingleDrivePdfUrl(rawInput);
+  return {
+    title: data.title?.trim() || undefined,
+    src: resolved ? resolved.previewUrl : (data.src?.trim() || undefined),
+    driveFileId: resolved?.fileId,
+    driveUrl: resolved ? resolved.rawUrl : (data.driveUrl?.trim() || undefined),
+    caption: data.showCaption ? (data.caption?.trim() || undefined) : undefined,
+    showCaption: Boolean(data.showCaption),
+  };
 }
 
 /**
@@ -251,8 +297,26 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       setActiveGalleryModal({
         isOpen: true,
         mode: 'add',
+        elementType: 'gallery',
         itemId: newGalleryId,
         pointId: `node.${nodeId}.gallery.${newGalleryId}`,
+        initialTitle: '',
+        initialUrl: '',
+        targetSectionId,
+        targetIndex,
+        targetSubsectionId,
+      });
+      return;
+    }
+
+    if (type === 'documents') {
+      const newDocsId = generateCanvasId('documents');
+      setActiveGalleryModal({
+        isOpen: true,
+        mode: 'add',
+        elementType: 'documents',
+        itemId: newDocsId,
+        pointId: `node.${nodeId}.documents.${newDocsId}`,
         initialTitle: '',
         initialUrl: '',
         targetSectionId,
@@ -334,6 +398,20 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       setActiveGalleryModal({
         isOpen: true,
         mode: 'edit',
+        elementType: 'gallery',
+        itemId: leaf.id,
+        pointId: leaf.pointId || leaf.id,
+        initialTitle: leaf.title || '',
+        initialUrl: leaf.driveUrl || '',
+      });
+      return;
+    }
+
+    if (leaf.type === 'documents') {
+      setActiveGalleryModal({
+        isOpen: true,
+        mode: 'edit',
+        elementType: 'documents',
         itemId: leaf.id,
         pointId: leaf.pointId || leaf.id,
         initialTitle: leaf.title || '',
@@ -347,11 +425,24 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       return;
     }
 
+    if (leaf.type !== 'text' && leaf.type !== 'pdf') {
+      return;
+    }
+
     const pointId = leaf.pointId;
-    const initialData: CanvasElementFormData = {
-      content: leaf.content,
-      as: leaf.as || 'p',
-    };
+    const initialData: CanvasElementFormData =
+      leaf.type === 'pdf'
+        ? {
+            title: leaf.title || '',
+            src: leaf.src || '',
+            driveUrl: leaf.driveUrl || '',
+            caption: leaf.caption || '',
+            showCaption: Boolean(leaf.showCaption || (leaf.caption && leaf.caption.trim().length > 0)),
+          }
+        : {
+            content: leaf.content,
+            as: leaf.as || 'p',
+          };
 
     setActiveModal({
       isOpen: true,
@@ -463,6 +554,15 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         caption: payload.caption?.trim() || undefined,
         driveUrl: payload.driveUrl?.trim() || undefined,
       };
+    } else if (type === 'pdf') {
+      const pdfId = generateCanvasId('pdf');
+      const pointId = `node.${nodeId}.pdf.${pdfId}`;
+      leaf = {
+        id: pdfId,
+        type: 'pdf',
+        pointId,
+        ...buildPdfElementFields(payload),
+      };
     } else {
       const galleryId = generateCanvasId('gallery');
       const titlePointId = `node.${nodeId}.gallery.${galleryId}.title`;
@@ -534,6 +634,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         title: data.title?.trim() || undefined,
         driveUrl: data.driveUrl?.trim() || undefined,
       });
+    } else if (elementType === 'pdf' && itemId) {
+      updateItem<PdfElement>(itemId, buildPdfElementFields(data));
     }
 
     setActiveModal(null);
@@ -562,6 +664,33 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         cleanUpdates.syncedPhotos = updates.syncedPhotos;
       }
       return updateItem<GalleryElement>(itemId, cleanUpdates);
+    },
+    [updateItem]
+  );
+
+  // Documents Element dynamic update handler (fail-stop KV persistence)
+  const handleUpdateDocuments = useCallback(
+    (itemId: string, updates: DocumentsElementUpdates) => {
+      const cleanUpdates: Partial<DocumentsElement> = {};
+      if ('driveUrl' in updates) {
+        cleanUpdates.driveUrl = updates.driveUrl?.trim() || undefined;
+      }
+      if ('title' in updates) {
+        cleanUpdates.title = updates.title?.trim() || undefined;
+      }
+      if ('subtitle' in updates) {
+        cleanUpdates.subtitle = updates.subtitle?.trim() || undefined;
+      }
+      if ('description' in updates) {
+        cleanUpdates.description = updates.description?.trim() || undefined;
+      }
+      if ('lastVerified' in updates) {
+        cleanUpdates.lastVerified = updates.lastVerified;
+      }
+      if ('syncedDocuments' in updates) {
+        cleanUpdates.syncedDocuments = updates.syncedDocuments;
+      }
+      return updateItem<DocumentsElement>(itemId, cleanUpdates);
     },
     [updateItem]
   );
@@ -756,7 +885,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                                             handleEditPhoto,
                                             handleEditLeaf,
                                             handleUpdateGallery,
-                                            updateItem
+                                            updateItem,
+                                            handleUpdateDocuments
                                           )}
                                         </CanvasItemControls>
 
@@ -805,7 +935,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                                 handleEditPhoto,
                                 handleEditLeaf,
                                 handleUpdateGallery,
-                                updateItem
+                                updateItem,
+                                handleUpdateDocuments
                               )}
                             </CanvasItemControls>
 
@@ -880,26 +1011,38 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
           onClose={() => setActiveGalleryModal(null)}
           onSuccess={async (newUrl, newTitle) => {
             if (activeGalleryModal.mode === 'add') {
-              const galleryId = activeGalleryModal.itemId || generateCanvasId('gallery');
-              const galleryLeaf: GalleryElement = {
-                id: galleryId,
-                type: 'gallery',
-                pointId: activeGalleryModal.pointId,
-                title: newTitle.trim() || undefined,
-                titlePointId: `node.${nodeId}.gallery.${galleryId}.title`,
-                driveUrl: newUrl.trim() || undefined,
-              };
+              const isDocs = activeGalleryModal.elementType === 'documents';
+              const newId =
+                activeGalleryModal.itemId ||
+                generateCanvasId(isDocs ? 'documents' : 'gallery');
+              const newLeaf: GalleryElement | DocumentsElement = isDocs
+                ? {
+                    id: newId,
+                    type: 'documents',
+                    pointId: activeGalleryModal.pointId,
+                    title: newTitle.trim() || undefined,
+                    titlePointId: `node.${nodeId}.documents.${newId}.title`,
+                    driveUrl: newUrl.trim() || undefined,
+                  }
+                : {
+                    id: newId,
+                    type: 'gallery',
+                    pointId: activeGalleryModal.pointId,
+                    title: newTitle.trim() || undefined,
+                    titlePointId: `node.${nodeId}.gallery.${newId}.title`,
+                    driveUrl: newUrl.trim() || undefined,
+                  };
               let result: { ok: boolean; error?: string } | undefined;
               if (activeGalleryModal.targetSectionId) {
                 result = await addElement(
                   activeGalleryModal.targetSectionId,
-                  galleryLeaf,
+                  newLeaf,
                   activeGalleryModal.targetIndex,
                   activeGalleryModal.targetSubsectionId
                 );
               } else if (document.sections.length === 0) {
                 const newSec = createDefaultSection(0, nodeId);
-                newSec.elements.push(galleryLeaf);
+                newSec.elements.push(newLeaf);
                 result = await restoreSection(newSec, 0);
               } else {
                 const targetSec = (typeof activeGalleryModal.targetIndex === 'number' && activeGalleryModal.targetIndex === 0)
@@ -908,13 +1051,17 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                 const insertIdx = (typeof activeGalleryModal.targetIndex === 'number' && activeGalleryModal.targetIndex === 0)
                   ? 0
                   : undefined;
-                result = await addElement(targetSec.id, galleryLeaf, insertIdx);
+                result = await addElement(targetSec.id, newLeaf, insertIdx);
               }
               if (result && !result.ok) {
                 return result;
               }
             } else if (activeGalleryModal.itemId) {
-              const result = await handleUpdateGallery(activeGalleryModal.itemId, {
+              const updater =
+                activeGalleryModal.elementType === 'documents'
+                  ? handleUpdateDocuments
+                  : handleUpdateGallery;
+              const result = await updater(activeGalleryModal.itemId, {
                 driveUrl: newUrl,
                 title: newTitle,
               });

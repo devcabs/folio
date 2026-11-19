@@ -100,6 +100,44 @@ Renders an individual numbered section (`01`, `02`) containing subsections and l
 
 ---
 
+### `<CanvasPdf />`
+Renders a single Google Drive PDF inline inside a token-styled aspect-ratio `<iframe>` (`https://drive.google.com/file/d/{fileId}/preview`), with optional editorial title/caption, an `"Open in New Tab ↗"` escape hatch, a calm unlinked fallback state, and Developer Mode `✎ Edit` trigger.
+
+#### Props (`CanvasPdfProps`)
+| Prop | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `element` | `PdfElement` | Required | PDF leaf AST element. |
+| `nodeId` | `string` | Required | Parent sequence node identifier. |
+| `accentColor?` | `string` | `undefined` | Optional node accent color override. |
+| `isDevMode?` | `boolean` | Context | Optional Developer Mode override. |
+| `className?` | `string` | `undefined` | Additional CSS class name. |
+| `onEdit?` | `() => void` | `undefined` | Callback opening `UniversalEditModal` in edit mode. |
+
+---
+
+### `<CanvasDocuments />`
+Thin AST wrapper binding a `DocumentsElement` in `NodeCanvasDocument` to `<SourceDocuments />`, persisting folder links, synced PDFs, and coordinator metadata edits directly back into the self-contained AST (`PUT /api/draft`).
+
+#### Props (`CanvasDocumentsProps`)
+| Prop | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `element` | `DocumentsElement` | Required | Documents folder leaf AST element. |
+| `nodeId` | `string` | Required | Parent sequence node identifier. |
+| `accentColor?` | `string` | `undefined` | Optional node accent color override. |
+| `className?` | `string` | `undefined` | Additional CSS class name. |
+| `onEdit?` | `() => void` | `undefined` | Callback opening `<LinkFolderModal>` for the element. |
+| `onUpdateDocuments?` | `(updates: DocumentsElementUpdates) => Promise<{ ok: boolean; error?: string } \| void> \| void` | `undefined` | AST persistence callback for synced documents and folder metadata. |
+
+---
+
+### Source & Document Sync Components (`src/components/source/`)
+
+- **`<SourceDocuments />`**: Renders the synced PDF document list for a linked Google Drive folder with 5-state lifecycle handling, side `↻ Sync` and `✎ Edit` controls in Developer Mode, and click-to-preview modal integration. (`SourceDocumentsProps`: `nodeId`, `pointId?`, `documentsId?`, `driveUrl?`, `title?`, `description?`, `lastVerified?`, `syncedDocuments?`, `accentColor?`, `className?`, `editTriggerId?`, `onUpdateDocuments?`, `onEdit?`).
+- **`<PdfPreviewModal />`**: Built on canonical `<Modal>`, displays the selected `SyncedDocumentItem` in a Google Drive `/preview` `<iframe>` with Previous/Next navigation, `ArrowLeft`/`ArrowRight` keyboard shortcuts, `"Open in New Tab ↗"` escape hatch, and Developer Mode `✎ Edit` trigger. (`PdfPreviewModalProps`: `isOpen`, `items`, `currentIndex`, `driveFolderUrl?`, `accentColor?`, `onClose`, `onNavigate`, `onEditDocument?`).
+- **`<EditDocumentModal />`**: Developer Mode modal for customizing a `SyncedDocumentItem`'s editorial `title` (`isCustomTitle: true`), `date`, and `caption`. (`EditDocumentModalProps`: `isOpen`, `documentItem?`, `onClose`, `onSave`).
+
+---
+
 ## 4. Vector Chart Components (`src/components/chart/`)
 
 ### `<ChartRouter />`

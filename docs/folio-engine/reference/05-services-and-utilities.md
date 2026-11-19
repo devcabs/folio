@@ -49,6 +49,15 @@ Fetches and sanitizes tabular datasets from published Google Sheets CSV endpoint
 
 ---
 
+### `driveDocumentSyncService.ts`
+Synchronizes `application/pdf` files from public Google Drive folders (including 1st-level subfolders) and reconciles items while preserving coordinator customizations.
+- `cleanDriveDocumentName(fileName: string): string`
+- `reconcileDriveDocuments(driveFiles: DriveDocumentFile[], existingDocuments?: SyncedDocumentItem[]): DriveDocumentReconciliationResult`
+- `fetchDriveFolderPdfs(folderUrl: string): Promise<DriveDocumentFile[]>`
+- `syncFolderDocuments(folderUrl: string, existingDocuments?: SyncedDocumentItem[]): Promise<SyncFolderDocumentsResult>`
+
+---
+
 ### `undoRedoService.ts`
 Maintains an in-memory transactional snapshot stack for undo/redo state management.
 - `pushSnapshot(state: unknown): void`
@@ -117,3 +126,11 @@ Disables background page scroll when modal overlays or drawers are active.
 Parses custom asterisks syntax into styled typography spans.
 - `parseAccentText(input: string): React.ReactNode`
 - Example: `"The *future* of data"` &rarr; `"The "` + `<span className="accent">future</span>` + `" of data"`
+
+---
+
+### `mediaUrl.ts`
+Resolves Google Drive file/folder URLs into canonical preview, view, and edge media paths.
+- `buildDrivePreviewUrl(fileIdOrUrl: string): string` &mdash; Returns `https://drive.google.com/file/d/{fileId}/preview` for embedded PDF iframes.
+- `buildDriveViewUrl(fileIdOrUrl: string): string` &mdash; Returns `https://drive.google.com/file/d/{fileId}/view` for new-tab escape hatches.
+- `resolveSingleDrivePdfUrl(input: string): ResolvedSinglePdf | null` &mdash; Extracts the Drive file ID from `/file/d/{id}/view`, `/preview`, `/open?id={id}`, `/uc?id={id}`, or a raw ID (rejecting `/folders/` links) and returns `{ fileId, previewUrl, viewUrl, rawUrl }`.

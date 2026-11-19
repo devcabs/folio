@@ -35,6 +35,9 @@ Look for the **`+`** (**Insert element**) pill button above, inside, or below se
    - **Photo**: Hover or click **Photo** to choose between:
      - **Single Photo** (one standalone image with optional caption)
      - **Photo Gallery** (a grid gallery linked to a Google Drive folder)
+   - **Document**: Hover or click **Document** to choose between:
+     - **Single PDF** (an inline Google Drive PDF viewer with optional title and caption)
+     - **PDF Folder** (a synced list of PDF documents from a Google Drive folder)
    - **Chart**: Opens the **Chart Setup** drawer to connect a Google Sheet visualization.
 3. Fill in the block details and save to insert it at that exact spot.
 

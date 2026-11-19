@@ -156,9 +156,38 @@ export const GalleryElementSchema = z.object({
   syncedPhotos: z.array(z.record(z.string(), z.any())).optional(),
 }).passthrough();
 
+export const DocumentsElementSchema = z.object({
+  id: z.string(),
+  type: z.literal('documents'),
+  pointId: z.string(),
+  title: z.string().optional(),
+  titlePointId: z.string().optional(),
+  subtitle: z.string().optional(),
+  subtitlePointId: z.string().optional(),
+  driveUrl: z.string().optional(),
+  description: z.string().optional(),
+  lastVerified: z.string().optional(),
+  syncedDocuments: z.array(z.record(z.string(), z.any())).optional(),
+}).passthrough();
+
+export const PdfElementSchema = z.object({
+  id: z.string(),
+  type: z.literal('pdf'),
+  pointId: z.string(),
+  src: z.string().optional(),
+  driveFileId: z.string().optional(),
+  driveUrl: z.string().optional(),
+  title: z.string().optional(),
+  caption: z.string().optional(),
+  showCaption: z.boolean().optional(),
+  aspectRatio: z.string().optional(),
+}).passthrough();
+
 export const CanvasLeafElementSchema = z.union([
   ChartElementSchema,
   GalleryElementSchema,
+  DocumentsElementSchema,
+  PdfElementSchema,
   z.object({
     id: z.string(),
     type: z.enum(['text', 'photo']),

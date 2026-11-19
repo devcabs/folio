@@ -26,8 +26,8 @@ import {
   type EngineConfig,
 } from '../src/index';
 
-const setSessionUnlockTime = (_ts: number) => {};
-const clearSessionUnlockTime = () => {};
+const setSessionUnlockTime = (_ts: number) => { };
+const clearSessionUnlockTime = () => { };
 import { DevMigrationModal } from '../src/components/dev/DevMigrationModal';
 import {
   FOLIO_MIGRATION_LEDGER,

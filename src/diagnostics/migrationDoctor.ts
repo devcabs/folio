@@ -369,8 +369,8 @@ export function buildMigrationDoctorReport(
   const latestEngineVersion = latestLedgerEntry?.version ?? engineInfo.version;
   const targetVersion =
     isValidSemver(engineInfo.version) &&
-    isValidSemver(latestEngineVersion) &&
-    compareSemver(engineInfo.version, latestEngineVersion) > 0
+      isValidSemver(latestEngineVersion) &&
+      compareSemver(engineInfo.version, latestEngineVersion) > 0
       ? engineInfo.version
       : latestEngineVersion;
 
@@ -390,10 +390,10 @@ export function buildMigrationDoctorReport(
 
   const pendingEntries = isValidSemver(baselineVersion) && isValidSemver(targetVersion)
     ? sortedLedger.filter(
-        (entry) =>
-          compareSemver(entry.version, baselineVersion) > 0 &&
-          compareSemver(entry.version, targetVersion) <= 0
-      )
+      (entry) =>
+        compareSemver(entry.version, baselineVersion) > 0 &&
+        compareSemver(entry.version, targetVersion) <= 0
+    )
     : [];
 
   const pendingVersions = pendingEntries.map((entry) => entry.version);
@@ -432,13 +432,13 @@ export function buildMigrationDoctorReport(
   const hasPending = pendingVersions.length > 0;
   const agentPrompt = hasPending
     ? buildDoctorAgentPrompt(
-        baselineVersion,
-        targetVersion,
-        breakingChanges,
-        codeActions,
-        pendingMigrationReport,
-        edgeDelegation
-      )
+      baselineVersion,
+      targetVersion,
+      breakingChanges,
+      codeActions,
+      pendingMigrationReport,
+      edgeDelegation
+    )
     : null;
 
   return {

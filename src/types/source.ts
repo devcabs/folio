@@ -132,3 +132,66 @@ export interface UseImageLoaderResult {
   resolvedSrc?: string;
   retry: () => void;
 }
+
+export interface DriveDocumentFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  size?: string;
+  webViewLink?: string;
+  webContentLink?: string;
+  createdTime?: string;
+  modifiedTime?: string;
+}
+
+export interface SyncedDocumentItem {
+  id: string;
+  pointId?: string;
+  driveFileId: string;
+  originalFileName: string;
+  title: string;
+  previewUrl: string;
+  viewUrl: string;
+  isCustomTitle?: boolean;
+  orderIndex: number;
+  date?: string;
+  dateStamp?: string;
+  size?: string;
+  caption?: string;
+}
+
+export interface DriveDocumentReconciliationResult {
+  items: SyncedDocumentItem[];
+  stats: DriveReconciliationStats;
+}
+
+export interface SyncFolderDocumentsResult {
+  items: SyncedDocumentItem[];
+  stats: DriveReconciliationStats;
+  lastVerified: string;
+}
+
+export interface UseDriveDocumentSyncOptions {
+  folderUrl?: string;
+  syncedDocuments?: SyncedDocumentItem[];
+  isElementLevel?: boolean;
+  autoSync?: boolean;
+  onPersistDocuments?: (
+    documents: SyncedDocumentItem[],
+    lastVerified: string
+  ) => Promise<{ ok: boolean; error?: string } | void> | void;
+}
+
+export interface UseDriveDocumentSyncResult {
+  syncedDocuments: SyncedDocumentItem[];
+  syncState: SyncState;
+  hasSynced: boolean;
+  isSyncing: boolean;
+  isManualSyncing?: boolean;
+  isBackgroundSyncing?: boolean;
+  error: string | null;
+  backgroundError?: string | null;
+  cloudSynced?: boolean;
+  lastStats: DriveReconciliationStats | null;
+  syncDocuments: (options?: boolean | DriveSyncOptions) => Promise<DriveReconciliationStats | null>;
+}

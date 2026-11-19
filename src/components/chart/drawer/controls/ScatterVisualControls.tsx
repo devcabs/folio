@@ -99,19 +99,19 @@ export const ScatterVisualControls: React.FC<ScatterVisualControlsProps> = ({
         {(curveInterpolation === 'linear' ||
           curveInterpolation === 'smooth' ||
           curveInterpolation === 'polynomial') && (
-          <div className={styles.formGroup}>
-            <label htmlFor="cfg-scatter-confidence" className={styles.checkboxLabel}>
-              <input
-                id="cfg-scatter-confidence"
-                type="checkbox"
-                className={styles.checkbox}
-                checked={showAreaFill}
-                onChange={(e) => setShowAreaFill(e.target.checked)}
-              />
-              <span>Show Confidence Band (Shaded)</span>
-            </label>
-          </div>
-        )}
+            <div className={styles.formGroup}>
+              <label htmlFor="cfg-scatter-confidence" className={styles.checkboxLabel}>
+                <input
+                  id="cfg-scatter-confidence"
+                  type="checkbox"
+                  className={styles.checkbox}
+                  checked={showAreaFill}
+                  onChange={(e) => setShowAreaFill(e.target.checked)}
+                />
+                <span>Show Confidence Band (Shaded)</span>
+              </label>
+            </div>
+          )}
 
         <div className={styles.formGroup}>
           <label htmlFor="cfg-scatter-correlation" className={styles.checkboxLabel}>

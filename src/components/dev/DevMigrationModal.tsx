@@ -108,7 +108,7 @@ export const DevMigrationModal: React.FC<DevMigrationModalProps> = ({
     const prompt = onGeneratePromptProp
       ? onGeneratePromptProp()
       : migration?.generatePrompt() ||
-        (pendingReport ? generateAiMigrationPrompt(pendingReport) : '');
+      (pendingReport ? generateAiMigrationPrompt(pendingReport) : '');
 
     if (!prompt) return;
 
@@ -176,53 +176,37 @@ export const DevMigrationModal: React.FC<DevMigrationModalProps> = ({
           </p>
 
           <h2 id="dev-migration-title" className={styles.title}>
-            Content Migrations Pending
+            Pending Migrations
           </h2>
-          <p id="dev-migration-desc" className={styles.subtitle}>
-            Schema and configuration updates for v{pendingReport.currentEngineVersion}.
-          </p>
         </div>
 
         {count > 0 ? (
           <div className={styles.list} role="list" aria-label="Pending content migrations">
             {changes.map((change) => (
-              <article key={change.id} className={styles.migrationCard} role="listitem">
-                <div className={styles.cardHeader}>
-                  <h3 className={styles.cardTitle}>{change.title}</h3>
+              <details key={change.id} className={styles.migrationRow} role="listitem">
+                <summary className={styles.rowSummary}>
+                  <span className={styles.rowTitle}>{change.title}</span>
                   <span
-                    className={`${styles.severityBadge} ${
-                      change.required ? styles.badgeRequired : styles.badgeRecommended
+                    className={`${styles.severityTag} ${
+                      change.required ? styles.tagRequired : styles.tagRecommended
                     }`}
                   >
                     {change.required ? 'REQUIRED' : 'RECOMMENDED'}
                   </span>
-                </div>
+                </summary>
 
-                <p className={styles.cardDescription}>{change.description}</p>
-
-                {change.affectedEntities && change.affectedEntities.length > 0 && (
-                  <div className={styles.entitiesRow}>
-                    <span className={styles.entitiesLabel}>Affected:</span>
-                    {change.affectedEntities.map((entity) => (
-                      <code key={entity} className={styles.entityChip}>
-                        {entity}
-                      </code>
-                    ))}
-                  </div>
-                )}
-
-                {change.migrationPrompt && (
-                  <div className={styles.promptBlock}>
-                    <span className={styles.promptLabel}>Required Changes & Instructions</span>
+                <div className={styles.rowBody}>
+                  <p className={styles.rowDescription}>{change.description}</p>
+                  {change.migrationPrompt && (
                     <pre className={styles.promptCode}>{change.migrationPrompt}</pre>
-                  </div>
-                )}
-              </article>
+                  )}
+                </div>
+              </details>
             ))}
           </div>
         ) : (
           <div className={styles.emptyState}>
-            All content migrations are up to date for v{pendingReport.currentEngineVersion}.
+            Up to date for v{pendingReport.currentEngineVersion}.
           </div>
         )}
 

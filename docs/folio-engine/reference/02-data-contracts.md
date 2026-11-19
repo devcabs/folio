@@ -69,7 +69,7 @@ Folio Engine models documents as a recursive block tree:
 NodeCanvasDocument
 └── SectionElement[]
     └── SubsectionElement[] | CanvasLeafElement[]
-        └── CanvasLeafElement[] (Text | Photo | Gallery | Chart)
+        └── CanvasLeafElement[] (Text | Photo | Gallery | Chart | Pdf | Documents)
 ```
 
 ### `NodeCanvasDocument`
@@ -150,6 +150,50 @@ export interface ChartElement extends CanvasElementBase {
   subtitle?: string;
   config?: SheetChartConfig | PublicChartConfig; // Embedded chart config (sheetUrl stripped in public KV)
   dataset?: ChartDataset;                   // Embedded chart dataset
+}
+
+export interface PdfElement extends CanvasElementBase {
+  type: 'pdf';
+  pointId: string;
+  src?: string;                             // Resolved Drive embed URL: https://drive.google.com/file/d/{fileId}/preview
+  driveFileId?: string;                     // Extracted Google Drive file ID
+  driveUrl?: string;                        // Original Google Drive view/share link
+  title?: string;                           // Optional editorial document title
+  caption?: string;                         // Optional caption below the viewer
+  showCaption?: boolean;
+  aspectRatio?: string;                     // Optional aspect ratio override (default: --pdf-viewer-aspect-ratio)
+}
+
+export interface DocumentsElement extends CanvasElementBase {
+  type: 'documents';
+  pointId: string;
+  title?: string;
+  titlePointId?: string;
+  subtitle?: string;
+  subtitlePointId?: string;
+  driveUrl?: string;                        // Synchronized Google Drive folder URL
+  description?: string;
+  lastVerified?: string;
+  syncedDocuments?: SyncedDocumentItem[];   // Embedded synced Drive PDF items
+}
+```
+
+### Document Sync Contracts (`src/types/source.ts`)
+```typescript
+export interface SyncedDocumentItem {
+  id: string;
+  pointId?: string;
+  driveFileId: string;
+  originalFileName: string;
+  title: string;
+  previewUrl: string;                       // https://drive.google.com/file/d/{driveFileId}/preview
+  viewUrl: string;                          // https://drive.google.com/file/d/{driveFileId}/view
+  isCustomTitle?: boolean;                  // Preserves coordinator title overrides across Drive syncs
+  orderIndex: number;
+  date?: string;
+  dateStamp?: string;
+  size?: string;
+  caption?: string;
 }
 ```
 

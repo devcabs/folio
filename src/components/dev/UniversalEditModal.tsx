@@ -17,7 +17,7 @@ import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { useUnsavedChangesPrompt } from '../../hooks/useUnsavedChangesPrompt';
 import { getContent, setContent, resetContent } from '../../utils/contentDb';
-import { resolveSingleDrivePhotoUrl } from '../../utils/mediaUrl';
+import { resolveSingleDrivePhotoUrl, resolveSingleDrivePdfUrl } from '../../utils/mediaUrl';
 import styles from './UniversalEditModal.module.css';
 
 export interface UniversalEditModalProps {
@@ -187,9 +187,64 @@ function getSubmitNoun(type: CanvasModalElementType | null): string {
       return 'Photo';
     case 'gallery':
       return 'Gallery';
+    case 'pdf':
+      return 'PDF';
+    case 'documents':
+      return 'Document Folder';
     default:
       return 'Element';
   }
+}
+
+function buildInitialCanvasDraft(
+  initialData: CanvasElementFormData | undefined,
+  elementType: CanvasModalElementType | null
+): CanvasElementFormData {
+  if (!initialData) {
+    return {
+      title: '',
+      isNumbered: true,
+      content: '',
+      as: 'p',
+      src: '',
+      alt: '',
+      caption: '',
+      showCaption: false,
+      driveUrl: '',
+    };
+  }
+
+  let resolvedSrc = initialData.src || '';
+  let resolvedDriveUrl = initialData.driveUrl || '';
+
+  if (elementType === 'pdf') {
+    const resolvedPdf = initialData.src ? resolveSingleDrivePdfUrl(initialData.src) : null;
+    if (resolvedPdf) {
+      resolvedSrc = resolvedPdf.previewUrl;
+      resolvedDriveUrl = resolvedDriveUrl || initialData.src || '';
+    }
+  } else {
+    const resolvedPhoto = initialData.src ? resolveSingleDrivePhotoUrl(initialData.src) : null;
+    if (resolvedPhoto) {
+      resolvedSrc = resolvedPhoto.displayUrl;
+      resolvedDriveUrl = resolvedDriveUrl || initialData.src || '';
+    }
+  }
+
+  return {
+    title: initialData.title || '',
+    isNumbered: initialData.isNumbered !== false,
+    content: stripInstructionalPlaceholder(initialData.content),
+    as: initialData.as || 'p',
+    src: resolvedSrc,
+    alt: stripInstructionalPlaceholder(initialData.alt),
+    caption: stripInstructionalPlaceholder(initialData.caption),
+    showCaption: Boolean(
+      initialData.showCaption ||
+      (initialData.caption && initialData.caption.trim().length > 0)
+    ),
+    driveUrl: resolvedDriveUrl,
+  };
 }
 
 /**
@@ -229,41 +284,17 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   const isCanvasDomain = Boolean(elementType || onSubmit);
   const isCanvasElement = Boolean(
     isCanvasDomain ||
-    (elementType && ['section', 'subsection', 'text', 'photo', 'gallery'].includes(elementType)) ||
+    (elementType && ['section', 'subsection', 'text', 'photo', 'gallery', 'pdf', 'documents'].includes(elementType)) ||
     (pointId && (
-      /^(node\.[^.]+\.(section|subsection|text|photo|gallery)|canvas\.)/i.test(pointId) ||
-      /\.(section|subsection|text|photo|gallery)(\.|$)/i.test(pointId)
+      /^(node\.[^.]+\.(section|subsection|text|photo|gallery|pdf|documents)|canvas\.)/i.test(pointId) ||
+      /\.(section|subsection|text|photo|gallery|pdf|documents)(\.|$)/i.test(pointId)
     ))
   );
 
   // Canvas Draft State
-  const [canvasDraft, setCanvasDraft] = useState<CanvasElementFormData>(() => {
-    if (initialData) {
-      const resolved = initialData.src ? resolveSingleDrivePhotoUrl(initialData.src) : null;
-      return {
-        title: initialData.title || '',
-        isNumbered: initialData.isNumbered !== false,
-        content: stripInstructionalPlaceholder(initialData.content),
-        as: initialData.as || 'p',
-        src: resolved ? resolved.displayUrl : (initialData.src || ''),
-        alt: stripInstructionalPlaceholder(initialData.alt),
-        caption: stripInstructionalPlaceholder(initialData.caption),
-        showCaption: Boolean(initialData.showCaption || (initialData.caption && initialData.caption.trim().length > 0)),
-        driveUrl: initialData.driveUrl || (resolved ? initialData.src || '' : ''),
-      };
-    }
-    return {
-      title: '',
-      isNumbered: true,
-      content: '',
-      as: 'p',
-      src: '',
-      alt: '',
-      caption: '',
-      showCaption: false,
-      driveUrl: '',
-    };
-  });
+  const [canvasDraft, setCanvasDraft] = useState<CanvasElementFormData>(() =>
+    buildInitialCanvasDraft(initialData, elementType)
+  );
 
   // Generic Portal String Draft State
   const [textDraft, setTextDraft] = useState<string>('');
@@ -299,22 +330,7 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
     if (!isOpen) return;
 
     if (isCanvasDomain) {
-      const resolved = initialData?.src ? resolveSingleDrivePhotoUrl(initialData.src) : null;
-      const draftVal: CanvasElementFormData = {
-        title: initialData?.title || '',
-        isNumbered: initialData?.isNumbered !== false,
-        content: stripInstructionalPlaceholder(initialData?.content),
-        as: initialData?.as || 'p',
-        src: resolved ? resolved.displayUrl : (initialData?.src || ''),
-        alt: stripInstructionalPlaceholder(initialData?.alt),
-        caption: stripInstructionalPlaceholder(initialData?.caption),
-        showCaption: Boolean(
-          initialData?.showCaption ||
-          (initialData?.caption && initialData.caption.trim().length > 0)
-        ),
-        driveUrl: initialData?.driveUrl || (resolved ? initialData?.src || '' : ''),
-      };
-      setCanvasDraft(draftVal);
+      setCanvasDraft(buildInitialCanvasDraft(initialData, elementType));
     } else {
       const parsed = parseGenericValues(currentValue);
       setTextDraft(parsed.text);
@@ -340,6 +356,7 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   }, [
     isOpen,
     isCanvasDomain,
+    elementType,
     initialData,
     currentValue,
     isSectionItem,
@@ -353,23 +370,17 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   const isFormDirty = useMemo(() => {
     if (!isOpen) return false;
     if (isCanvasDomain) {
-      const initResolved = initialData?.src ? resolveSingleDrivePhotoUrl(initialData.src) : null;
-      const initTitle = initialData?.title || '';
-      const initContent = stripInstructionalPlaceholder(initialData?.content);
-      const initSrc = initResolved ? initResolved.displayUrl : (initialData?.src || '');
-      const initAlt = stripInstructionalPlaceholder(initialData?.alt);
-      const initCaption = stripInstructionalPlaceholder(initialData?.caption);
-      const initDriveUrl = initialData?.driveUrl || (initResolved ? initialData?.src || '' : '');
-      const initIsNumbered = initialData?.isNumbered !== false;
+      const init = buildInitialCanvasDraft(initialData, elementType);
 
       return (
-        (canvasDraft.title || '') !== initTitle ||
-        (canvasDraft.content || '') !== initContent ||
-        (canvasDraft.src || '') !== initSrc ||
-        (canvasDraft.alt || '') !== initAlt ||
-        (canvasDraft.caption || '') !== initCaption ||
-        (canvasDraft.driveUrl || '') !== initDriveUrl ||
-        canvasDraft.isNumbered !== initIsNumbered
+        (canvasDraft.title || '') !== (init.title || '') ||
+        (canvasDraft.content || '') !== (init.content || '') ||
+        (canvasDraft.src || '') !== (init.src || '') ||
+        (canvasDraft.alt || '') !== (init.alt || '') ||
+        (canvasDraft.caption || '') !== (init.caption || '') ||
+        Boolean(canvasDraft.showCaption) !== Boolean(init.showCaption) ||
+        (canvasDraft.driveUrl || '') !== (init.driveUrl || '') ||
+        canvasDraft.isNumbered !== init.isNumbered
       );
     } else {
       const parsed = parseGenericValues(currentValue);
@@ -387,6 +398,7 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   }, [
     isOpen,
     isCanvasDomain,
+    elementType,
     canvasDraft,
     initialData,
     textDraft,
@@ -416,6 +428,35 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
       }));
     }
   }, []);
+
+  // Single-PDF URL change handler with automatic Drive /preview resolution
+  const handlePdfUrlChange = useCallback((val: string) => {
+    const resolved = resolveSingleDrivePdfUrl(val);
+    if (resolved) {
+      setCanvasDraft((prev) => ({
+        ...prev,
+        src: resolved.previewUrl,
+        driveUrl: resolved.rawUrl,
+      }));
+    } else {
+      setCanvasDraft((prev) => ({
+        ...prev,
+        src: val,
+        driveUrl: val,
+      }));
+    }
+  }, []);
+
+  const pdfUrlFeedback = useMemo(() => {
+    if (!isCanvasDomain || elementType !== 'pdf') return null;
+    const raw = (canvasDraft.driveUrl || canvasDraft.src || '').trim();
+    if (!raw) return null;
+    if (resolveSingleDrivePdfUrl(raw)) return null;
+    if (raw.includes('/folders/') || raw.includes('/folders')) {
+      return 'This looks like a Google Drive folder link. Paste a single PDF file link (/file/d/...) instead.';
+    }
+    return 'Paste a valid Google Drive file link (e.g. https://drive.google.com/file/d/.../view).';
+  }, [isCanvasDomain, elementType, canvasDraft.driveUrl, canvasDraft.src]);
 
   // Submit Handler
   const handleSave = () => {
@@ -792,6 +833,75 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
                 aria-label="Google Drive URL"
               />
             </div>
+          </div>
+        )}
+
+        {isCanvasDomain && elementType === 'pdf' && (
+          <div className={styles.panel}>
+            <div className={styles.formField}>
+              <label className={styles.fieldLabel} htmlFor="canvas-pdf-title">
+                Document Title
+              </label>
+              <input
+                id="canvas-pdf-title"
+                ref={(el) => { initialFocusRef.current = el; }}
+                type="text"
+                className={styles.input}
+                value={canvasDraft.title || ''}
+                onChange={(e) => setCanvasDraft((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="e.g. Q1 Financial Report"
+                aria-label="Document Title"
+              />
+            </div>
+
+            <div className={styles.formField}>
+              <label className={styles.fieldLabel} htmlFor="canvas-pdf-url">
+                Google Drive PDF URL <span className={styles.requiredMark}>*</span>
+              </label>
+              <input
+                id="canvas-pdf-url"
+                type="text"
+                className={styles.input}
+                value={canvasDraft.driveUrl || canvasDraft.src || ''}
+                onChange={(e) => handlePdfUrlChange(e.target.value)}
+                placeholder="Paste Google Drive PDF link (https://drive.google.com/file/d/.../view)"
+                aria-label="Google Drive PDF URL"
+              />
+              {pdfUrlFeedback ? (
+                <p className={styles.fieldWarning} role="status">
+                  {pdfUrlFeedback}
+                </p>
+              ) : null}
+            </div>
+
+            <div className={styles.formField}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  className={styles.checkbox}
+                  checked={Boolean(canvasDraft.showCaption)}
+                  onChange={(e) => setCanvasDraft((prev) => ({ ...prev, showCaption: e.target.checked }))}
+                />
+                <span>Show caption below document</span>
+              </label>
+            </div>
+
+            {canvasDraft.showCaption ? (
+              <div className={styles.formField}>
+                <label className={styles.fieldLabel} htmlFor="canvas-pdf-caption">
+                  Caption
+                </label>
+                <input
+                  id="canvas-pdf-caption"
+                  type="text"
+                  className={styles.input}
+                  value={canvasDraft.caption || ''}
+                  onChange={(e) => setCanvasDraft((prev) => ({ ...prev, caption: e.target.value }))}
+                  placeholder="Optional document caption or context"
+                  aria-label="Caption"
+                />
+              </div>
+            ) : null}
           </div>
         )}
 

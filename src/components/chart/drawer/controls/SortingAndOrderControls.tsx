@@ -129,11 +129,11 @@ export const SortingAndOrderControls: React.FC<SortingAndOrderControlsProps> = (
           chartType === 'histogram'
             ? [{ id: 'frequency', name: 'Group Count' }]
             : detectedColumns
-                .filter((c) => c.index !== categoryColIndex)
-                .map((col) => ({
-                  id: col.label,
-                  name: `${col.label} [${indexToColLetter(col.index)}]`,
-                }))
+              .filter((c) => c.index !== categoryColIndex)
+              .map((col) => ({
+                id: col.label,
+                name: `${col.label} [${indexToColLetter(col.index)}]`,
+              }))
         }
         onSortFieldChange={(newField: string) => {
           setSortField(newField);

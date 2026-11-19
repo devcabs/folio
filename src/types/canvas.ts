@@ -5,9 +5,17 @@
  */
 
 import type { ChartDataset, SheetChartConfig, PublicChartConfig } from './chart';
-import type { SyncedSourceItem } from './source';
+import type { SyncedSourceItem, SyncedDocumentItem } from './source';
 
-export type CanvasElementType = 'section' | 'subsection' | 'text' | 'photo' | 'gallery' | 'chart';
+export type CanvasElementType =
+  | 'section'
+  | 'subsection'
+  | 'text'
+  | 'photo'
+  | 'gallery'
+  | 'chart'
+  | 'pdf'
+  | 'documents';
 
 export interface CanvasElementBase {
   id: string;
@@ -61,7 +69,45 @@ export interface ChartElement extends CanvasElementBase {
   dataset?: ChartDataset;
 }
 
-export type CanvasLeafElement = TextElement | PhotoElement | GalleryElement | ChartElement;
+export interface PdfElement extends CanvasElementBase {
+  type: 'pdf';
+  pointId: string;
+  /** Resolved Google Drive embed URL: https://drive.google.com/file/d/{fileId}/preview */
+  src?: string;
+  /** Extracted alphanumeric Google Drive file ID */
+  driveFileId?: string;
+  /** Original Google Drive view/share link for "Open in New Tab" fallback */
+  driveUrl?: string;
+  /** Optional editorial document title */
+  title?: string;
+  /** Optional caption displayed below the inline viewer */
+  caption?: string;
+  /** Whether caption is visible below the viewer */
+  showCaption?: boolean;
+  /** Optional aspect ratio override (defaults to token --pdf-viewer-aspect-ratio, e.g. "4/3") */
+  aspectRatio?: string;
+}
+
+export interface DocumentsElement extends CanvasElementBase {
+  type: 'documents';
+  pointId: string;
+  title?: string;
+  titlePointId?: string;
+  subtitle?: string;
+  subtitlePointId?: string;
+  driveUrl?: string;
+  description?: string;
+  lastVerified?: string;
+  syncedDocuments?: SyncedDocumentItem[];
+}
+
+export type CanvasLeafElement =
+  | TextElement
+  | PhotoElement
+  | GalleryElement
+  | ChartElement
+  | PdfElement
+  | DocumentsElement;
 
 export interface SubsectionElement extends CanvasElementBase {
   type: 'subsection';
@@ -110,7 +156,14 @@ export function isSubsectionElement(el: CanvasElement): el is SubsectionElement 
 }
 
 export function isLeafElement(el: CanvasElement): el is CanvasLeafElement {
-  return el.type === 'text' || el.type === 'photo' || el.type === 'gallery' || el.type === 'chart';
+  return (
+    el.type === 'text' ||
+    el.type === 'photo' ||
+    el.type === 'gallery' ||
+    el.type === 'chart' ||
+    el.type === 'pdf' ||
+    el.type === 'documents'
+  );
 }
 
 export function isTextElement(el: CanvasElement): el is TextElement {
@@ -129,6 +182,14 @@ export function isChartElement(el: CanvasElement): el is ChartElement {
   return el.type === 'chart';
 }
 
+export function isPdfElement(el: CanvasElement): el is PdfElement {
+  return el.type === 'pdf';
+}
+
+export function isDocumentsElement(el: CanvasElement): el is DocumentsElement {
+  return el.type === 'documents';
+}
+
 /**
  * Unified Canvas Add & Edit Modal Contracts
  * Aligned with docs/tasks/task9_8_unified_canvas_add_edit_modal_drawer.md
@@ -140,25 +201,33 @@ export type CanvasModalElementType =
   | 'subsection'
   | 'text'
   | 'photo'
-  | 'gallery';
+  | 'gallery'
+  | 'pdf'
+  | 'documents';
 
 export interface CanvasElementFormData {
-  /** For section, subsection, gallery, or text title */
+  /** For section, subsection, gallery, pdf, documents, or text title */
   title?: string;
+  /** For section, subsection, gallery, or documents subtitle */
+  subtitle?: string;
   /** For section numbering */
   isNumbered?: boolean;
   /** For narrative text content */
   content?: string;
   /** For text typography style */
   as?: 'p' | 'blockquote';
-  /** For photo image source (data URL or external URL) */
+  /** For photo or pdf source (data URL, preview URL, or external URL) */
   src?: string;
+  /** Extracted Google Drive file ID for pdf or photo */
+  driveFileId?: string;
   /** For photo image accessibility description */
   alt?: string;
-  /** For photo image caption */
+  /** For photo or pdf caption */
   caption?: string;
-  /** Whether photo caption is visible below image */
+  /** Whether photo or pdf caption is visible below element */
   showCaption?: boolean;
-  /** For photo or gallery Google Drive folder URL */
+  /** Optional aspect ratio override for photo or pdf */
+  aspectRatio?: string;
+  /** For photo, gallery, pdf, or documents Google Drive URL */
   driveUrl?: string;
 }

@@ -46,6 +46,50 @@ export interface ResolvedSinglePhoto {
   rawUrl: string;
 }
 
+export interface ResolvedSinglePdf {
+  fileId: string;
+  previewUrl: string;
+  viewUrl: string;
+  rawUrl: string;
+}
+
+/**
+ * Generates an official Google Drive embedded preview URL for a file ID or Drive file URL.
+ * Format: https://drive.google.com/file/d/{fileId}/preview
+ */
+export function buildDrivePreviewUrl(fileIdOrUrl: string): string {
+  const fileId = extractDriveFileId(fileIdOrUrl);
+  if (!fileId) return '';
+  return `https://drive.google.com/file/d/${fileId}/preview`;
+}
+
+/**
+ * Generates an official Google Drive view URL for opening a file in a new tab.
+ * Format: https://drive.google.com/file/d/{fileId}/view
+ */
+export function buildDriveViewUrl(fileIdOrUrl: string): string {
+  const fileId = extractDriveFileId(fileIdOrUrl);
+  if (!fileId) return '';
+  return `https://drive.google.com/file/d/${fileId}/view`;
+}
+
+/**
+ * Resolves any valid Google Drive single-file link variant into canonical
+ * iframe preview and new-tab view URLs for PdfElement persistence.
+ * Explicitly rejects folder URLs (/folders/).
+ */
+export function resolveSingleDrivePdfUrl(input: string): ResolvedSinglePdf | null {
+  const fileId = extractDriveFileId(input);
+  if (!fileId) return null;
+
+  return {
+    fileId,
+    previewUrl: buildDrivePreviewUrl(fileId),
+    viewUrl: buildDriveViewUrl(fileId),
+    rawUrl: input.trim(),
+  };
+}
+
 /**
  * Extracts a Google Drive alphanumeric file ID specifically for SINGLE PHOTOS.
  * Strictly ignores and rejects folder URLs (/folders/).

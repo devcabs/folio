@@ -26,6 +26,7 @@ import type {
   PhotoElement,
   GalleryElement,
   ChartElement,
+  PdfElement,
   CanvasChildElement,
   CanvasLeafElement,
 } from '../types/canvas';
@@ -33,6 +34,8 @@ import {
   isPhotoElement,
   isGalleryElement,
   isChartElement,
+  isPdfElement,
+  isDocumentsElement,
   isSubsectionElement,
 } from '../types/canvas';
 import type { SyncedSourceItem } from '../types/source';
@@ -41,6 +44,8 @@ import {
   extractDriveFileId,
   buildEdgeMediaUrl,
   buildEdgeSrcSet,
+  buildDrivePreviewUrl,
+  buildDriveViewUrl,
 } from '../utils/mediaUrl';
 
 export const TRANSFORM_BREAKPOINTS = [400, 800, 1600] as const;
@@ -134,6 +139,21 @@ function transformChartElement(chart: ChartElement): ChartElement {
   };
 }
 
+function transformPdfElement(pdf: PdfElement): PdfElement {
+  const candidate = pdf.driveFileId || pdf.src || pdf.driveUrl || '';
+  const fileId = extractDriveFileId(candidate);
+  if (!fileId) {
+    return pdf;
+  }
+
+  return {
+    ...pdf,
+    driveFileId: pdf.driveFileId || fileId,
+    src: pdf.src && !pdf.src.includes('/api/media/drive/') ? pdf.src : buildDrivePreviewUrl(fileId),
+    driveUrl: pdf.driveUrl || buildDriveViewUrl(fileId),
+  };
+}
+
 function transformLeafElement(leaf: CanvasLeafElement): CanvasLeafElement {
   if (isPhotoElement(leaf)) {
     return transformPhotoElement(leaf);
@@ -143,6 +163,12 @@ function transformLeafElement(leaf: CanvasLeafElement): CanvasLeafElement {
   }
   if (isChartElement(leaf)) {
     return transformChartElement(leaf);
+  }
+  if (isPdfElement(leaf)) {
+    return transformPdfElement(leaf);
+  }
+  if (isDocumentsElement(leaf)) {
+    return leaf;
   }
   return leaf;
 }

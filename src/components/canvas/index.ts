@@ -5,6 +5,8 @@
 
 export { CanvasText, type CanvasTextProps } from "./CanvasText";
 export { CanvasPhoto, type CanvasPhotoProps } from "./CanvasPhoto";
+export { CanvasPdf, type CanvasPdfProps } from "./CanvasPdf";
+export { CanvasDocuments, type CanvasDocumentsProps, type DocumentsElementUpdates } from "./CanvasDocuments";
 export { CanvasGallery, type CanvasGalleryProps } from "./CanvasGallery";
 export { CanvasChart, type CanvasChartProps } from "./CanvasChart";
 export { CanvasSection, type CanvasSectionProps } from "./CanvasSection";

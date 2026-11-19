@@ -29,7 +29,8 @@ import { ... } from '@devcabs/folio-engine';
 
 ### Data Contracts & Types
 - **Node Contracts**: `NodeItem`, `NodeCode`, `NodeHeroImage`, `CanonicalPhoto`, `SourceItem`, `StageStory`.
-- **Canvas AST Contracts**: `CanvasElement`, `CanvasElementType`, `CanvasElementBase`, `SectionElement`, `SubsectionElement`, `CanvasLeafElement`, `CanvasChildElement`, `TextElement`, `PhotoElement`, `GalleryElement`, `ChartElement`, `NodeCanvasDocument`.
+- **Canvas AST Contracts**: `CanvasElement`, `CanvasElementType`, `CanvasElementBase`, `SectionElement`, `SubsectionElement`, `CanvasLeafElement`, `CanvasChildElement`, `TextElement`, `PhotoElement`, `GalleryElement`, `ChartElement`, `PdfElement`, `DocumentsElement`, `NodeCanvasDocument`, `isPdfElement`, `isDocumentsElement`.
+- **Source & Document Sync Contracts**: `SyncedSourceItem`, `SyncedDocumentItem`, `DriveDocumentFile`, `DriveDocumentReconciliationResult`, `SyncFolderDocumentsResult`, `UseDriveDocumentSyncOptions`, `UseDriveDocumentSyncResult`.
 - **Chart Contracts**: `ChartType`, `ChartConfig`, `ChartSeries`, `ScatterPoint`, `HistogramBin`, `ChartVisualConfig`.
 - **Developer & History Contracts**: `CoordinatorLock`, `HistoryEntry`, `HistoryLedger`, `DraftDiff`.
 - **Migration Contracts & Schemas**: `ContentMigration`, `CodeMigration`, `MigrationEntry`, `MigrationEntryInput`, `PendingMigrationReport`, `ContentMigrationSchema`, `CodeMigrationSchema`, `MigrationEntrySchema`, `PendingMigrationReportSchema`, `SEMVER_REGEX`.
@@ -47,7 +48,7 @@ import { ... } from '@devcabs/folio-engine';
 - **UI Primitives**: `Button`, `Modal`, `Drawer`, `StatusPill`, `Breadcrumb`, `ParametricShape`, `EditableText`, `RevolvingButton`, `DrawerTier`, `TieredSlider`, `FAB`, `AccordionSection`, `Toast`.
 - **Layout Shell**: `AppHeader`, `AppFooter`, `EditorialSection`, `EditorialSidebar`, `HeroWelcome`, `SearchField`.
 - **Stepped Sequence**: `RoadmapTrack`, `RoadmapSection`, `RoadmapNode`, `PhotoFlightEngine`.
-- **Document Canvas**: `DocumentCanvas`, `NodeCanvas`, `CanvasSection`, `CanvasSubsection`, `CanvasText`, `CanvasPhoto`, `CanvasGallery`, `CanvasChart`, `HeroPhoto`.
+- **Document Canvas**: `DocumentCanvas`, `NodeCanvas`, `CanvasSection`, `CanvasSubsection`, `CanvasText`, `CanvasPhoto`, `CanvasGallery`, `CanvasChart`, `CanvasPdf`, `CanvasDocuments`, `HeroPhoto`.
 - **Vector Chart Studio**: `ChartRouter`, `BarChart`, `LineChart`, `DonutChart`, `ScatterPlot`, `HistogramChart`, `ChartConfigDrawer`, `ChartLegend`, `ChartTooltip`, `RangePreviewMatrix`, `ChartTableModal`.
 - **Developer Chrome**: `DevModeBadge`, `DevPinModal`, `DevPublishModal`, `DevLockBlockedModal`, `DevExitConfirmModal`, `UniversalEditModal`, `HistoryHubModal`.
 
@@ -63,8 +64,10 @@ import { ... } from '@devcabs/folio-engine';
 - **`useDynamicSectionNumbers()`**: Automatically calculates two-digit section numbers (`01`, `02`).
 - **`useContent()`**: Reactive hook for reading and editing Content DB text values.
 - **`useLightboxHistory()`**: Manages browser back-button behavior for fullscreen media lightboxes.
+- **`useDriveDocumentSync(nodeId: string, options?: UseDriveDocumentSyncOptions)`**: Synchronizes Google Drive PDF folders into `DocumentsElement` AST nodes.
 
 ### Services & Utilities
+- **`driveDocumentSyncService`**: Google Drive PDF folder synchronization and reconciliation (`cleanDriveDocumentName`, `reconcileDriveDocuments`, `fetchDriveFolderPdfs`, `syncFolderDocuments`).
 - **`canvasLayoutService`**: Pure AST manipulation utilities (add, move, delete, renumber) and direct KV draft/public canvas accessors.
 - **`draftService`**: Cloudflare KV draft workspace persistence bridge (`GET / PUT /api/draft`, `POST /api/draft/init`).
 - **`devLockService`**: Edge-authenticated Cloudflare KV coordinator mutex lock manager (`lock:coordinator`).

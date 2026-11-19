@@ -216,6 +216,14 @@
   color: var(--text-secondary);
 }
 
+.fieldWarning {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-body);
+  font-size: var(--text-caption);
+  color: var(--color-warning-text);
+  line-height: 1.4;
+}
+
 .hiddenFileInput {
   display: none;
 }

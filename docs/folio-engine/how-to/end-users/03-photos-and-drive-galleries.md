@@ -59,6 +59,23 @@ Raw camera filenames (such as `IMG_2048.jpg`) can be replaced with clean caption
 
 ---
 
+## 5. Add Single PDFs & Sync Google Drive PDF Folders
+
+In addition to photo galleries, you can embed standalone PDFs or synchronize an entire Google Drive folder of PDF documents onto any Document Canvas.
+
+### Option A: Embed a Single PDF
+1. Click **`+`** (**Insert element**) inside a section or subsection, hover or click **Document**, and select **Single PDF**.
+2. Paste any public Google Drive file link (such as `https://drive.google.com/file/d/.../view` or `/preview`), and optionally enter a **Title** and **Caption**.
+3. Save to render the PDF inline on the canvas with an **Open in New Tab ↗** fallback link.
+
+### Option B: Insert & Sync a Google Drive PDF Folder
+1. Make sure your Google Drive folder is shared with **Anyone with the link** (**Viewer**).
+2. Click **`+`** (**Insert element**), hover or click **Document**, and select **PDF Folder**.
+3. Paste the **Google Drive Folder URL** into the **Link Folder** dialog and save.
+4. Click **↻ Sync** beside **✎ Edit** in Dev Mode to fetch all PDF files (including 1st-level subfolders). Clicking any document row opens the in-page PDF preview modal; clicking **✎ Edit** on a document lets you customize its title, date, or caption without losing changes on future syncs.
+
+---
+
 ## Next Steps
 
 - Publish your updated photos and galleries live using [How-To: Use History, Undo & Publish Changes](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/end-users/05-history-undo-and-publishing.md).
