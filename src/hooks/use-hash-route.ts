@@ -279,7 +279,12 @@ export function parseRoute(
   }
 
   // 5. Any unrecognized hash or non-root path
-  return createEmptyRouteState("not-found", hash, cleanPath);
+  // Preserve attempted segments (from path, else hash) so Smart 404 can fuzzy-match them.
+  const fallbackSource = isRootPath ? cleanHash : cleanPath;
+  const fallbackSegments = decodePathSegments(fallbackSource) ?? [];
+  return createEmptyRouteState("not-found", hash, cleanPath, {
+    attemptedSegments: fallbackSegments,
+  });
 }
 
 /**

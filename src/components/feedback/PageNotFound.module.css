@@ -15,13 +15,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: calc(var(--space-8) + 80px) 0 var(--space-flow-hero);
+  justify-content: flex-start;
+  padding: clamp(var(--space-flow-section), 12vh, var(--space-flow-hero)) 0 var(--space-flow-hero);
   text-align: center;
   width: min(calc(100% - 2 * var(--layout-gutter-desktop)), var(--layout-max-width));
   max-width: var(--layout-max-width);
   margin: 0 auto;
   box-sizing: border-box;
+}
+
+.mainArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .errorCode {
@@ -49,21 +55,20 @@
   line-height: var(--leading-normal);
   color: var(--text-secondary);
   max-width: 480px;
-  margin: 0 0 var(--space-6);
+  margin: 0;
 }
 
 .actionsRow {
+  margin-top: var(--space-6);
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
 }
 
 .suggestionsSection {
   width: 100%;
   max-width: 560px;
-  margin-top: var(--space-flow-layout);
+  margin-top: clamp(var(--space-flow-section), 14vh, calc(var(--space-flow-hero) + var(--space-10)));
   text-align: left;
 }
 
@@ -75,6 +80,15 @@
   text-transform: uppercase;
   color: var(--text-muted);
   margin: 0 0 var(--space-3);
+}
+
+.noSuggestions {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
 }
 
 .suggestionsList {
@@ -190,11 +204,6 @@
     width: calc(100% - 2 * var(--layout-gutter-mobile));
     max-width: calc(100% - 2 * var(--layout-gutter-mobile));
     margin: 0 auto;
-    padding: calc(var(--space-8) + 68px) 0 var(--space-flow-section);
-  }
-
-  .actionsRow {
-    width: 100%;
-    flex-direction: column;
+    padding: var(--space-flow-section) 0 var(--space-flow-section);
   }
 }

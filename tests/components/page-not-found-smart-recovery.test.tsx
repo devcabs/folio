@@ -60,45 +60,27 @@ describe('Subtask 13.8: Smart PageNotFound Fuzzy Recovery UI', () => {
     cleanup();
   });
 
-  it('renders canonical primary Button with "Return to Overview" and hides suggestions when no nearestParent or suggestions exist', () => {
+  it('renders canonical primary "Back to Home" Button and hides suggestions when none exist', () => {
     const onReturn = vi.fn();
-    render(<PageNotFound onReturn={onReturn} />);
+    const { container } = render(<PageNotFound onReturn={onReturn} />);
 
-    const primaryBtn = screen.getByRole('button', { name: /Return to Overview/i });
-    expect(primaryBtn).toBeDefined();
-    expect(primaryBtn.getAttribute('data-variant')).toBe('primary');
+    expect(screen.getByText('404')).toBeDefined();
+    expect(screen.getByText('Page Not Found')).toBeDefined();
 
-    fireEvent.click(primaryBtn);
+    const buttons = container.querySelectorAll('button');
+    expect(buttons.length).toBe(1);
+    const backBtn = screen.getByRole('button', { name: /Back to Home/i });
+    expect(backBtn.getAttribute('data-variant')).toBe('primary');
+
+    fireEvent.click(backBtn);
     expect(onReturn).toHaveBeenCalledTimes(1);
-
     expect(screen.queryByRole('region', { name: /Similar pages/i })).toBeNull();
   });
 
-  it('renders primary "Return to <Nearest Valid Parent>" CTA and optional ghost overview button', () => {
-    const onReturnToParent = vi.fn();
-    const onReturn = vi.fn();
-
-    render(
-      <PageNotFound
-        nearestParent={{
-          id: 'page-research',
-          title: 'Research',
-          path: '/#/node/access/research',
-        }}
-        onReturnToParent={onReturnToParent}
-        onReturn={onReturn}
-      />
-    );
-
-    const parentBtn = screen.getByRole('button', { name: /Return to Research/i });
-    expect(parentBtn.getAttribute('data-variant')).toBe('primary');
-    fireEvent.click(parentBtn);
-    expect(onReturnToParent).toHaveBeenCalledWith('page-research');
-
-    const overviewBtn = screen.getByRole('button', { name: /Return to Overview/i });
-    expect(overviewBtn.getAttribute('data-variant')).toBe('ghost');
-    fireEvent.click(overviewBtn);
-    expect(onReturn).toHaveBeenCalledTimes(1);
+  it('shows "There are no similar pages." when the matcher ran and returned nothing', () => {
+    render(<PageNotFound suggestions={[]} />);
+    expect(screen.getByText(/There are no similar pages/i)).toBeDefined();
+    expect(screen.queryByText(/Were you looking for/i)).toBeNull();
   });
 
   it('renders up to 5 fuzzy-matched suggestions with title + breadcrumbLabel, zero synthetic score badges, and calls onSelectSuggestion', () => {
@@ -106,7 +88,6 @@ describe('Subtask 13.8: Smart PageNotFound Fuzzy Recovery UI', () => {
 
     const { container } = render(
       <PageNotFound
-        onReturn={vi.fn()}
         suggestions={SAMPLE_SUGGESTIONS}
         onSelectSuggestion={onSelectSuggestion}
       />
@@ -135,7 +116,7 @@ describe('Subtask 13.8: Smart PageNotFound Fuzzy Recovery UI', () => {
     expect(onSelectSuggestion).toHaveBeenCalledWith('page-notes-2026');
   });
 
-  it('enforces canonical UI (zero raw <button>), token purity, zero outline policy, and zero horizontal dividers in CSS', () => {
+  it('enforces canonical UI (zero raw <button>), token purity, zero outline policy, whitespace separation, and zero horizontal dividers in CSS', () => {
     const tsxSource = fs.readFileSync(PAGE_NOT_FOUND_TSX, 'utf-8');
     expect(tsxSource).not.toMatch(/<button\b/);
 
@@ -144,5 +125,6 @@ describe('Subtask 13.8: Smart PageNotFound Fuzzy Recovery UI', () => {
     expect(cssSource).not.toMatch(colorPattern);
     expect(cssSource).toMatch(/outline:\s*none/);
     expect(cssSource).not.toMatch(/\bborder-top\b|\bborder-bottom\b/);
+    expect(cssSource).toMatch(/\.suggestionsSection\s*\{[^}]*margin-top:\s*clamp\(/s);
   });
 });

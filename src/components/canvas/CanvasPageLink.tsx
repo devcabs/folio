@@ -1,9 +1,11 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo, useState, useEffect, useMemo } from 'react';
 import type { PageLinkElement } from '../../types/canvas';
 import { usePortalChrome } from '../../context/PortalChromeContext';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { getActiveNodes, getEngineConfig } from '../../config/engine.config';
 import { buildPagePath } from '../../services/pageTreeService';
+import { getPageAndDescendantIds } from '../../utils/pagePhotoPool';
+import { usePageShufflePhoto } from '../../hooks/usePageShufflePhoto';
 import { resolveSingleDrivePhotoUrl } from '../../utils/mediaUrl';
 import { Button } from '../ui/Button';
 import { ParametricShape } from '../ui/ParametricShape';
@@ -59,6 +61,25 @@ export const CanvasPageLink: React.FC<CanvasPageLinkProps> = memo(({
   useEffect(() => {
     setImageFailed(false);
   }, [coverSrc]);
+
+  // No cover image: shuffle page photos (stock fallback) every 5s with a crossfade
+  const shufflePageIds = useMemo(
+    () => getPageAndDescendantIds(element.targetPageId, pages),
+    [element.targetPageId, pages]
+  );
+  const shuffleSrc = usePageShufflePhoto(
+    shufflePageIds,
+    Boolean(targetPage) && !coverSrc
+  );
+  const [shuffleState, setShuffleState] = useState<{ current: string | null; previous: string | null }>({
+    current: null,
+    previous: null,
+  });
+  useEffect(() => {
+    setShuffleState((s) =>
+      s.current === shuffleSrc ? s : { current: shuffleSrc, previous: s.current }
+    );
+  }, [shuffleSrc]);
 
   if (!targetPage) {
     if (!isDevMode) {
@@ -141,6 +162,19 @@ export const CanvasPageLink: React.FC<CanvasPageLinkProps> = memo(({
               loading="lazy"
               onError={() => setImageFailed(true)}
             />
+          ) : shuffleState.current ? (
+            <>
+              {shuffleState.previous ? (
+                <img src={shuffleState.previous} alt="" className={styles.coverImage} />
+              ) : null}
+              <img
+                key={shuffleState.current}
+                src={shuffleState.current}
+                alt=""
+                className={`${styles.coverImage} ${shuffleState.previous ? styles.coverFadeIn : ''}`.trim()}
+                data-shuffle-photo="true"
+              />
+            </>
           ) : (
             <ParametricShape
               sides={8}

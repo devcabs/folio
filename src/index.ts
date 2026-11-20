@@ -65,9 +65,11 @@ export * from "./components/canvas";
 export * from "./hooks/useDocumentCanvas";
 export * from "./hooks/useNodeCanvas";
 export * from "./hooks/useLightboxHistory";
+export * from "./hooks/usePageShufflePhoto";
 export * from "./services/canvasLayoutService";
 export * from "./services/pageTreeService";
 export * from "./utils/canvasDefaults";
+export * from "./utils/pagePhotoPool";
 
 // Layout Shell & Parametric Geometric Mark
 export * from "./components/layout";

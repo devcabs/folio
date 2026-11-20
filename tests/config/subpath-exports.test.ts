@@ -23,6 +23,9 @@ describe('Subpath Exports & Multi-Entry Architecture', () => {
     expect(rootExports.resolvePathToPage).toBeDefined();
     expect(rootExports.CanvasPageLink).toBeDefined();
     expect(rootExports.PageIcon).toBeDefined();
+    expect(rootExports.usePageShufflePhoto).toBeDefined();
+    expect(rootExports.collectPagePhotos).toBeDefined();
+    expect(rootExports.STOCK_PAGE_PHOTOS).toBeDefined();
   });
 
   it('exposes edge and KV contracts without importing React components', () => {

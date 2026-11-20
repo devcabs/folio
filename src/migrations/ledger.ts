@@ -1069,6 +1069,65 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.3.1',
+    releaseDate: '2026-11-20',
+    title: 'CanvasPageLink Dynamic Photo Shuffling & Smart 404 Recovery Polish',
+    summary:
+      'Added dynamic photo shuffling with smooth crossfades for CanvasPageLink cover fallbacks, expanded Smart 404 route segment capture to top-level paths, and streamlined PageNotFound empty-state presentation.',
+    breakingChanges: [
+      'No breaking API changes; additive features, visual refinements, and non-breaking route recovery enhancements only.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.3.1 to acknowledge dynamic photo shuffle and Smart 404 recovery refinements.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.3.0" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.3.1" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'page-link-cover-shuffle-0.3.1',
+        title: 'CanvasPageLink Dynamic Photo Shuffling & Stock Fallbacks',
+        required: false,
+        description:
+          'CanvasPageLink cards lacking explicit cover images now automatically cycle through photos registered on target pages and descendant subpages (or bundled stock photos) with smooth crossfades.',
+        affectedEntities: [
+          'CanvasPageLink',
+          'usePageShufflePhoto',
+          'pagePhotoPool',
+        ],
+        migrationPrompt:
+          'No migration required. Page link cards will automatically display cycling photos when no coverImage is provided.',
+      },
+      {
+        id: 'smart-404-recovery-polish-0.3.1',
+        title: 'Top-Level Route Segment Capture & PageNotFound Clean Visuals',
+        required: false,
+        description:
+          'Smart 404 now extracts attempted path segments on top-level mistyped URLs for fuzzy suggestion matching, with refined single-CTA layout and empty-state messaging.',
+        affectedEntities: [
+          'PageNotFound',
+          'useHashRoute',
+          'parseRoute',
+        ],
+        migrationPrompt:
+          'No migration required. Top-level 404 paths now automatically offer fuzzy suggestions when close matches exist.',
+      },
+      {
+        id: 'content-version-watermark-0.3.1',
+        title: 'Advance contentVersion Watermark to 0.3.1',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.3.1 to acknowledge photo shuffling and Smart 404 recovery polish.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.3.1"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

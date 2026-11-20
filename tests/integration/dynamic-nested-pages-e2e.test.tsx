@@ -674,7 +674,7 @@ describe('Epic 13 E2E: Dynamic Nested Subpages Full Lifecycle', () => {
         onReturnToParent={onReturnParent}
       />
     );
-    expect(screen.getByRole('button', { name: /Return to Research/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Return to Research/i })).toBeNull();
     const suggestionBtn = (Array.from(notFoundContainer.querySelectorAll('a')) as HTMLElement[]).find((a) =>
       a.textContent?.includes('2026 Notes')
     );

@@ -435,6 +435,7 @@ describe('13.15 Guarded Unified Page / Branch Deletion Modal & Atomic Cascade Pu
     expect(Object.keys(deletePayload.pages)).toHaveLength(0);
 
     // Undo should restore parent canvas card, all 4 PageNodes, AND all 4 purged canvases
+    fetchSpy.mockClear();
     await act(async () => {
       await undoRedoService.popUndoAsync();
     });

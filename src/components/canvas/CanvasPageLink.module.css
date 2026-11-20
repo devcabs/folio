@@ -83,6 +83,20 @@
   object-fit: cover;
 }
 
+.mediaSlot .coverImage {
+  position: absolute;
+  inset: 0;
+}
+
+.coverFadeIn {
+  animation: coverFadeIn var(--duration-slow, 600ms) var(--ease-out) both;
+}
+
+@keyframes coverFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .contentSlot {
   flex: 1;
   min-width: 0;
@@ -181,6 +195,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
+  .coverFadeIn {
+    animation: none;
+  }
 
   .cardLink,
   .readCue,

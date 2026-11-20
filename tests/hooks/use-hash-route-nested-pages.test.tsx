@@ -206,6 +206,23 @@ describe('Subtask 13.7: Multi-Segment Folder Routing & Dev-Mode Draft Refresh Gu
       expect(broken.nearestValidAncestor?.id).toBe('page-research');
       expect(broken.nearestValidAncestor?.path).toBe('/node/access/research/');
     });
+
+    it('captures attemptedSegments for bare non-/node/ paths (e.g. /nasdfasdf) so fuzzy suggestions can run', () => {
+      const bare = parseRoute('/nasdfasdf', '', ['access', 'build'], '', {
+        pages: SAMPLE_PAGES,
+        rootNodes: ROOT_NODES,
+        isHydrating: false,
+      });
+      expect(bare.type).toBe('not-found');
+      expect(bare.attemptedSegments).toEqual(['nasdfasdf']);
+
+      const home = parseRoute('/', '', ['access', 'build'], '', {
+        pages: SAMPLE_PAGES,
+        rootNodes: ROOT_NODES,
+        isHydrating: false,
+      });
+      expect(home.type).toBe('home');
+    });
   });
 
   describe('5. Canonical navigateToPage & Reactive Hook Hydration', () => {

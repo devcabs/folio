@@ -32,71 +32,54 @@ export const PageNotFound: React.FC<PageNotFoundProps> = ({
   title = 'Page Not Found',
   description = 'The page you are looking for could not be found.',
   errorCode = '404',
-  returnLabel = 'Return to Overview',
+  returnLabel = 'Back to Home',
   className,
-  nearestParent,
-  onReturnToParent,
   suggestions,
   onSelectSuggestion,
 }) => {
   const visibleSuggestions = suggestions ? suggestions.slice(0, 5) : [];
-  const hasParentCta = Boolean(nearestParent && onReturnToParent);
 
   return (
     <main className={`${styles.notFoundWrapper} ${className || ''}`.trim()} role="main">
-      <EditableText
-        pointId="notFound.errorCode"
-        defaultText={errorCode}
-        as="div"
-        className={styles.errorCode}
-      />
-      <EditableText
-        pointId="notFound.title"
-        defaultText={title}
-        as="h1"
-        className={styles.title}
-      />
-      <EditableText
-        pointId="notFound.description"
-        defaultText={description}
-        as="p"
-        className={styles.description}
-      />
+      <div className={styles.mainArea}>
+        <EditableText
+          pointId="notFound.errorCode"
+          defaultText={errorCode}
+          as="div"
+          className={styles.errorCode}
+        />
+        <EditableText
+          pointId="notFound.title"
+          defaultText={title}
+          as="h1"
+          className={styles.title}
+        />
+        <EditableText
+          pointId="notFound.description"
+          defaultText={description}
+          as="p"
+          className={styles.description}
+        />
+        {onReturn && (
+          <div className={styles.actionsRow}>
+            <Button variant="primary" onClick={onReturn}>
+              <EditableText
+                pointId="notFound.returnButton"
+                defaultText={returnLabel}
+                as="span"
+                inline={true}
+              />
+            </Button>
+          </div>
+        )}
+      </div>
 
-      {(hasParentCta || onReturn) && (
-        <div className={styles.actionsRow}>
-          {hasParentCta && nearestParent && onReturnToParent ? (
-            <>
-              <Button
-                variant="primary"
-                onClick={() => onReturnToParent(nearestParent.id)}
-              >
-                {`Return to ${nearestParent.title}`}
-              </Button>
-              {onReturn && (
-                <Button variant="ghost" onClick={onReturn}>
-                  <EditableText
-                    pointId="notFound.returnButton"
-                    defaultText={returnLabel}
-                    as="span"
-                    inline={true}
-                  />
-                </Button>
-              )}
-            </>
-          ) : (
-            onReturn && (
-              <Button variant="primary" onClick={onReturn}>
-                <EditableText
-                  pointId="notFound.returnButton"
-                  defaultText={returnLabel}
-                  as="span"
-                  inline={true}
-                />
-              </Button>
-            )
-          )}
-        </div>
+      {suggestions && visibleSuggestions.length === 0 && (
+        <section className={styles.suggestionsSection} aria-label="Similar pages">
+          <p className={styles.noSuggestions} role="status">
+            There are no similar pages.
+          </p>
+        </section>
       )}
 
       {visibleSuggestions.length > 0 && (
