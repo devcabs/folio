@@ -938,6 +938,137 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.2.7',
+    releaseDate: '2026-11-19',
+    title: 'Canonical UI Primitives & Anti-Duplication Consolidation (Epic 12)',
+    summary:
+      'Added canonical UI primitives (IconButton, InlineAlert, FormField, Input, Textarea, Select, Checkbox, SegmentedControl, ModalActions, and shared SVG icons including DocumentIcon), enforced feedback token purity, deduplicated CanvasElementFields and SourceFolderActionBar, and locked in static canonical UI regression guardrails.',
+    breakingChanges: [
+      'No breaking API removals; additive canonical UI primitives exported from @devcabs/folio-engine. Removed redundant internal layout/StatusPill wrapper—consume StatusPill from the root package export.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Adopt newly exported canonical UI primitives from @devcabs/folio-engine where building custom forms, icon buttons, modal footers, or inline alerts.',
+        affectedFiles: ['src/App.tsx'],
+        exampleBefore: 'import { Button, Modal } from "@devcabs/folio-engine";',
+        exampleAfter:
+          'import {\n  Button,\n  IconButton,\n  InlineAlert,\n  FormField,\n  Input,\n  Textarea,\n  Select,\n  Checkbox,\n  SegmentedControl,\n  Modal,\n  ModalActions,\n  DocumentIcon,\n} from "@devcabs/folio-engine";',
+      },
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.2.7 to acknowledge Epic 12 canonical UI primitives.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.2.6" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.2.7" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'canonical-ui-primitives-0.2.7',
+        title: 'Canonical UI Primitives & Form System',
+        required: false,
+        description:
+          'Added IconButton, InlineAlert, FormField, Input, Textarea, Select, Checkbox, SegmentedControl, ModalActions, and shared SVG icon primitives (DocumentIcon, EditIcon, TrashIcon, CloseIcon, SearchIcon, ArrowRightIcon, AlertCircleIcon) with full 4-state interactive matrices and token-pure CSS modules.',
+        affectedEntities: [
+          'IconButton',
+          'InlineAlert',
+          'FormField',
+          'Input',
+          'Textarea',
+          'Select',
+          'Checkbox',
+          'SegmentedControl',
+          'ModalActions',
+          'DocumentIcon',
+        ],
+        migrationPrompt:
+          'No manual database migration required. Use the new canonical UI primitives from @devcabs/folio-engine for consistent 4-state focus/hover styling.',
+      },
+      {
+        id: 'content-version-watermark-0.2.7',
+        title: 'Advance contentVersion Watermark to 0.2.7',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.2.7 to acknowledge Epic 12 canonical UI consolidation and clear pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.2.7"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
+  {
+    version: '0.3.0',
+    releaseDate: '2026-11-19',
+    title: 'Dynamic Multi-Page & Nested Subpage Architecture (Epic 13)',
+    summary:
+      'Added unlimited-depth nested subpage trees backed by a normalized PageNode registry, 1:1 PageLinkElement canvas cards, single-authority PageTitle editing, cross-page workspace undo/redo with route reconciliation, guarded branch deletion (DELETE ALL SUBPAGES), 2-level AppHeader dropdowns, collapsed Breadcrumb, contextual EditorialSidebar, Smart 404 fuzzy recovery, and Edge HTML window.__FOLIO_MANIFEST__ injection for zero-wait deep-link cold loads.',
+    breakingChanges: [
+      'Flat Canvas AST v3 (CANVAS_SCHEMA_VERSION = 3): NodeCanvasDocument.sections (SectionElement[]) was replaced by flat NodeCanvasDocument.elements (CanvasElement[]), and SectionElement.elements / SubsectionElement.elements were removed from v3 types and Zod schemas (NodeCanvasDocumentSchema, SectionElementSchema, SubsectionElementSchema). Legacy v2 nested canvases are auto-migrated at runtime.',
+      'canvasLayoutService: renumberSections(sections) was renamed to renumberCanvasElements(elements), and layout helpers (insertSection, insertSubsection, insertLeafElement, moveCanvasItem, relocateCanvasItem, removeCanvasItem, updateCanvasItem) now operate on flat CanvasElement[] documents.',
+      'Consumers with exhaustive `switch (leaf.type)` statements over `CanvasLeafElement` or `CanvasModalElementType` must handle the new `"page-link"` (`PageLinkElement`) variant.',
+      'RouteState.type / RouteType now includes `"hydrating"` during deep-link cold loads; exhaustive route type checks must handle `"hydrating"`.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Migrate any direct TypeScript references from NodeCanvasDocument.sections to flat NodeCanvasDocument.elements (v3 AST) and use LegacySectionElement / LegacySubsectionElement only when reading unmigrated v2 JSON.',
+        affectedFiles: ['src/App.tsx', 'src/services/*.ts'],
+        exampleBefore: 'const sections = doc.sections;\nconst items = sections.flatMap((s) => s.elements);',
+        exampleAfter: 'const elements = doc.elements;\nconst sections = elements.filter((el) => el.type === "section");',
+      },
+      {
+        description:
+          'Replace renumberSections with renumberCanvasElements when invoking canvas layout helpers directly.',
+        affectedFiles: ['src/App.tsx', 'src/services/*.ts'],
+        exampleBefore: 'import { renumberSections } from "@devcabs/folio-engine";\nconst next = renumberSections(doc.sections);',
+        exampleAfter: 'import { renumberCanvasElements } from "@devcabs/folio-engine";\nconst next = renumberCanvasElements(doc.elements);',
+      },
+      {
+        description:
+          'Ensure Cloudflare Edge consumer worker.ts delegates via handleFolioEdgeRequest from @devcabs/folio-engine/edge to enable automatic window.__FOLIO_MANIFEST__ HTML injection and multi-segment SPA fallback.',
+        affectedFiles: ['worker.ts'],
+        exampleBefore: 'return env.ASSETS.fetch(request);',
+        exampleAfter: 'return handleFolioEdgeRequest(request, env, ctx);',
+      },
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.3.0 to acknowledge Epic 13 dynamic nested subpages and v3 flat canvas AST.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.2.7" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.3.0" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'dynamic-nested-pages-0.3.0',
+        title: 'Normalized PageNode Registry & PageLinkElement AST Leaf',
+        required: false,
+        description:
+          'Added optional `pages?: PageRegistry` to DraftWorkspacePayload, PublishedSnapshot, and PublicPortalManifestPayload, along with `page-link` canvas elements and `deletedPageIds` atomic branch purge.',
+        affectedEntities: [
+          'PageNode',
+          'PageRegistry',
+          'PageLinkElement',
+          'CanvasPageLink',
+          'PageIcon',
+        ],
+        migrationPrompt:
+          'No manual database migration required. Existing flat chapter workspaces default `pages` to `{}` automatically on draft init and publish.',
+      },
+      {
+        id: 'content-version-watermark-0.3.0',
+        title: 'Advance contentVersion Watermark to 0.3.0',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.3.0 to acknowledge Epic 13 dynamic nested subpages and clear pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.3.0"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

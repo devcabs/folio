@@ -10,15 +10,17 @@
  * - Enforces optimistic concurrency (expectedRevision / expectedUpdatedAt) on PUT /api/draft
  */
 
-import type {
-  DraftWorkspacePayload,
-  KVNamespace,
-  PublicNodePayload,
-  PublicPortalManifestPayload,
+import {
+  PageRegistrySchema,
+  type DraftWorkspacePayload,
+  type KVNamespace,
+  type PageNode,
+  type PublicNodePayload,
+  type PublicPortalManifestPayload,
 } from '../../types/edge';
 import type { PublishedSnapshot } from '../../types/history';
 import type { NodeCanvasDocument } from '../../types/canvas';
-import { createDefaultCanvasDocument } from '../../utils/canvasDefaults';
+import { createDefaultCanvasDocument, normalizeCanvasDocument } from '../../utils/canvasDefaults';
 import { verifyLockToken } from './lockHandler';
 import { KV_HISTORY_SNAPSHOT_PREFIX } from './historyHandler';
 
@@ -47,9 +49,9 @@ function extractCanvasFromNodeRecord(raw: unknown): NodeCanvasDocument | null {
   if (
     typeof candidate.nodeId === 'string' &&
     typeof candidate.version === 'number' &&
-    Array.isArray(candidate.sections)
+    (Array.isArray(candidate.elements) || Array.isArray(candidate.sections))
   ) {
-    return candidate as unknown as NodeCanvasDocument;
+    return normalizeCanvasDocument(candidate, candidate.nodeId);
   }
   return null;
 }
@@ -127,8 +129,16 @@ async function buildBaselineDraftWorkspace(
       activeSnapshot = null;
     }
 
+    const livePages: Record<string, PageNode> =
+      manifest.pages && Object.keys(manifest.pages).length > 0
+        ? JSON.parse(JSON.stringify(manifest.pages))
+        : activeSnapshot?.pages
+          ? JSON.parse(JSON.stringify(activeSnapshot.pages))
+          : {};
+    const pageIds = Object.keys(livePages);
+
     const manifestNodeIds = Array.isArray(manifest.nodeIds) ? manifest.nodeIds : [];
-    const targetNodeIds = Array.from(new Set([...manifestNodeIds, ...requestedNodeIds]));
+    const targetNodeIds = Array.from(new Set([...manifestNodeIds, ...requestedNodeIds, ...pageIds]));
     const canvases: Record<string, NodeCanvasDocument> = {};
 
     for (const nodeId of targetNodeIds) {
@@ -169,6 +179,7 @@ async function buildBaselineDraftWorkspace(
         authorSessionId,
         canvases,
         contentOverrides: liveOverrides,
+        pages: livePages,
       },
     };
   }
@@ -188,6 +199,7 @@ async function buildBaselineDraftWorkspace(
         authorSessionId,
         canvases,
         contentOverrides: {},
+        pages: {},
       },
     };
   }
@@ -256,6 +268,8 @@ async function handlePutDraft(request: Request, kv: KVNamespace): Promise<Respon
     expectedRevision?: unknown;
     canvases?: unknown;
     contentOverrides?: unknown;
+    pages?: unknown;
+    deletedPageIds?: unknown;
     baseSnapshotId?: unknown;
     dirty?: unknown;
     authorSessionId?: unknown;
@@ -264,6 +278,30 @@ async function handlePutDraft(request: Request, kv: KVNamespace): Promise<Respon
     body = (await request.json()) as typeof body;
   } catch {
     return jsonResponse({ error: 'Invalid JSON request body.' }, 400);
+  }
+
+  let validatedPages: Record<string, PageNode> | undefined;
+  if (body.pages !== undefined) {
+    const parsed = PageRegistrySchema.safeParse(body.pages);
+    if (!parsed.success) {
+      const issueMsg = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
+      return jsonResponse({ error: `Invalid pages payload: ${issueMsg}` }, 400);
+    }
+    validatedPages = parsed.data;
+  }
+
+  let validatedDeletedPageIds: string[] = [];
+  if (body.deletedPageIds !== undefined) {
+    if (
+      !Array.isArray(body.deletedPageIds) ||
+      body.deletedPageIds.some((id) => typeof id !== 'string' || id.trim().length === 0)
+    ) {
+      return jsonResponse(
+        { error: 'deletedPageIds must be an array of non-empty strings.' },
+        400
+      );
+    }
+    validatedDeletedPageIds = body.deletedPageIds;
   }
 
   let existing: DraftWorkspacePayload | null = null;
@@ -296,12 +334,20 @@ async function handlePutDraft(request: Request, kv: KVNamespace): Promise<Respon
   const mergedCanvases: Record<string, NodeCanvasDocument> =
     body.canvases && typeof body.canvases === 'object' && !Array.isArray(body.canvases)
       ? { ...existing.canvases, ...(body.canvases as Record<string, NodeCanvasDocument>) }
-      : existing.canvases;
+      : { ...existing.canvases };
 
   const nextOverrides: Record<string, string> =
     body.contentOverrides && typeof body.contentOverrides === 'object' && !Array.isArray(body.contentOverrides)
       ? { ...(body.contentOverrides as Record<string, string>) }
       : existing.contentOverrides;
+
+  const nextPages: Record<string, PageNode> =
+    validatedPages !== undefined ? { ...validatedPages } : { ...(existing.pages || {}) };
+
+  for (const delId of validatedDeletedPageIds) {
+    delete mergedCanvases[delId];
+    delete nextPages[delId];
+  }
 
   const updated: DraftWorkspacePayload = {
     baseSnapshotId: typeof body.baseSnapshotId === 'string' ? body.baseSnapshotId : existing.baseSnapshotId,
@@ -314,6 +360,7 @@ async function handlePutDraft(request: Request, kv: KVNamespace): Promise<Respon
         : existing.authorSessionId,
     canvases: mergedCanvases,
     contentOverrides: nextOverrides,
+    pages: nextPages,
   };
 
   try {

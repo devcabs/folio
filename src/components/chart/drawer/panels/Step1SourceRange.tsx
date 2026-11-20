@@ -4,7 +4,8 @@ import {
   type SheetMetadataTab,
 } from '../../../../services/sheetsVerificationService';
 import type { AccessStatus } from '../hooks/useSheetVerification';
-import { Button } from '../../../ui';
+import { buildSheetTabOptions } from '../../../../utils/sheetTabs';
+import { Button, FormField, Input, Select } from '../../../ui';
 import { DevHelpTooltip } from '../../../ui/DevHelpTooltip';
 import styles from './Step1SourceRange.module.css';
 
@@ -61,16 +62,10 @@ export const Step1SourceRange: React.FC<Step1SourceRangeProps> = ({
   const hasSpreadsheetId = Boolean(extractSpreadsheetId(sheetUrl.trim()));
 
   // Ensure options list contains current tab
-  const tabOptions = useMemo(() => {
-    if (discoveredTabs.length > 0) {
-      const hasCurrent = discoveredTabs.some((t) => t.title === tabName);
-      if (tabName && !hasCurrent) {
-        return [{ title: tabName, sheetId: 'current' }, ...discoveredTabs];
-      }
-      return discoveredTabs;
-    }
-    return [{ title: tabName || 'Sheet1', sheetId: 'default' }];
-  }, [discoveredTabs, tabName]);
+  const tabOptions = useMemo(
+    () => buildSheetTabOptions(discoveredTabs, tabName),
+    [discoveredTabs, tabName]
+  );
 
   return (
     <div className={styles.stepPanel}>
@@ -89,23 +84,25 @@ export const Step1SourceRange: React.FC<Step1SourceRangeProps> = ({
               </span>
             </label>
             {sheetUrl && (
-              <a
+              <Button
+                as="a"
+                variant="secondary"
+                size="xs"
                 href={sheetUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={styles.goToSourceBtn}
                 title="Open spreadsheet in new tab"
               >
-                <span>Open ↗</span>
-              </a>
+                Open ↗
+              </Button>
             )}
           </div>
           <div className={styles.fieldWithActionRow}>
-            <input
+            <Input
               id="cfg-sheet-url"
               type="url"
-              className={`${styles.input} ${accessStatus === 'invalid' ? styles.inputError : ''
-                } ${accessStatus === 'public' ? styles.inputSuccess : ''}`}
+              invalid={accessStatus === 'invalid'}
+              valid={accessStatus === 'public'}
               placeholder="https://docs.google.com/spreadsheets/d/.../edit"
               value={sheetUrl}
               onChange={(e) => setSheetUrl(e.target.value)}
@@ -196,16 +193,10 @@ export const Step1SourceRange: React.FC<Step1SourceRangeProps> = ({
       {/* 2. Sheet Tab Selection */}
       {accessStatus === 'public' && (
         <div className={styles.sectionGroup}>
-          <div className={styles.formGroup}>
-            <div className={styles.labelRow}>
-              <label className={styles.label} htmlFor="cfg-tab-name">
-                <span>2. Select a Tab</span>
-              </label>
-            </div>
+          <FormField id="cfg-tab-name" label="2. Select a Tab">
             <div className={styles.fieldWithActionRow}>
-              <select
+              <Select
                 id="cfg-tab-name"
-                className={styles.select}
                 value={tabName || (tabOptions[0]?.title ?? 'Sheet1')}
                 onChange={handleTabChange}
                 disabled={tabOptions.length === 0}
@@ -216,7 +207,7 @@ export const Step1SourceRange: React.FC<Step1SourceRangeProps> = ({
                     {tab.title}
                   </option>
                 ))}
-              </select>
+              </Select>
               <Button
                 type="button"
                 variant="primary"
@@ -229,7 +220,7 @@ export const Step1SourceRange: React.FC<Step1SourceRangeProps> = ({
                 Refresh
               </Button>
             </div>
-          </div>
+          </FormField>
         </div>
       )}
 

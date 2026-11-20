@@ -1,12 +1,13 @@
 /**
  * PageNotFound Module Styles — Modern Academic Editorial
- * Subtask 4.4.1: Dignified 404 Fallback
- * 
+ * Subtask 13.8: Smart Fuzzy Recovery 404 Fallback
+ *
  * Strict Anti-AI-Slop Standard:
  * - Zero rainbow gradient borders
  * - Zero synthetic status badges
+ * - Zero horizontal dividing lines
  * - Calm, dignified typography on warm canvas
- * - Universal Zero Outline Policy compliant
+ * - 4-State Interactive Matrix & Universal Zero Outline Policy compliant
  */
 
 .notFoundWrapper {
@@ -51,53 +52,136 @@
   margin: 0 0 var(--space-6);
 }
 
-.returnButton {
-  display: inline-flex;
+.actionsRow {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
-  min-height: var(--btn-min-height);
-  padding: var(--btn-padding-y) var(--btn-padding-x);
-  background: var(--folio-primary);
-  color: var(--text-inverse);
+  gap: var(--space-3);
+}
+
+.suggestionsSection {
+  width: 100%;
+  max-width: 560px;
+  margin-top: var(--space-flow-layout);
+  text-align: left;
+}
+
+.suggestionsHeading {
   font-family: var(--font-sans);
-  font-size: var(--text-body);
+  font-size: var(--text-caption);
   font-weight: 600;
-  border-radius: var(--radius-full);
-  border: 1px solid transparent;
-  cursor: pointer;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-3);
+}
+
+.suggestionsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.suggestionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--page-link-padding-y) var(--page-link-padding-x);
+  background: var(--page-link-bg);
+  border: 1px solid var(--page-link-border);
+  border-radius: var(--page-link-radius);
+  box-shadow: var(--page-link-shadow);
   text-decoration: none;
-  box-shadow: var(--elevation-raised);
+  color: var(--text-primary);
   transition: background-color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
+    border-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
-.returnButton:hover {
-  background: var(--brand-primary-dark);
+.suggestionRow:hover {
+  background: var(--page-link-hover-bg);
+  border-color: var(--page-link-hover-border);
+  transform: translateY(-2px);
+  box-shadow: var(--page-link-hover-shadow);
 }
 
-.returnButton:hover .returnIcon {
-  transform: translateX(-3px);
+.suggestionRow:hover .suggestionArrow {
+  transform: translateX(3px);
+  color: var(--text-primary);
 }
 
-.returnButton:active {
-  transform: scale(0.98) translateY(1px);
+.suggestionRow:active {
+  background: var(--page-link-active-bg);
+  transform: translateY(1px);
 }
 
 /* Universal Zero Outline Policy */
-.returnButton:focus,
-.returnButton:focus-visible,
-.returnButton:active {
+.suggestionRow:focus,
+.suggestionRow:focus-visible,
+.suggestionRow:active {
   outline: none;
   outline: 0;
-  background: var(--brand-primary-dark);
+  background: var(--page-link-hover-bg);
+  border-color: var(--border-focus);
 }
 
-.returnIcon {
-  width: 16px;
-  height: 16px;
+.suggestionIcon {
   flex-shrink: 0;
-  transition: transform var(--duration-fast) var(--ease-out);
+  color: var(--page-link-icon-color);
+}
+
+.suggestionMeta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.suggestionTitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestionPath {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestionArrow {
+  flex-shrink: 0;
+  color: var(--page-link-arrow-color);
+  transition: transform var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .suggestionRow,
+  .suggestionArrow {
+    transition: none;
+  }
+
+  .suggestionRow:hover,
+  .suggestionRow:active,
+  .suggestionRow:hover .suggestionArrow {
+    transform: none;
+  }
 }
 
 /* Single Unified Mobile Breakpoint (< 1024px) */
@@ -109,7 +193,8 @@
     padding: calc(var(--space-8) + 68px) 0 var(--space-flow-section);
   }
 
-  .returnButton {
+  .actionsRow {
     width: 100%;
+    flex-direction: column;
   }
 }

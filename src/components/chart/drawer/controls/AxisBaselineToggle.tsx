@@ -1,4 +1,5 @@
 import React from 'react';
+import { SegmentedControl } from '../../../ui';
 import styles from '../../ChartConfigDrawer.module.css';
 
 interface AxisBaselineToggleProps {
@@ -15,43 +16,19 @@ export const AxisBaselineToggle: React.FC<AxisBaselineToggleProps> = ({
   startAtZero,
   onChange,
 }) => {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-      e.preventDefault();
-      onChange(!startAtZero);
-    }
-  };
-
   return (
     <div className={styles.formGroup}>
       <span className={styles.label}>{label}</span>
-      <div
-        className={styles.segmentedControl}
-        role="radiogroup"
+      <SegmentedControl<'auto' | 'zero'>
+        value={startAtZero ? 'zero' : 'auto'}
+        onChange={(val) => onChange(val === 'zero')}
         aria-label={label}
-        onKeyDown={handleKeyDown}
-      >
-        <button
-          type="button"
-          role="radio"
-          aria-checked={!startAtZero}
-          tabIndex={!startAtZero ? 0 : -1}
-          className={`${styles.segmentBtn} ${!startAtZero ? styles.segmentBtnActive : ''}`}
-          onClick={() => onChange(false)}
-        >
-          Auto
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={startAtZero}
-          tabIndex={startAtZero ? 0 : -1}
-          className={`${styles.segmentBtn} ${startAtZero ? styles.segmentBtnActive : ''}`}
-          onClick={() => onChange(true)}
-        >
-          Zero
-        </button>
-      </div>
+        size="sm"
+        options={[
+          { value: 'auto', label: 'Auto' },
+          { value: 'zero', label: 'Zero' },
+        ]}
+      />
     </div>
   );
 };

@@ -29,7 +29,8 @@ import { ... } from '@devcabs/folio-engine';
 
 ### Data Contracts & Types
 - **Node Contracts**: `NodeItem`, `NodeCode`, `NodeHeroImage`, `CanonicalPhoto`, `SourceItem`, `StageStory`.
-- **Canvas AST Contracts**: `CanvasElement`, `CanvasElementType`, `CanvasElementBase`, `SectionElement`, `SubsectionElement`, `CanvasLeafElement`, `CanvasChildElement`, `TextElement`, `PhotoElement`, `GalleryElement`, `ChartElement`, `PdfElement`, `DocumentsElement`, `NodeCanvasDocument`, `isPdfElement`, `isDocumentsElement`.
+- **Page Tree Contracts**: `PageNode`, `PageRegistry`, `PageAncestorItem`, `ResolvePathResult`, `PageMatchCandidate`, `PageNodeSchema`, `PageRegistrySchema`, `PAGE_ID_REGEX`, `PAGE_SLUG_REGEX`.
+- **Canvas AST Contracts**: `CanvasElement`, `CanvasElementType`, `CanvasElementBase`, `SectionElement`, `SubsectionElement`, `CanvasLeafElement`, `CanvasChildElement`, `TextElement`, `PhotoElement`, `GalleryElement`, `ChartElement`, `PdfElement`, `DocumentsElement`, `PageLinkElement`, `NodeCanvasDocument`, `isPdfElement`, `isDocumentsElement`.
 - **Source & Document Sync Contracts**: `SyncedSourceItem`, `SyncedDocumentItem`, `DriveDocumentFile`, `DriveDocumentReconciliationResult`, `SyncFolderDocumentsResult`, `UseDriveDocumentSyncOptions`, `UseDriveDocumentSyncResult`.
 - **Chart Contracts**: `ChartType`, `ChartConfig`, `ChartSeries`, `ScatterPoint`, `HistogramBin`, `ChartVisualConfig`.
 - **Developer & History Contracts**: `CoordinatorLock`, `HistoryEntry`, `HistoryLedger`, `DraftDiff`.
@@ -45,10 +46,10 @@ import { ... } from '@devcabs/folio-engine';
 - **`getStorageKey(key: string, namespace?: string): string`**: Computes namespaced storage key (e.g. `folio_app_pin`).
 
 ### Components (Catalog)
-- **UI Primitives**: `Button`, `Modal`, `Drawer`, `StatusPill`, `Breadcrumb`, `ParametricShape`, `EditableText`, `RevolvingButton`, `DrawerTier`, `TieredSlider`, `FAB`, `AccordionSection`, `Toast`.
+- **UI Primitives**: `Button`, `IconButton`, `Modal`, `ModalActions`, `Drawer`, `StatusPill`, `Breadcrumb`, `ParametricShape`, `EditableText`, `PageTitle`, `PageIcon`, `RevolvingButton`, `DrawerTier`, `TieredSlider`, `FAB`, `AccordionSection`, `Toast`, `InlineAlert`, `FormField`, `Input`, `Textarea`, `Select`, `Checkbox`, `SegmentedControl`, `DocumentIcon`, `EditIcon`, `TrashIcon`, `CloseIcon`, `SearchIcon`, `ArrowRightIcon`, `AlertCircleIcon`.
 - **Layout Shell**: `AppHeader`, `AppFooter`, `EditorialSection`, `EditorialSidebar`, `HeroWelcome`, `SearchField`.
 - **Stepped Sequence**: `RoadmapTrack`, `RoadmapSection`, `RoadmapNode`, `PhotoFlightEngine`.
-- **Document Canvas**: `DocumentCanvas`, `NodeCanvas`, `CanvasSection`, `CanvasSubsection`, `CanvasText`, `CanvasPhoto`, `CanvasGallery`, `CanvasChart`, `CanvasPdf`, `CanvasDocuments`, `HeroPhoto`.
+- **Document Canvas**: `DocumentCanvas`, `NodeCanvas`, `CanvasSection`, `CanvasSubsection`, `CanvasText`, `CanvasPhoto`, `CanvasGallery`, `CanvasChart`, `CanvasPdf`, `CanvasDocuments`, `CanvasPageLink`, `HeroPhoto`.
 - **Vector Chart Studio**: `ChartRouter`, `BarChart`, `LineChart`, `DonutChart`, `ScatterPlot`, `HistogramChart`, `ChartConfigDrawer`, `ChartLegend`, `ChartTooltip`, `RangePreviewMatrix`, `ChartTableModal`.
 - **Developer Chrome**: `DevModeBadge`, `DevPinModal`, `DevPublishModal`, `DevLockBlockedModal`, `DevExitConfirmModal`, `UniversalEditModal`, `HistoryHubModal`.
 
@@ -67,6 +68,7 @@ import { ... } from '@devcabs/folio-engine';
 - **`useDriveDocumentSync(nodeId: string, options?: UseDriveDocumentSyncOptions)`**: Synchronizes Google Drive PDF folders into `DocumentsElement` AST nodes.
 
 ### Services & Utilities
+- **`pageTreeService`**: Normalized `PageNode` tree helpers (`generatePageId`, `sanitizeSlug`, `ensureUniqueSiblingSlug`, `validateSlug`, `createPageNode`, `updatePageNodeMetadata`, `getDescendantPageIds`, `countDescendantPages`, `cascadeDeleteSubtree`, `deriveSubpageOrderFromCanvas`, `buildPagePath`, `resolvePathToPage`, `getAncestorChain`, `buildTwoLevelNavTree`, `findSimilarPages`).
 - **`driveDocumentSyncService`**: Google Drive PDF folder synchronization and reconciliation (`cleanDriveDocumentName`, `reconcileDriveDocuments`, `fetchDriveFolderPdfs`, `syncFolderDocuments`).
 - **`canvasLayoutService`**: Pure AST manipulation utilities (add, move, delete, renumber) and direct KV draft/public canvas accessors.
 - **`draftService`**: Cloudflare KV draft workspace persistence bridge (`GET / PUT /api/draft`, `POST /api/draft/init`).
@@ -99,12 +101,14 @@ Designed with **zero DOM references** and **zero React imports**, safe for Cloud
 
 ### Exported Functions & Services
 - **`compilePublicNodePayload(nodeId: string, snapshot: PublishedSnapshot): PublicNodePayload`**: Compiles a self-contained node AST payload with rewritten `/api/media/drive/:fileId` URLs and stripped `sheetUrl` values.
-- **`compilePortalManifest(snapshot: PublishedSnapshot, options?: PreBakeCompileOptions): PublicPortalManifestPayload`**: Compiles the active portal manifest (`activeSnapshotId`, `nodeIds`, `contentOverrides`).
+- **`compilePortalManifest(snapshot: PublishedSnapshot, options?: PreBakeCompileOptions): PublicPortalManifestPayload`**: Compiles the active portal manifest (`activeSnapshotId`, `nodeIds`, `pages`, `contentOverrides`).
+- **`serializeManifestForHtmlScript`**, **`injectManifestIntoHtml`**, **`maybeInjectManifestResponse`**: Edge HTML middleware injecting `window.__FOLIO_MANIFEST__` into `text/html` responses for zero-wait deep-link cold boots.
 - **`buildEdgeMediaUrl(fileId: string, options?)`** & **`buildEdgeSrcSet(fileId: string, widths?)`**: Generates edge CDN proxy URLs for Google Drive media.
 
 ### Exported Edge Types & Schemas
 - `PublicNodePayload` & `PublicNodePayloadSchema`
 - `PublicPortalManifestPayload` & `PublicPortalManifestPayloadSchema`
+- `PageNode`, `PageRegistry`, `PageNodeSchema`, `PageRegistrySchema`, `PageLinkElementSchema`, `DraftWorkspaceUpdateRequest`
 - `CachedIndicatorDataset` & `CachedIndicatorDatasetSchema`
 - `SyncedSourceMetadata` & `SyncedSourceMetadataSchema`
 

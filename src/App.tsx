@@ -9,20 +9,32 @@ import { RoadmapSection } from './components/roadmap/RoadmapSection';
 import { PhotoFlightEngine } from './components/roadmap/PhotoFlightEngine';
 import { AppFooter } from './components/layout/AppFooter';
 import { FAB } from './components/ui/FAB';
-import { Breadcrumb } from './components/ui/Breadcrumb';
+import { Breadcrumb, type BreadcrumbItem } from './components/ui/Breadcrumb';
 import { PageTitle } from './components/ui/PageTitle';
 import { EditorialSidebar } from './components/layout/EditorialSidebar';
 import { DocumentCanvas } from './components/canvas/DocumentCanvas';
+import { CanvasGhostWireframe } from './components/canvas/CanvasGhostWireframe';
 import { PageNotFound } from './components/feedback/PageNotFound';
 import { useHashRoute } from './hooks/use-hash-route';
+import {
+  findSimilarPages,
+  buildTwoLevelNavTree,
+  countSummaryWords,
+  MAX_PAGE_SUMMARY_WORDS,
+  updatePageNodeMetadata,
+} from './services/pageTreeService';
+import { createWorkspaceUndoAction } from './services/undoRedoService';
+import { resolveContent } from './utils/contentDb';
 import { useDiscreteStepNavigation } from './hooks/use-discrete-step-navigation';
 import { useAutoTableOfContents } from './hooks/use-auto-toc';
 import { useContent } from './hooks/useContent';
+import { useUndoRedo } from './hooks/useUndoRedo';
 import { cinematicScrollTo } from './utils/smooth-scroll';
 import type { NodeItem, NodeCode } from './types/node';
 
 import { MigrationProvider } from './context/MigrationContext';
 import { DeveloperModeProvider } from './context/DeveloperModeContext';
+import { useDeveloperMode } from './hooks/useDeveloperMode';
 import { PortalChromeProvider, usePortalChrome } from './context/PortalChromeContext';
 import { UndoRedoProvider } from './context/UndoRedoContext';
 import {
@@ -39,11 +51,37 @@ const DEFAULT_NODE_SECTIONS: NavItem[] = [];
 const AppContent: React.FC = () => {
   const engineConfig = getEngineConfig();
   const portalChrome = usePortalChrome();
+  const { isDevMode, lockToken, setHasUnpublishedChanges, showToast } = useDeveloperMode();
+  const { pushAction } = useUndoRedo();
   const nodes = getActiveNodes();
   const validNodeIds = useMemo(() => nodes.map((n: NodeItem) => n.id as NodeCode), [nodes]);
 
-  const { route, nodeId, pageId, targetStage, navigateToNode, navigateToHome } =
-    useHashRoute(validNodeIds, engineConfig.basePath);
+  const {
+    route,
+    nodeId,
+    pageId,
+    activePageId,
+    rootNodeId,
+    pageNode,
+    ancestors,
+    attemptedSegments,
+    nearestValidAncestor,
+    targetStage,
+    navigateToNode,
+    navigateToPage,
+    navigateToHome,
+  } = useHashRoute(validNodeIds, engineConfig.basePath, {
+    pages: portalChrome?.pages,
+    publishedPages: portalChrome?.publishedPages,
+    isHydrating: portalChrome?.isHydrating ?? (portalChrome ? !portalChrome.hasHydrated : false),
+    isDevMode,
+    onDraftExitRedirect: (targetTitle) => {
+      showToast(`Returned to ${targetTitle} after exiting edit mode.`, 'info');
+    },
+    onUndoRedirect: (parentTitle) => {
+      showToast(`Returned to ${parentTitle} after undo.`, 'info');
+    },
+  });
 
   const [activeStage, setActiveStage] = useState<number>(1);
   const [scrollZone, setScrollZone] = useState<RoadmapScrollZone>('above');
@@ -51,12 +89,17 @@ const AppContent: React.FC = () => {
   const roadmapRef = useRef<RoadmapSectionHandle>(null);
   const heroCtaRef = useRef<HTMLDivElement>(null);
 
-  const activeNodeCode = nodeId || pageId;
-  const currentNode = activeNodeCode ? nodes.find((n: NodeItem) => n.id === activeNodeCode) : null;
+  const activeNodeCode = rootNodeId || nodeId || pageId;
+  const activeRootNode = activeNodeCode ? nodes.find((n: NodeItem) => n.id === activeNodeCode) : null;
+  const currentNode = activeRootNode;
+  const isSubpage = Boolean(pageNode);
+  const effectivePageId = activePageId || activeRootNode?.id || null;
+  const effectiveAccentColor = activeRootNode?.accentColor;
   const { text: resolvedNodeTitle } = useContent(
-    currentNode ? `node.${currentNode.id}.title` : '__inactive__.title',
-    currentNode?.title ?? ''
+    activeRootNode ? `node.${activeRootNode.id}.title` : '__inactive__.title',
+    activeRootNode?.title ?? ''
   );
+  const effectivePageTitle = pageNode ? pageNode.title : resolvedNodeTitle;
 
   const handleStageChange = useCallback((stage: number, zone: RoadmapScrollZone) => {
     setActiveStage(stage);
@@ -73,10 +116,21 @@ const AppContent: React.FC = () => {
     }
   }, [route, targetStage]);
 
-  // Reset node sections when switching route or node
+  // Reset node sections when switching route or page
   useEffect(() => {
     setNodeSections([]);
-  }, [route, activeNodeCode]);
+  }, [route, effectivePageId]);
+
+  const notFoundSuggestions = useMemo(
+    () =>
+      route === 'not-found'
+        ? findSimilarPages(attemptedSegments, nodes, portalChrome?.pages ?? {}, {
+          limit: 5,
+          basePath: engineConfig.basePath,
+        })
+        : [],
+    [route, attemptedSegments, nodes, portalChrome?.pages, engineConfig.basePath]
+  );
 
   const isNodeRoute = route === 'node' || (route as string) === 'page';
 
@@ -90,18 +144,15 @@ const AppContent: React.FC = () => {
     return DEFAULT_NODE_SECTIONS;
   }, [autoTocItems, nodeSections]);
 
-  const navItems = useMemo<NavItem[]>(() => {
-    if (isNodeRoute) {
-      return effectiveNodeSections;
-    }
-    if (route === 'home') {
-      if (scrollZone === 'above') {
-        return [{ label: 'Roadmap', href: '#sequence-roadmap' }];
-      }
-      return [{ label: 'Overview', href: '#main-content' }];
-    }
-    return [];
-  }, [isNodeRoute, effectiveNodeSections, route, scrollZone]);
+  const siteNavItems = useMemo<NavItem[]>(() => {
+    return buildTwoLevelNavTree(
+      nodes,
+      portalChrome?.pages ?? {},
+      activePageId,
+      engineConfig.basePath,
+      (node) => resolveContent(portalChrome?.contentOverrides ?? {}, `node.${node.id}.title`, node.title)
+    );
+  }, [nodes, portalChrome?.pages, portalChrome?.contentOverrides, activePageId, engineConfig.basePath]);
 
   const handleScrollToTop = useCallback(() => {
     cinematicScrollTo({ top: 0, interruptible: false });
@@ -223,7 +274,69 @@ const AppContent: React.FC = () => {
     }
   }, [currentNode, navigateToHome]);
 
-  if (portalChrome && !portalChrome.hasHydrated) {
+  const handleUpdateSubpageMetadata = useCallback(
+    async (targetPageId: string, updates: { title?: string; summary?: string }) => {
+      if (!portalChrome) return;
+      const beforePages = portalChrome.pages;
+      const currentPage = beforePages[targetPageId];
+      if (!currentPage) return;
+
+      const normalizedUpdates: { title?: string; summary?: string } = { ...updates };
+
+      if (normalizedUpdates.title !== undefined) {
+        const trimmedTitle = normalizedUpdates.title.trim();
+        if (!trimmedTitle) {
+          showToast('Page title cannot be empty.', 'error');
+          return;
+        }
+        normalizedUpdates.title = trimmedTitle;
+      }
+
+      if (normalizedUpdates.summary !== undefined) {
+        const trimmedSummary = normalizedUpdates.summary.trim();
+        if (countSummaryWords(trimmedSummary) > MAX_PAGE_SUMMARY_WORDS) {
+          showToast(
+            `Keep page summary to ${MAX_PAGE_SUMMARY_WORDS} words or fewer.`,
+            'error'
+          );
+          return;
+        }
+        normalizedUpdates.summary = trimmedSummary;
+      }
+
+      const noTitleChange =
+        normalizedUpdates.title === undefined || normalizedUpdates.title === currentPage.title;
+      const noSummaryChange =
+        normalizedUpdates.summary === undefined ||
+        normalizedUpdates.summary === (currentPage.summary ?? '');
+      if (noTitleChange && noSummaryChange) {
+        return;
+      }
+
+      const { pages: nextPages, page: updatedPage } = updatePageNodeMetadata(
+        beforePages,
+        targetPageId,
+        normalizedUpdates
+      );
+
+      await portalChrome.commitWorkspaceMutation({ pages: nextPages });
+
+      pushAction(
+        createWorkspaceUndoAction({
+          type: 'page_update_metadata',
+          description: `Edit page "${updatedPage.title}"`,
+          before: { pages: beforePages },
+          after: { pages: nextPages },
+          getLockToken: () => lockToken ?? null,
+        })
+      );
+
+      setHasUnpublishedChanges(true);
+    },
+    [portalChrome, lockToken, pushAction, setHasUnpublishedChanges, showToast]
+  );
+
+  if (portalChrome && !portalChrome.hasHydrated && route !== 'hydrating') {
     return (
       <div className={styles.appShell} data-testid="portal-hydration-gate">
         <HeroWelcomeGhostWireframe />
@@ -231,31 +344,64 @@ const AppContent: React.FC = () => {
     );
   }
 
+  const breadcrumbItems: BreadcrumbItem[] = isSubpage && ancestors.length > 0
+    ? [
+      { id: 'overview', label: 'Overview', onClick: () => navigateToHome() },
+      ...ancestors.map((ancestor, idx) => ({
+        id: ancestor.id,
+        label: ancestor.isRootChapter ? resolvedNodeTitle : ancestor.title,
+        isCurrent: idx === ancestors.length - 1,
+        onClick: idx < ancestors.length - 1 ? () => navigateToPage(ancestor.id) : undefined,
+      })),
+    ]
+    : [
+      { label: 'Overview', onClick: () => navigateToHome() },
+      { label: resolvedNodeTitle, isCurrent: true },
+    ];
+
+  const parentAncestor = ancestors.length >= 2 ? ancestors[ancestors.length - 2] : null;
+  const sidebarBackLabel = isSubpage && parentAncestor
+    ? (parentAncestor.isRootChapter ? resolvedNodeTitle : parentAncestor.title)
+    : 'Roadmap';
+  const sidebarOnBack = isSubpage && parentAncestor
+    ? () => navigateToPage(parentAncestor.id)
+    : handleBackFromNode;
+
   return (
     <div className={styles.appShell}>
       {/* 1. App Header: Restrained floating glass capsule */}
       <AppHeader
         brandTitle={engineConfig.branding.appName || "Folio"}
         brandLetter={engineConfig.branding.logoText}
-        navItems={navItems}
-        mobileOnlyNav={isNodeRoute}
+        navItems={siteNavItems}
+        mobileOnlyNav={true}
+        onNavigatePage={navigateToPage}
         onRoadmapClick={handleHeaderStartJourney}
         onOverviewClick={handleHeaderOverview}
         onBrandClick={handleHeaderOverview}
       />
 
       {/* 2. Primary Route Switcher */}
-      {isNodeRoute && currentNode ? (
+      {route === 'hydrating' ? (
+        <div className={styles.nodePageShell}>
+          <div className={styles.nodeLayout}>
+            <div className={styles.sidebarColumn} />
+            <main id="node-content" className={styles.contentColumn}>
+              <CanvasGhostWireframe nodeId={rootNodeId || 'hydrating'} />
+            </main>
+          </div>
+          <AppFooter
+            orgName={engineConfig.branding.orgName || "Folio Engine Open Sequence Architecture"}
+            onRoadmapClick={handleHeaderStartJourney}
+            onOverviewClick={handleHeaderOverview}
+            onNodeClick={handleExploreNode}
+          />
+        </div>
+      ) : isNodeRoute && effectivePageId && (activeRootNode || pageNode) ? (
         <div className={styles.nodePageShell}>
           {/* Breadcrumb Navigation Trail */}
           <div className={styles.breadcrumbContainer}>
-            <Breadcrumb
-              items={[
-                { label: 'Overview', onClick: () => navigateToHome() },
-                { label: 'Milestones', onClick: () => navigateToHome(currentNode.nodeNumber ?? 1) },
-                { label: resolvedNodeTitle, isCurrent: true },
-              ]}
-            />
+            <Breadcrumb items={breadcrumbItems} />
           </div>
 
           {/* 2-Column Desktop Grid: Sticky Sidebar + Reading Canvas */}
@@ -264,33 +410,49 @@ const AppContent: React.FC = () => {
               <EditorialSidebar
                 title="Contents"
                 items={effectiveNodeSections}
-                accentColor={currentNode.accentColor}
-                nodeNumber={currentNode.nodeNumber ?? 1}
-                nodeTitle={resolvedNodeTitle}
-                onBack={handleBackFromNode}
+                accentColor={effectiveAccentColor}
+                nodeNumber={activeRootNode?.nodeNumber ?? 1}
+                nodeTitle={effectivePageTitle}
+                backLabel={sidebarBackLabel}
+                onBack={sidebarOnBack}
               />
             </div>
 
             <main id="node-content" className={styles.contentColumn}>
               {/* Node Overview & Page Title */}
               <section id="node-overview" className={styles.overviewSection} aria-label="Node Overview">
-                <PageTitle
-                  kicker={`Stage 0${currentNode.nodeNumber ?? 1}: ${resolvedNodeTitle}`}
-                  kickerPointId={`node.${currentNode.id}.kicker`}
-                  title={currentNode.subtitle ?? currentNode.title}
-                  titlePointId={`node.${currentNode.id}.title`}
-                  subtitle={currentNode.summary}
-                  subtitlePointId={`node.${currentNode.id}.summary`}
-                  accentColor={currentNode.accentColor}
-                />
+                {isSubpage && pageNode ? (
+                  <PageTitle
+                    title={pageNode.title}
+                    subtitle={pageNode.summary || undefined}
+                    accentColor={effectiveAccentColor}
+                    onSaveTitle={(newTitle) =>
+                      handleUpdateSubpageMetadata(pageNode.id, { title: newTitle.trim() })
+                    }
+                    onSaveSubtitle={(newSummary) =>
+                      handleUpdateSubpageMetadata(pageNode.id, { summary: newSummary.trim() })
+                    }
+                  />
+                ) : currentNode ? (
+                  <PageTitle
+                    kicker={`Stage 0${currentNode.nodeNumber ?? 1}: ${resolvedNodeTitle}`}
+                    kickerPointId={`node.${currentNode.id}.kicker`}
+                    title={currentNode.subtitle ?? currentNode.title}
+                    titlePointId={`node.${currentNode.id}.title`}
+                    subtitle={currentNode.summary}
+                    subtitlePointId={`node.${currentNode.id}.summary`}
+                    accentColor={effectiveAccentColor}
+                  />
+                ) : null}
               </section>
 
               {/* Dynamic Document Canvas */}
               <div id="node-canvas" data-toc="false">
                 <DocumentCanvas
-                  nodeId={currentNode.id}
-                  nodeTitle={resolvedNodeTitle}
-                  accentColor={currentNode.accentColor}
+                  nodeId={effectivePageId}
+                  nodeTitle={effectivePageTitle}
+                  accentColor={effectiveAccentColor}
+                  onNavigateToPage={navigateToPage}
                 />
               </div>
             </main>
@@ -307,6 +469,18 @@ const AppContent: React.FC = () => {
         <>
           <div style={{ paddingTop: 'calc(var(--space-8) + 68px)', flex: 1 }}>
             <PageNotFound
+              nearestParent={
+                nearestValidAncestor
+                  ? {
+                    id: nearestValidAncestor.id,
+                    title: nearestValidAncestor.title,
+                    path: nearestValidAncestor.path,
+                  }
+                  : null
+              }
+              onReturnToParent={(id) => navigateToPage(id)}
+              suggestions={notFoundSuggestions}
+              onSelectSuggestion={(id) => navigateToPage(id)}
               onReturn={() => navigateToHome(1)}
             />
           </div>

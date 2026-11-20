@@ -78,7 +78,7 @@ describe('Subtask 7.6: Edge Public Handlers, Pre-Bake & Router SSOT', () => {
         canvas: {
           nodeId: 'custom-pillar_1',
           version: 1,
-          sections: [],
+          elements: [],
           updatedAt: '2026-11-18T00:00:00.000Z',
         },
       });
@@ -90,7 +90,7 @@ describe('Subtask 7.6: Edge Public Handlers, Pre-Bake & Router SSOT', () => {
         canvas: {
           nodeId: 'custom-pillar_1',
           version: 1,
-          sections: [],
+          elements: [],
           updatedAt: '2026-11-17T00:00:00.000Z',
         },
       });
@@ -127,7 +127,7 @@ describe('Subtask 7.6: Edge Public Handlers, Pre-Bake & Router SSOT', () => {
           snapshotId: 'snap-v1',
           version: 1,
           updatedAt: '2026-11-17T00:00:00.000Z',
-          canvas: { nodeId: 'access', version: 1, sections: [], updatedAt: '2026-11-17T00:00:00.000Z' },
+          canvas: { nodeId: 'access', version: 3, elements: [], updatedAt: '2026-11-17T00:00:00.000Z' },
         }),
       });
 
@@ -150,7 +150,7 @@ describe('Subtask 7.6: Edge Public Handlers, Pre-Bake & Router SSOT', () => {
           snapshotId: 'snap-v2',
           version: 1,
           updatedAt: '2026-11-18T00:00:00.000Z',
-          canvas: { nodeId: 'access', version: 1, sections: [], updatedAt: '2026-11-18T00:00:00.000Z' },
+          canvas: { nodeId: 'access', version: 3, elements: [], updatedAt: '2026-11-18T00:00:00.000Z' },
         }),
       });
 
@@ -250,85 +250,81 @@ describe('Subtask 7.6: Edge Public Handlers, Pre-Bake & Router SSOT', () => {
         canvases: {
           access: {
             nodeId: 'access',
-            version: 1,
+            version: 3,
             updatedAt: '2026-11-18T00:00:00.000Z',
-            sections: [
+            elements: [
               {
                 id: 'sec-1',
                 type: 'section',
                 title: 'Section 1',
-                elements: [
+              },
+              {
+                id: 'photo-1',
+                type: 'photo',
+                pointId: 'p-1',
+                src: `https://drive.google.com/file/d/${driveId1}/view`,
+              },
+              {
+                id: 'gal-1',
+                type: 'gallery',
+                pointId: 'g-1',
+                syncedPhotos: [
                   {
-                    id: 'photo-1',
-                    type: 'photo',
-                    pointId: 'p-1',
-                    src: `https://drive.google.com/file/d/${driveId1}/view`,
-                  },
-                  {
-                    id: 'gal-1',
-                    type: 'gallery',
-                    pointId: 'g-1',
-                    syncedPhotos: [
-                      {
-                        id: 'sp-1',
-                        title: 'Photo A',
-                        driveFileId: driveId2,
-                        originalFileName: 'a.jpg',
-                        thumbnailUrl: `https://drive.google.com/thumbnail?id=${driveId2}&sz=w320`,
-                        fullImageUrl: `https://drive.google.com/thumbnail?id=${driveId2}&sz=w1600`,
-                        orderIndex: 0,
-                      },
-                    ],
-                  },
-                  {
-                    id: 'sub-1',
-                    type: 'subsection',
-                    title: 'Sub 1',
-                    elements: [
-                      {
-                        id: 'gal-2',
-                        type: 'gallery',
-                        pointId: 'g-2',
-                        syncedPhotos: [
-                          {
-                            id: 'sp-2',
-                            title: 'Photo B',
-                            driveFileId: driveId3,
-                            originalFileName: 'b.jpg',
-                            thumbnailUrl: `https://drive.google.com/thumbnail?id=${driveId3}&sz=w320`,
-                            fullImageUrl: `https://drive.google.com/thumbnail?id=${driveId3}&sz=w1600`,
-                            orderIndex: 0,
-                          },
-                        ],
-                      },
-                      {
-                        id: 'chart-1',
-                        type: 'chart',
-                        chartId: 'c-1',
-                        title: 'Enrollment',
-                        config: {
-                          chartId: 'c-1',
-                          nodeId: 'access',
-                          sheetUrl: 'https://docs.google.com/spreadsheets/d/secret-sheet/edit',
-                          defaultType: 'bar',
-                          titleOverride: 'Enrollment',
-                          visualConfig: {},
-                          updatedAt: '2026-11-18T00:00:00.000Z',
-                          updatedBy: 'coordinator',
-                        },
-                        dataset: {
-                          chartId: 'c-1',
-                          title: 'Enrollment',
-                          asOfDate: '2026-11-18',
-                          chartType: 'bar',
-                          sanitizedCsvContent: 'Year,Count\n2025,100',
-                          categories: ['2025'],
-                          series: [{ name: 'Count', data: [100] }],
-                        },
-                      },
-                    ],
+                    id: 'sp-1',
+                    title: 'Photo A',
+                    driveFileId: driveId2,
+                    originalFileName: 'a.jpg',
+                    thumbnailUrl: `https://drive.google.com/thumbnail?id=${driveId2}&sz=w320`,
+                    fullImageUrl: `https://drive.google.com/thumbnail?id=${driveId2}&sz=w1600`,
+                    orderIndex: 0,
                   },
                 ],
+              },
+              {
+                id: 'sub-1',
+                type: 'subsection',
+                title: 'Sub 1',
+              },
+              {
+                id: 'gal-2',
+                type: 'gallery',
+                pointId: 'g-2',
+                syncedPhotos: [
+                  {
+                    id: 'sp-2',
+                    title: 'Photo B',
+                    driveFileId: driveId3,
+                    originalFileName: 'b.jpg',
+                    thumbnailUrl: `https://drive.google.com/thumbnail?id=${driveId3}&sz=w320`,
+                    fullImageUrl: `https://drive.google.com/thumbnail?id=${driveId3}&sz=w1600`,
+                    orderIndex: 0,
+                  },
+                ],
+              },
+              {
+                id: 'chart-1',
+                type: 'chart',
+                chartId: 'c-1',
+                title: 'Enrollment',
+                config: {
+                  chartId: 'c-1',
+                  nodeId: 'access',
+                  sheetUrl: 'https://docs.google.com/spreadsheets/d/secret-sheet/edit',
+                  defaultType: 'bar',
+                  titleOverride: 'Enrollment',
+                  visualConfig: {},
+                  updatedAt: '2026-11-18T00:00:00.000Z',
+                  updatedBy: 'coordinator',
+                },
+                dataset: {
+                  chartId: 'c-1',
+                  title: 'Enrollment',
+                  asOfDate: '2026-11-18',
+                  chartType: 'bar',
+                  sanitizedCsvContent: 'Year,Count\n2025,100',
+                  categories: ['2025'],
+                  series: [{ name: 'Count', data: [100] }],
+                },
               },
             ],
           },
@@ -336,26 +332,25 @@ describe('Subtask 7.6: Edge Public Handlers, Pre-Bake & Router SSOT', () => {
       };
 
       const compiled = compilePublicNodePayload('access', snapshot);
-      const sec = compiled.canvas.sections[0];
+      const els = compiled.canvas.elements;
 
-      // Section-level PhotoElement
-      const photo = sec.elements[0] as any;
+      // PhotoElement
+      const photo = els[1] as any;
       expect(photo.src).toBe(`/api/media/drive/${driveId1}?w=800`);
       expect(photo.srcSet).toContain(`/api/media/drive/${driveId1}?w=400 400w`);
 
-      // Section-level GalleryElement.syncedPhotos
-      const gal1 = sec.elements[1] as any;
+      // GalleryElement.syncedPhotos
+      const gal1 = els[2] as any;
       expect(gal1.syncedPhotos[0].thumbnailUrl).toBe(`/api/media/drive/${driveId2}?w=400`);
       expect(gal1.syncedPhotos[0].fullImageUrl).toBe(`/api/media/drive/${driveId2}?w=1600`);
 
-      // Subsection-level GalleryElement.syncedPhotos
-      const sub = sec.elements[2] as any;
-      const gal2 = sub.elements[0] as any;
+      // Second GalleryElement.syncedPhotos
+      const gal2 = els[4] as any;
       expect(gal2.syncedPhotos[0].thumbnailUrl).toBe(`/api/media/drive/${driveId3}?w=400`);
       expect(gal2.syncedPhotos[0].fullImageUrl).toBe(`/api/media/drive/${driveId3}?w=1600`);
 
-      // Subsection-level ChartElement (sheetUrl stripped, dataset preserved)
-      const chart = sub.elements[1] as any;
+      // ChartElement (sheetUrl stripped, dataset preserved)
+      const chart = els[5] as any;
       expect(chart.config.sheetUrl).toBeUndefined();
       expect(chart.config.defaultType).toBe('bar');
       expect(chart.dataset.series[0].data).toEqual([100]);

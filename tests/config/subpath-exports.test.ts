@@ -17,6 +17,12 @@ describe('Subpath Exports & Multi-Entry Architecture', () => {
     expect(rootExports.isValidSemver).toBeDefined();
     expect(rootExports.generateAiMigrationPrompt).toBeDefined();
     expect(typeof rootExports.generateAiMigrationPrompt).toBe('function');
+    // Epic 13 exports
+    expect(rootExports.PageNodeSchema).toBeDefined();
+    expect(rootExports.PageRegistrySchema).toBeDefined();
+    expect(rootExports.resolvePathToPage).toBeDefined();
+    expect(rootExports.CanvasPageLink).toBeDefined();
+    expect(rootExports.PageIcon).toBeDefined();
   });
 
   it('exposes edge and KV contracts without importing React components', () => {
@@ -24,6 +30,13 @@ describe('Subpath Exports & Multi-Entry Architecture', () => {
     expect(edgeExports.computeWeakEtag).toBeDefined();
     expect(typeof edgeExports.computeWeakEtag).toBe('function');
     expect(edgeExports.buildEdgeMediaUrl).toBeDefined();
+    // Epic 13 edge exports
+    expect(edgeExports.PageNodeSchema).toBeDefined();
+    expect(edgeExports.PageRegistrySchema).toBeDefined();
+    expect(edgeExports.PageLinkElementSchema).toBeDefined();
+    expect(edgeExports.serializeManifestForHtmlScript).toBeDefined();
+    expect(edgeExports.injectManifestIntoHtml).toBeDefined();
+    expect(edgeExports.maybeInjectManifestResponse).toBeDefined();
     // Edge subpath must not export React UI components
     expect((edgeExports as any).App).toBeUndefined();
     expect((edgeExports as any).DocumentCanvas).toBeUndefined();

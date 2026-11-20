@@ -43,6 +43,16 @@ High-contrast editorial hero banner with dynamic typography clamp scaling.
 
 ---
 
+### `<EditorialSidebar />`
+Sticky Table of Contents sidebar supporting two-digit section numbering and nested subsection navigation (`NavItem.level` / `NavItem.children`).
+
+---
+
+### `<DevMigrationModal />`
+Developer Mode modal displaying pending engine/content migrations from `FOLIO_MIGRATION_LEDGER` as collapsible disclosure rows (`REQUIRED` / `RECOMMENDED`) with one-click AI migration prompt copying.
+
+---
+
 ## 2. Stepped Sequence Components (`src/components/roadmap/`)
 
 ### `<RoadmapTrack />`
@@ -193,7 +203,7 @@ Canonical button primitive adhering to the 4-state interactive matrix and zero o
 ---
 
 ### `<Modal />` & `<Drawer />`
-Accessible overlays with scroll locks, focus traps, and backdrop dismissal.
+Accessible overlays with scroll locks, focus traps, and backdrop dismissal. `Modal` also accepts an optional `footer?: React.ReactNode` slot paired with `<ModalActions>` for canonical dialog footer button alignment.
 
 #### Shared Overlay Props
 | Prop | Type | Description |
@@ -201,4 +211,49 @@ Accessible overlays with scroll locks, focus traps, and backdrop dismissal.
 | `isOpen` | `boolean` | Controls visibility. |
 | `onClose` | `() => void` | Callback triggered on Escape key or backdrop click. |
 | `title?` | `string` | Accessible dialog title (`aria-labelledby`). |
+| `footer?` | `React.ReactNode` | Optional sticky footer slot (`Modal` only), typically `<ModalActions>`. |
 | `children` | `React.ReactNode` | Modal or drawer body contents. |
+
+---
+
+### `<IconButton />`
+Compact icon-only trigger with mandatory `aria-label`, circular/square geometry (`shape`), 4-state interactive matrix, and Universal Zero Outline Policy.
+
+#### Props (`IconButtonProps`)
+| Prop | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `aria-label` | `string` | Required | Accessible label for screen readers. |
+| `variant?` | `'ghost' \| 'secondary' \| 'primary' \| 'danger'` | `'ghost'` | Visual surface variant. |
+| `size?` | `'xs' \| 'sm' \| 'md'` | `'sm'` | Compact square/circle dimension. |
+| `shape?` | `'circle' \| 'square'` | `'circle'` | Border radius geometry. |
+
+---
+
+### `<InlineAlert />`
+Canonical `role="alert"` / `role="status"` inline banner supporting `'error' | 'warning' | 'info' | 'success'` variants.
+
+---
+
+### Form Primitives (`<FormField />`, `<Input />`, `<Textarea />`, `<Select />`, `<Checkbox />`, `<SegmentedControl />`)
+Token-styled canonical form controls with unified focus-visible rings (`outline: none`), error states, and WCAG 2.1 AA label/hint/error associations:
+- **`<FormField />`**: Wraps a form control with `label`, `htmlFor`, `hint`, `error`, and `required` indicator.
+- **`<Input />`**, **`<Textarea />`**, **`<Select />`**: Token-styled native controls accepting `invalid?: boolean` and standard HTML attributes.
+- **`<Checkbox />`**: Accessible checkbox row with `label`, optional `description`, `checked`, and `onChange`.
+- **`<SegmentedControl />`**: `role="radiogroup"` segmented option selector with roving keyboard navigation and `options: SegmentedOption<T>[]`.
+
+---
+
+### Shared SVG Icons (`DocumentIcon`, `PageIcon`, `EditIcon`, `TrashIcon`, `CloseIcon`, `SearchIcon`, `ArrowRightIcon`, `AlertCircleIcon`)
+Canonical `aria-hidden="true"` SVG icon primitives accepting `IconProps` (`className?: string`, `size?: number`). `PageIcon` renders the editorial page outline used on `CanvasPageLink` cards and Smart 404 suggestions.
+
+---
+
+### Epic 13 Nested Subpage & Navigation Components
+- **`<CanvasPageLink />`** (`src/components/canvas/CanvasPageLink.tsx`): Calm, full-width editorial card linking to a nested `PageNode`. Resolves `title`, `summary`, and canonical folder URL from `PortalChromeContext.pages` (single authority). Hides missing targets in Public Mode; renders a disabled recovery card in Dev Mode.
+- **Collapsed `<Breadcrumb />`** (`src/components/ui/Breadcrumb.tsx`): Displays all items when `items.length <= 4`; collapses middle segments to `First / Second / … / Parent / Current` with a non-interactive `<span aria-hidden="true">…</span>` when `items.length >= 5`.
+- **Contextual `<EditorialSidebar />`** (`src/components/layout/EditorialSidebar.tsx`): Accepts `backLabel?: string` so deep subpages render `< {parentTitle}` (instead of `< Overview`) above a sections-only Table of Contents (`tocMode="sections"`).
+- **2-Level `<AppHeader />`** (`src/components/layout/AppHeader.tsx`): Desktop hover/keyboard dropdowns for Level 2 subpages (`children`) and Mobile Option A indented subpage links under each chapter in the hamburger drawer.
+- **Smart `<PageNotFound />`** (`src/components/feedback/PageNotFound.tsx`): Renders contextual `"Return to {nearestParent.title}"` CTA and up to 5 ranked fuzzy page suggestions (`suggestions: PageMatchCandidate[]`).
+- **Subpage `<PageTitle />`** (`src/components/ui/PageTitle.tsx`): Accepts `pageNode?: PageNode` and `onSaveTitle` in Dev Mode to edit `PageNode.title` directly with zero `contentOverrides` writes.
+- **`<CanvasElementFields />`** (`src/components/canvas/CanvasElementFields.tsx`): Supports `'page-link'` fields (Page Title, live URL slug preview with `--url-preview-*` tokens, and word-budgeted Summary).
+- **Guarded `<CanvasDeleteConfirmModal />`** (`src/components/canvas/CanvasDeleteConfirmModal.tsx`): Displays exact `descendantPageCount` in an `InlineAlert` and disables confirmation until the editor types `DELETE ALL SUBPAGES`.

@@ -115,7 +115,7 @@ describe('useDocumentCanvas Edge Fetch Error Handling', () => {
     });
 
     expect(result.current.fetchError).toBe('Temporary edge hiccup');
-    expect(result.current.document.sections.length).toBe(0);
+    expect(result.current.document.elements.length).toBe(0);
 
     // Call retry
     await act(async () => {
@@ -125,7 +125,7 @@ describe('useDocumentCanvas Edge Fetch Error Handling', () => {
     });
 
     expect(result.current.fetchError).toBeNull();
-    expect(result.current.document.sections.length).toBe(1);
-    expect(result.current.document.sections[0].title).toBe('Recovered Section');
+    expect(result.current.document.elements.length).toBe(1);
+    expect((result.current.document.elements[0] as { title?: string }).title).toBe('Recovered Section');
   });
 });

@@ -1,5 +1,9 @@
 import React from 'react';
+import { Button } from '../ui/Button';
 import { EditableText } from '../ui/EditableText';
+import { PageIcon } from '../ui/PageIcon';
+import { ArrowRightIcon } from '../ui/Icons';
+import type { PageMatchCandidate } from '../../types/page';
 import styles from './PageNotFound.module.css';
 
 export interface PageNotFoundProps {
@@ -9,22 +13,37 @@ export interface PageNotFoundProps {
   errorCode?: string;
   returnLabel?: string;
   className?: string;
+  nearestParent?: {
+    id: string;
+    title: string;
+    path?: string;
+  } | null;
+  onReturnToParent?: (pageId: string) => void;
+  suggestions?: PageMatchCandidate[];
+  onSelectSuggestion?: (pageId: string) => void;
 }
 
 /**
  * PageNotFound Component
- * Dignified 404 Fallback View adhering to the Modern Academic Editorial design.
+ * Smart Fuzzy Recovery 404 Fallback View adhering to the Modern Academic Editorial design.
  */
 export const PageNotFound: React.FC<PageNotFoundProps> = ({
   onReturn,
-  title = 'Pathway Uncharted in Registry',
-  description = 'The requested resource or document view could not be located in this registry.',
-  errorCode = '[HTTP 404 · ROUTE UNRESOLVED]',
+  title = 'Page Not Found',
+  description = 'The page you are looking for could not be found.',
+  errorCode = '404',
   returnLabel = 'Return to Overview',
   className,
+  nearestParent,
+  onReturnToParent,
+  suggestions,
+  onSelectSuggestion,
 }) => {
+  const visibleSuggestions = suggestions ? suggestions.slice(0, 5) : [];
+  const hasParentCta = Boolean(nearestParent && onReturnToParent);
+
   return (
-    <main className={`${styles.notFoundWrapper} ${className || ""}`.trim()} role="main">
+    <main className={`${styles.notFoundWrapper} ${className || ''}`.trim()} role="main">
       <EditableText
         pointId="notFound.errorCode"
         defaultText={errorCode}
@@ -43,27 +62,68 @@ export const PageNotFound: React.FC<PageNotFoundProps> = ({
         as="p"
         className={styles.description}
       />
-      {onReturn && (
-        <button type="button" className={styles.returnButton} onClick={onReturn}>
-          <svg
-            className={styles.returnIcon}
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M10 13L5 8l5-5" />
-          </svg>
-          <EditableText
-            pointId="notFound.returnButton"
-            defaultText={returnLabel}
-            as="span"
-            inline={true}
-          />
-        </button>
+
+      {(hasParentCta || onReturn) && (
+        <div className={styles.actionsRow}>
+          {hasParentCta && nearestParent && onReturnToParent ? (
+            <>
+              <Button
+                variant="primary"
+                onClick={() => onReturnToParent(nearestParent.id)}
+              >
+                {`Return to ${nearestParent.title}`}
+              </Button>
+              {onReturn && (
+                <Button variant="ghost" onClick={onReturn}>
+                  <EditableText
+                    pointId="notFound.returnButton"
+                    defaultText={returnLabel}
+                    as="span"
+                    inline={true}
+                  />
+                </Button>
+              )}
+            </>
+          ) : (
+            onReturn && (
+              <Button variant="primary" onClick={onReturn}>
+                <EditableText
+                  pointId="notFound.returnButton"
+                  defaultText={returnLabel}
+                  as="span"
+                  inline={true}
+                />
+              </Button>
+            )
+          )}
+        </div>
+      )}
+
+      {visibleSuggestions.length > 0 && (
+        <section className={styles.suggestionsSection} aria-label="Similar pages">
+          <h2 className={styles.suggestionsHeading}>Were you looking for</h2>
+          <ul className={styles.suggestionsList}>
+            {visibleSuggestions.map((item) => (
+              <li key={item.id}>
+                <a
+                  href={item.path}
+                  className={styles.suggestionRow}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onSelectSuggestion?.(item.id);
+                  }}
+                >
+                  <PageIcon size={16} className={styles.suggestionIcon} />
+                  <span className={styles.suggestionMeta}>
+                    <span className={styles.suggestionTitle}>{item.title}</span>
+                    <span className={styles.suggestionPath}>{item.breadcrumbLabel}</span>
+                  </span>
+                  <ArrowRightIcon size={14} className={styles.suggestionArrow} />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </main>
   );

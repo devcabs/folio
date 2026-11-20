@@ -20,7 +20,9 @@ NodeCanvasDocument
         │   ├── title: string
         │   └── elements: CanvasLeafElement[]
         │       ├── TextElement (content: string, as: 'p' | 'blockquote')
-        │       └── PhotoElement (src: string, alt: string, caption: string)
+        │       ├── PhotoElement (src: string, alt: string, caption: string)
+        │       ├── PdfElement (src: string, driveFileId: string, driveUrl: string, title?: string)
+        │       └── DocumentsElement (driveUrl, title, syncedDocuments)
         ├── GalleryElement (driveUrl, title, description, lastVerified, syncedPhotos)
         └── ChartElement (chartId, title, subtitle, config, dataset)
 ```
@@ -76,3 +78,17 @@ Folio Engine solves this with `useDynamicSectionNumbers.ts`:
 | **`photo`** | `PhotoElement` | Responsive image rendering with aspect-ratio preservation and fullscreen lightbox click triggers. |
 | **`gallery`** | `GalleryElement` | Horizontal photo strip or grid synchronized with Google Drive media folders. |
 | **`chart`** | `ChartElement` | Resolves chart configuration by `chartId` and embeds a responsive SVG chart. |
+| **`pdf`** | `PdfElement` | Embeds a single Google Drive PDF inline via `/preview` `<iframe>` with an `"Open in New Tab ↗"` escape hatch. |
+| **`documents`** | `DocumentsElement` | Synchronizes `application/pdf` files from a Google Drive folder and opens `<PdfPreviewModal>` on row click. |
+
+
+---
+
+## `PageLinkElement` & 1:1 Subpage Lifecycle
+
+To keep `NodeCanvasDocument` shallow and cache-friendly while supporting unlimited nesting depth, subpages are **not** embedded recursively inside parent canvas JSON:
+
+- A parent canvas contains a `PageLinkElement` (`{ id, type: 'page-link', targetPageId, summary? }`) inside any `SectionElement` or `SubsectionElement`.
+- `CanvasPageLink` reads `PortalChromeContext.pages[element.targetPageId]` at render time so renaming a subpage's `<PageTitle>` immediately updates every link card without mutating parent ASTs.
+- Reordering `PageLinkElement` cards in the parent canvas drives `deriveSubpageOrderFromCanvas`, keeping `PageNode.order` and `AppHeader` Level 2 dropdowns synchronized.
+- Deleting a `PageLinkElement` cascades through `getDescendantPageIds` and passes `deletedPageIds` to `PUT /api/draft`, atomically purging orphaned subpage nodes and canvases in a single transaction.

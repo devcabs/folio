@@ -11,9 +11,12 @@
  * 4. Resilient input focus guards (isTextInput) to prevent shortcut collisions with native inputs.
  */
 
-import React, { createContext, useState, useCallback, useEffect, useTransition } from 'react';
+import React, { createContext, useState, useCallback, useEffect, useTransition, useRef } from 'react';
 import type { UndoAction, UndoRedoContextType, UndoRedoState } from '../types/history';
 import { undoRedoService, isTextInput } from '../services/undoRedoService';
+import { useDeveloperMode } from '../hooks/useDeveloperMode';
+import { EVENT_DRAFT_STATUS_CHANGE } from '../services/draftService';
+import { EVENT_HISTORY_CHANGE } from '../services/historyService';
 
 export const UndoRedoContext = createContext<UndoRedoContextType | null>(null);
 
@@ -22,6 +25,9 @@ export interface UndoRedoProviderProps {
 }
 
 export const UndoRedoProvider: React.FC<UndoRedoProviderProps> = ({ children }) => {
+  const { isDevMode } = useDeveloperMode();
+  const prevIsDevModeRef = useRef<boolean>(isDevMode);
+
   // State synchronized from service engine
   const [state, setState] = useState<UndoRedoState>(() => undoRedoService.getState());
   // Vercel Best Practice: rerender-transitions
@@ -38,22 +44,20 @@ export const UndoRedoProvider: React.FC<UndoRedoProviderProps> = ({ children }) 
     }
   }, [syncState]);
 
-  const undo = useCallback(() => {
+  const undo = useCallback(async () => {
+    const popped = await undoRedoService.popUndoAsync();
     startTransition(() => {
-      const popped = undoRedoService.popUndo();
-      if (popped) {
-        syncState();
-      }
+      syncState();
     });
+    void popped;
   }, [syncState]);
 
-  const redo = useCallback(() => {
+  const redo = useCallback(async () => {
+    const popped = await undoRedoService.popRedoAsync();
     startTransition(() => {
-      const popped = undoRedoService.popRedo();
-      if (popped) {
-        syncState();
-      }
+      syncState();
     });
+    void popped;
   }, [syncState]);
 
   const clearHistory = useCallback(() => {
@@ -61,9 +65,53 @@ export const UndoRedoProvider: React.FC<UndoRedoProviderProps> = ({ children }) 
     syncState();
   }, [syncState]);
 
+  const clearScope = useCallback((scope: string) => {
+    undoRedoService.clearScope(scope);
+    syncState();
+  }, [syncState]);
+
+  // Clear active-session undo/redo stacks when Dev Mode exits
+  useEffect(() => {
+    const wasDevMode = prevIsDevModeRef.current;
+    prevIsDevModeRef.current = isDevMode;
+    if (wasDevMode && !isDevMode) {
+      clearHistory();
+    }
+  }, [isDevMode, clearHistory]);
+
+  // Clear active-session undo/redo stacks on draft deactivation or history restore/publish
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+      return;
+    }
+
+    const handleDraftStatus = (e: Event) => {
+      const detail = (e as CustomEvent<{ isActive?: boolean }>).detail;
+      if (detail?.isActive === false) {
+        clearHistory();
+      }
+    };
+
+    const handleHistoryChange = () => {
+      clearHistory();
+    };
+
+    window.addEventListener(EVENT_DRAFT_STATUS_CHANGE, handleDraftStatus);
+    window.addEventListener(EVENT_HISTORY_CHANGE, handleHistoryChange);
+    return () => {
+      window.removeEventListener(EVENT_DRAFT_STATUS_CHANGE, handleDraftStatus);
+      window.removeEventListener(EVENT_HISTORY_CHANGE, handleHistoryChange);
+    };
+  }, [clearHistory]);
+
   // Vercel Best Practice: client-event-listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 0. Only intercept undo/redo chords while Dev Mode is active
+      if (!isDevMode) {
+        return;
+      }
+
       // 1. Guard against native input editing
       if (isTextInput(e.target)) {
         return;
@@ -106,7 +154,7 @@ export const UndoRedoProvider: React.FC<UndoRedoProviderProps> = ({ children }) 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [undo, redo]);
+  }, [isDevMode, undo, redo]);
 
   const contextValue: UndoRedoContextType = {
     ...state,
@@ -114,6 +162,7 @@ export const UndoRedoProvider: React.FC<UndoRedoProviderProps> = ({ children }) 
     undo,
     redo,
     clearHistory,
+    clearScope,
   };
 
   return (

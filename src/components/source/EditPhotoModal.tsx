@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal } from '../ui/Modal';
+import { Modal, ModalActions } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { FormField } from '../ui/FormField';
+import { Input } from '../ui/Input';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import type { SourceItem } from '../../types/node';
 import type { SyncedSourceItem } from '../../types/source';
@@ -119,27 +121,25 @@ export const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
           </div>
         )}
 
-        <div className={styles.formGroup}>
-          <label htmlFor="edit-photo-title" className={styles.fieldLabel}>
-            Title / Caption
-          </label>
-          <input
+        <FormField
+          id="edit-photo-title"
+          label="Title / Caption"
+          required
+          hint="This title will be preserved across future Google Drive folder syncs."
+        >
+          <Input
             ref={inputRef}
             id="edit-photo-title"
             type="text"
-            className={styles.inputField}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g., Community Stakeholders Assembly"
             disabled={isSaving}
             required
           />
-          <p className={styles.fieldHint}>
-            This title will be preserved across future Google Drive folder syncs.
-          </p>
-        </div>
+        </FormField>
 
-        <div className={styles.actionRow}>
+        <ModalActions className={styles.actionRow}>
           <Button
             variant="secondary"
             size="sm"
@@ -157,7 +157,7 @@ export const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
           >
             {isSaving ? 'Saving...' : 'Save Title'}
           </Button>
-        </div>
+        </ModalActions>
       </form>
     </Modal>
   );

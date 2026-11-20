@@ -21,22 +21,21 @@ import {
 } from '../types/edge';
 import type {
   NodeCanvasDocument,
-  SectionElement,
-  SubsectionElement,
+  CanvasElement,
   PhotoElement,
   GalleryElement,
   ChartElement,
   PdfElement,
-  CanvasChildElement,
   CanvasLeafElement,
 } from '../types/canvas';
+import { normalizeCanvasDocument } from '../utils/canvasDefaults';
 import {
   isPhotoElement,
   isGalleryElement,
   isChartElement,
   isPdfElement,
   isDocumentsElement,
-  isSubsectionElement,
+  isPageLinkElement,
 } from '../types/canvas';
 import type { SyncedSourceItem } from '../types/source';
 import type { PublishedSnapshot } from '../types/history';
@@ -170,6 +169,9 @@ function transformLeafElement(leaf: CanvasLeafElement): CanvasLeafElement {
   if (isDocumentsElement(leaf)) {
     return leaf;
   }
+  if (isPageLinkElement(leaf)) {
+    return leaf;
+  }
   return leaf;
 }
 
@@ -178,32 +180,18 @@ function transformLeafElement(leaf: CanvasLeafElement): CanvasLeafElement {
  * (for PhotoElement and GalleryElement.syncedPhotos) and sanitizes ChartElement configs.
  */
 export function transformCanvasAst(canvasDoc: NodeCanvasDocument): NodeCanvasDocument {
-  if (!canvasDoc || !Array.isArray(canvasDoc.sections)) {
+  if (!canvasDoc) {
     return canvasDoc;
   }
 
-  const cloned: NodeCanvasDocument = JSON.parse(JSON.stringify(canvasDoc));
+  const normalized = normalizeCanvasDocument(canvasDoc, canvasDoc.nodeId);
+  const cloned: NodeCanvasDocument = JSON.parse(JSON.stringify(normalized));
 
-  cloned.sections = cloned.sections.map((section: SectionElement) => {
-    if (!section || !Array.isArray(section.elements)) return section;
-
-    const transformedElements = section.elements.map((el: CanvasChildElement) => {
-      if (isSubsectionElement(el)) {
-        const sub = el as SubsectionElement;
-        if (!Array.isArray(sub.elements)) return sub;
-        return {
-          ...sub,
-          elements: sub.elements.map(transformLeafElement),
-        };
-      }
-
-      return transformLeafElement(el as CanvasLeafElement);
-    });
-
-    return {
-      ...section,
-      elements: transformedElements,
-    };
+  cloned.elements = cloned.elements.map((el: CanvasElement) => {
+    if (el.type === 'section' || el.type === 'subsection') {
+      return el;
+    }
+    return transformLeafElement(el as CanvasLeafElement);
   });
 
   return cloned;
@@ -245,11 +233,12 @@ export function compilePortalManifest(
   snapshot: PublishedSnapshot,
   nodeIds?: string[]
 ): PublicPortalManifestPayload {
+  const canvasKeys = snapshot.canvases ? Object.keys(snapshot.canvases) : [];
   const activeNodeIds =
     nodeIds && nodeIds.length > 0
-      ? nodeIds
-      : snapshot.canvases && Object.keys(snapshot.canvases).length > 0
-        ? Object.keys(snapshot.canvases)
+      ? Array.from(new Set([...nodeIds, ...canvasKeys]))
+      : canvasKeys.length > 0
+        ? canvasKeys
         : [...VALID_NODES];
 
   const manifest: PublicPortalManifestPayload = {
@@ -258,6 +247,7 @@ export function compilePortalManifest(
     nodeIds: activeNodeIds,
     schemaVersion: snapshot.schemaVersion || 1,
     contentOverrides: snapshot.contentOverrides || {},
+    pages: snapshot.pages ? JSON.parse(JSON.stringify(snapshot.pages)) : {},
   };
 
   PublicPortalManifestPayloadSchema.parse(manifest);

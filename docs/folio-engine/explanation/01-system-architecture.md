@@ -76,3 +76,14 @@ The lifecycle of data within Folio Engine progresses through three distinct oper
 1. **Zero-Leak Domain Decoupling**: Core components, hooks, storage adapters, and styles are completely decoupled from any single tenant's branding or institutional domain.
 2. **Zero-DOM Edge Boundary**: The `@devcabs/folio-engine/edge` entrypoint guarantees zero references to `window`, `document`, or React primitives, ensuring fail-safe execution in serverless edge runtimes.
 3. **Build-Blocking Token Purity**: No ad-hoc colors or inline styling hacks can slip into production; any un-tokenized style immediately fails the CI pipeline.
+
+
+---
+
+## Normalized Subpage Tree & Zero-Wait Edge Hydration
+
+Folio Engine models unlimited-depth subpages using three coordinated layers:
+
+1. **Normalized `PageNode` Registry (`src/types/page.ts`)**: Subpage hierarchy (`parentId`, `slug`, `title`, `summary`, `order`) lives in a flat `PageRegistry` map rather than nested inside `NodeCanvasDocument`s. Each `PageNode` pairs 1:1 with a `PageLinkElement` card on its parent canvas, ensuring `PageNode.title` is the single authority across cards, breadcrumbs, and header dropdowns.
+2. **Zero-Wait Edge HTML Injection (`src/edge/handlers/htmlManifestInjector.ts`)**: Non-API HTML requests receive `window.__FOLIO_MANIFEST__` (including `pages`) injected inline at the edge, allowing `useHashRoute` and `PortalChromeContext` to resolve deep links like `/node/access/research/interviews/2026-notes/` synchronously at `0ms` with zero 404 flash.
+3. **Workspace-Addressed Undo & Atomic Branch Purge**: `createWorkspaceUndoAction` commits `pages`, `canvases`, and `deletedPageIds` directly to `PUT /api/draft` independently of whichever page is currently mounted.

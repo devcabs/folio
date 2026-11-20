@@ -290,7 +290,61 @@ export interface DraftWorkspacePayload {
 
 ---
 
-## 5. Migration Ledger Contracts (`src/types/migration.ts`)
+## 5. Navigation Contracts (`src/types/navigation.ts`)
+
+```typescript
+export interface NavItem {
+  label: string;
+  href: string;
+  id?: string;
+  pageId?: string;                          // Target PageNode.id or root chapter ID
+  number?: string;
+  summary?: string;                         // Optional subpage summary for 2-level dropdowns
+  isActive?: boolean;
+  level?: 'section' | 'subsection' | 'chapter' | 'subpage';
+  children?: NavItem[];                     // Direct Level 2 subpages or subsection items
+}
+```
+
+---
+
+## 7. Dynamic Subpage Tree & PageLink Contracts (`src/types/page.ts`, `src/types/canvas.ts`, `src/types/edge.ts`)
+
+Unlimited-depth subpage trees are stored as a normalized `PageRegistry` (`Record<string, PageNode>`) rather than nested inside `NodeCanvasDocument`s. Each subpage is linked from its parent canvas via a 1:1 `PageLinkElement`.
+
+### `PageNode` & `PageRegistry` (`src/types/page.ts`)
+```typescript
+export interface PageNode {
+  id: string;                               // Immutable ID matching /^page-[a-z0-9-]+$/
+  parentId: string;                         // Root chapter ID or parent PageNode.id
+  slug: string;                             // URL segment matching /^[a-z0-9-]+$/
+  title: string;                            // Single source of truth for card, header, breadcrumb & PageTitle
+  summary?: string;                         // Optional 1-line card summary (<= 15 words)
+  order: number;                            // Zero-based sibling order synced to parent canvas card order
+  createdAt: string;                        // ISO-8601 timestamp
+  updatedAt: string;                        // ISO-8601 timestamp
+}
+
+export type PageRegistry = Record<string, PageNode>;
+```
+
+### `PageLinkElement` (`src/types/canvas.ts`)
+```typescript
+export interface PageLinkElement extends CanvasElementBase {
+  type: 'page-link';
+  targetPageId: string;                     // References PageNode.id in PortalChromeContext.pages
+  summary?: string;                         // Optional fallback summary if PageNode.summary is unset
+}
+```
+
+### Workspace, Manifest & Snapshot Extensions (`src/types/edge.ts`, `src/types/history.ts`)
+- `DraftWorkspacePayload.pages?: PageRegistry` & `DraftWorkspaceUpdateRequest.deletedPageIds?: string[]` (atomically purges `draft.pages[id]` and `draft.canvases[id]` in a single `PUT /api/draft` transaction).
+- `PublicPortalManifestPayload.pages?: PageRegistry` (injected into `window.__FOLIO_MANIFEST__` on HTML cold loads).
+- `PublishedSnapshot.pages?: PageRegistry` (preserved across publish and `POST /api/history/restore`).
+
+---
+
+## 6. Migration Ledger Contracts (`src/types/migration.ts`)
 
 All migration contracts are backed by strict Zod schemas (`ContentMigrationSchema`, `CodeMigrationSchema`, `MigrationEntrySchema`, `PendingMigrationReportSchema`) and validated against bare semver strings (`SEMVER_REGEX`, no leading `v` prefix).
 

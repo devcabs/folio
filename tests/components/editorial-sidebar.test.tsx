@@ -30,19 +30,16 @@ const SidebarWithAutoTocHarness: React.FC<{ showNodeContent: boolean }> = ({
               type: 'section',
               title: 'System Overview',
               isNumbered: true,
-              elements: [],
             }}
-          >
-            <CanvasSubsection
-              nodeId="node-1"
-              subsection={{
-                id: 'subsec-tokens',
-                type: 'subsection',
-                title: 'Design Tokens',
-                elements: [],
-              }}
-            />
-          </CanvasSection>
+          />
+          <CanvasSubsection
+            nodeId="node-1"
+            subsection={{
+              id: 'subsec-tokens',
+              type: 'subsection',
+              title: 'Design Tokens',
+            }}
+          />
         </main>
       )}
     </div>

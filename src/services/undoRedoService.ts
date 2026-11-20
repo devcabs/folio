@@ -11,9 +11,44 @@
  * 4. Keyboard focus detection utility (isTextInput) for shortcut chord isolation.
  */
 
-import type { UndoAction, UndoRedoState } from '../types/history';
+import type { UndoAction, UndoActionType, UndoRedoState } from '../types/history';
+import type { NodeCanvasDocument } from '../types/canvas';
+import type { PageRegistry } from '../types/page';
+import {
+  commitDraftWorkspaceTransaction,
+  dispatchDraftChange,
+  dispatchDraftPagesSync,
+  getLastKnownDraftUpdatedAt,
+} from './draftService';
 
 export const MAX_STACK_DEPTH = 50;
+export const EVENT_WORKSPACE_UNDO_RECONCILE = 'engine-workspace-undo-reconcile';
+
+export interface WorkspaceUndoReconcileDetail {
+  nextPages?: PageRegistry;
+  deletedPageIds?: string[];
+  affectedPageIds?: string[];
+  updatedCanvases?: Record<string, NodeCanvasDocument>;
+}
+
+export interface WorkspaceUndoSnapshot {
+  canvases?: Record<string, NodeCanvasDocument>;
+  pages?: PageRegistry;
+  deletedPageIds?: string[];
+  contentOverrides?: Record<string, string>;
+}
+
+export interface CreateWorkspaceUndoActionParams {
+  type: UndoActionType;
+  description: string;
+  scope?: string;
+  before: WorkspaceUndoSnapshot;
+  after: WorkspaceUndoSnapshot;
+  getLockToken: () => string | null;
+  getExpectedUpdatedAt?: () => string | null;
+  onError?: (msg: string) => void;
+  onWorkspaceReconcile?: (detail: WorkspaceUndoReconcileDetail) => void;
+}
 
 export class UndoRedoManager {
   private undoStack: UndoAction[] = [];
@@ -100,12 +135,84 @@ export class UndoRedoManager {
   }
 
   /**
+   * Async-aware undo: awaits action.undo(), keeps executingLock active until settled,
+   * and restores the action back onto undoStack if the operation fails (returns false or rejects).
+   */
+  public async popUndoAsync(): Promise<UndoAction | null> {
+    if (this.executingLock || this.undoStack.length === 0) {
+      return null;
+    }
+
+    const action = this.undoStack.pop();
+    if (!action) return null;
+
+    this.executingLock = true;
+    try {
+      const outcome = await action.undo();
+      if (outcome === false) {
+        this.undoStack.push(action);
+        return null;
+      }
+      this.redoStack.push(action);
+      if (this.redoStack.length > MAX_STACK_DEPTH) {
+        this.redoStack.shift();
+      }
+      return action;
+    } catch {
+      this.undoStack.push(action);
+      return null;
+    } finally {
+      this.executingLock = false;
+    }
+  }
+
+  /**
+   * Async-aware redo: awaits action.redo(), keeps executingLock active until settled,
+   * and restores the action back onto redoStack if the operation fails (returns false or rejects).
+   */
+  public async popRedoAsync(): Promise<UndoAction | null> {
+    if (this.executingLock || this.redoStack.length === 0) {
+      return null;
+    }
+
+    const action = this.redoStack.pop();
+    if (!action) return null;
+
+    this.executingLock = true;
+    try {
+      const outcome = await action.redo();
+      if (outcome === false) {
+        this.redoStack.push(action);
+        return null;
+      }
+      this.undoStack.push(action);
+      if (this.undoStack.length > MAX_STACK_DEPTH) {
+        this.undoStack.shift();
+      }
+      return action;
+    } catch {
+      this.redoStack.push(action);
+      return null;
+    } finally {
+      this.executingLock = false;
+    }
+  }
+
+  /**
    * Clears both undo and redo stacks (e.g. on dev mode exit or restore).
    */
   public clear(): void {
     this.undoStack = [];
     this.redoStack = [];
     this.executingLock = false;
+  }
+
+  /**
+   * Prunes only actions matching the given scope from both stacks, preserving global actions.
+   */
+  public clearScope(scope: string): void {
+    this.undoStack = this.undoStack.filter((action) => action.scope !== scope);
+    this.redoStack = this.redoStack.filter((action) => action.scope !== scope);
   }
 
   /**
@@ -180,6 +287,98 @@ export function isTextInput(target: EventTarget | null): boolean {
   }
 
   return false;
+}
+
+/**
+ * Dispatches the workspace undo/redo reconciliation event so mounted route hooks
+ * can redirect away from deleted subpages or reconcile renamed slug paths.
+ */
+export function dispatchWorkspaceUndoReconcile(detail: WorkspaceUndoReconcileDetail): void {
+  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') {
+    return;
+  }
+  window.dispatchEvent(
+    new CustomEvent(EVENT_WORKSPACE_UNDO_RECONCILE, { detail })
+  );
+}
+
+function cloneWorkspaceSnapshot(snapshot: WorkspaceUndoSnapshot): WorkspaceUndoSnapshot {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(snapshot);
+  }
+  return JSON.parse(JSON.stringify(snapshot)) as WorkspaceUndoSnapshot;
+}
+
+/**
+ * Creates a self-contained, workspace-addressed undo/redo action that persists
+ * directly via `commitDraftWorkspaceTransaction` without relying on mounted React closures.
+ */
+export function createWorkspaceUndoAction(
+  params: CreateWorkspaceUndoActionParams
+): Omit<UndoAction, 'id' | 'timestamp'> {
+  const beforeSnapshot = cloneWorkspaceSnapshot(params.before);
+  const afterSnapshot = cloneWorkspaceSnapshot(params.after);
+
+  const applySnapshot = async (snapshot: WorkspaceUndoSnapshot): Promise<boolean> => {
+    try {
+      const payload: {
+        canvases?: Record<string, NodeCanvasDocument>;
+        pages?: PageRegistry;
+        contentOverrides?: Record<string, string>;
+        deletedPageIds?: string[];
+      } = {};
+
+      if (snapshot.canvases) {
+        payload.canvases = cloneWorkspaceSnapshot({ canvases: snapshot.canvases }).canvases;
+      }
+      if (snapshot.pages !== undefined) {
+        payload.pages = cloneWorkspaceSnapshot({ pages: snapshot.pages }).pages;
+      }
+      if (snapshot.contentOverrides !== undefined) {
+        payload.contentOverrides = { ...snapshot.contentOverrides };
+      }
+      if (snapshot.deletedPageIds && snapshot.deletedPageIds.length > 0) {
+        payload.deletedPageIds = [...snapshot.deletedPageIds];
+      }
+
+      const expectedUpdatedAt =
+        params.getExpectedUpdatedAt?.() ?? getLastKnownDraftUpdatedAt();
+
+      const updated = await commitDraftWorkspaceTransaction(payload, {
+        lockToken: params.getLockToken(),
+        expectedUpdatedAt,
+      });
+
+      const nextPages = updated.pages ?? snapshot.pages;
+      if (snapshot.pages !== undefined && !updated.pages) {
+        dispatchDraftPagesSync(snapshot.pages);
+        dispatchDraftChange(true, true, snapshot.pages);
+      }
+
+      const reconcileDetail: WorkspaceUndoReconcileDetail = {
+        nextPages,
+        deletedPageIds: snapshot.deletedPageIds,
+        affectedPageIds: snapshot.canvases ? Object.keys(snapshot.canvases) : undefined,
+        updatedCanvases: updated.canvases ?? snapshot.canvases,
+      };
+      dispatchWorkspaceUndoReconcile(reconcileDetail);
+      params.onWorkspaceReconcile?.(reconcileDetail);
+
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Workspace undo/redo failed';
+      params.onError?.(msg);
+      return false;
+    }
+  };
+
+  return {
+    type: params.type,
+    description: params.description,
+    ...(params.scope ? { scope: params.scope } : {}),
+    undo: () => applySnapshot(beforeSnapshot),
+    redo: () => applySnapshot(afterSnapshot),
+  };
 }
 
 /**

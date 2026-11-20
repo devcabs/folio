@@ -1,0 +1,72 @@
+/**
+ * Canonical Textarea Primitive — Folio Engine
+ * Pure design-token styling, 4-state interactive matrix, and Universal Zero Outline Policy.
+ */
+
+.textarea {
+  width: 100%;
+  min-height: 80px;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  box-shadow: var(--elevation-flat);
+  outline: none;
+  outline: 0;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.textarea:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background-color: var(--bg-surface-subtle);
+}
+
+.textarea:active:not(:disabled) {
+  border-color: var(--border-focus);
+}
+
+.textarea:focus,
+.textarea:focus-visible {
+  outline: none;
+  outline: 0;
+  border-color: var(--border-focus);
+  background-color: var(--bg-surface-subtle);
+}
+
+.textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--bg-surface-muted);
+}
+
+.monospace {
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-mono);
+  font-size: var(--text-body-sm);
+}
+
+.invalid {
+  border-color: var(--color-danger);
+}
+
+.invalid:hover:not(:disabled),
+.invalid:active:not(:disabled),
+.invalid:focus,
+.invalid:focus-visible {
+  outline: none;
+  outline: 0;
+  border-color: var(--color-danger-dark);
+}

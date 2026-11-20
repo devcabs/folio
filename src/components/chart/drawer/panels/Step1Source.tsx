@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import type { SheetMetadataTab } from '../../../../services/sheetsVerificationService';
 import type { AccessStatus } from '../hooks/useSheetVerification';
-import { Button } from '../../../ui';
+import { buildSheetTabOptions } from '../../../../utils/sheetTabs';
+import { Button, FormField, Input, Select } from '../../../ui';
 import styles from './Step1Source.module.css';
 
 interface Step1SourceProps {
@@ -34,16 +35,10 @@ export const Step1Source: React.FC<Step1SourceProps> = ({
   const isChecking = accessStatus === 'checking' || isSyncing;
 
   // Always ensure a comprehensive list of tabs for the select dropdown
-  const tabOptions = useMemo(() => {
-    if (discoveredTabs.length > 0) {
-      const hasCurrent = discoveredTabs.some((t) => t.title === tabName);
-      if (tabName && !hasCurrent) {
-        return [{ title: tabName, sheetId: 'current' }, ...discoveredTabs];
-      }
-      return discoveredTabs;
-    }
-    return [{ title: tabName || 'Sheet1', sheetId: 'default' }];
-  }, [discoveredTabs, tabName]);
+  const tabOptions = useMemo(
+    () => buildSheetTabOptions(discoveredTabs, tabName),
+    [discoveredTabs, tabName]
+  );
 
   const handleResyncClick = () => {
     if (onResync) {
@@ -56,57 +51,59 @@ export const Step1Source: React.FC<Step1SourceProps> = ({
   return (
     <div className={styles.stepPanel}>
       <div className={styles.formGroup}>
-        <div className={styles.labelRow}>
-          <label className={styles.label} htmlFor="cfg-sheet-url">
-            Google Sheet URL
-          </label>
-          {sheetUrl ? (
-            <a
-              href={sheetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.goToSourceBtn}
-              title="Open Google Sheet source in new tab"
-            >
-              <span>Go To Source</span>
-              <span className={styles.goToSourceIcon} aria-hidden="true">↗</span>
-            </a>
-          ) : (
-            <button
-              type="button"
-              className={`${styles.goToSourceBtn} ${styles.goToSourceBtnDisabled}`}
-              disabled
-              title="Enter a Google Sheet URL first"
-            >
-              <span>Go To Source</span>
-            </button>
-          )}
-        </div>
-        <input
+        <FormField
           id="cfg-sheet-url"
-          type="url"
-          className={`${styles.input} ${
-            accessStatus === 'invalid' ? styles.inputError : ''
-          } ${accessStatus === 'public' ? styles.inputSuccess : ''}`}
-          placeholder="https://docs.google.com/spreadsheets/d/.../edit"
-          value={sheetUrl}
-          onChange={(e) => setSheetUrl(e.target.value)}
-          autoComplete="off"
-        />
+          label="Google Sheet URL"
+          labelAction={
+            sheetUrl ? (
+              <Button
+                as="a"
+                variant="secondary"
+                size="xs"
+                href={sheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open Google Sheet source in new tab"
+              >
+                Go To Source ↗
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                size="xs"
+                disabled
+                title="Enter a Google Sheet URL first"
+              >
+                Go To Source
+              </Button>
+            )
+          }
+        >
+          <Input
+            id="cfg-sheet-url"
+            type="url"
+            invalid={accessStatus === 'invalid'}
+            valid={accessStatus === 'public'}
+            placeholder="https://docs.google.com/spreadsheets/d/.../edit"
+            value={sheetUrl}
+            onChange={(e) => setSheetUrl(e.target.value)}
+            autoComplete="off"
+          />
+        </FormField>
 
         {/* Source Status & Resync Controls */}
         {(sheetUrl.trim() || accessStatus !== 'idle') && (
           <div className={styles.statusRow}>
             <div
-              className={`${styles.statusBadge} ${
-                isChecking
-                  ? styles.statusChecking
-                  : accessStatus === 'public'
+              className={`${styles.statusBadge} ${isChecking
+                ? styles.statusChecking
+                : accessStatus === 'public'
                   ? styles.statusPublic
                   : accessStatus === 'restricted'
-                  ? styles.statusRestricted
-                  : styles.statusInvalid
-              }`}
+                    ? styles.statusRestricted
+                    : styles.statusInvalid
+                }`}
             >
               <span className={styles.statusDot} aria-hidden="true" />
               <span className={styles.statusText}>
@@ -204,21 +201,20 @@ export const Step1Source: React.FC<Step1SourceProps> = ({
 
       {/* Sheet Tab selection — strictly a dropdown */}
       {(sheetUrl.trim() || accessStatus === 'public') && (
-        <div className={styles.formGroup}>
-          <div className={styles.labelRow}>
-            <label className={styles.label} htmlFor="cfg-tab-name">
-              <span>Sheet Tab</span>
-            </label>
-            {isChecking && (
+        <FormField
+          id="cfg-tab-name"
+          label="Sheet Tab"
+          labelAction={
+            isChecking ? (
               <span className={styles.tabCheckingBadge}>
                 <span className={styles.statusDot} aria-hidden="true" />
                 <span>Fetching tabs…</span>
               </span>
-            )}
-          </div>
-          <select
+            ) : undefined
+          }
+        >
+          <Select
             id="cfg-tab-name"
-            className={styles.select}
             value={tabName || (tabOptions[0]?.title ?? 'Sheet1')}
             onChange={handleTabChange}
             disabled={isChecking && tabOptions.length === 0}
@@ -229,8 +225,8 @@ export const Step1Source: React.FC<Step1SourceProps> = ({
                 {tab.title}
               </option>
             ))}
-          </select>
-        </div>
+          </Select>
+        </FormField>
       )}
     </div>
   );

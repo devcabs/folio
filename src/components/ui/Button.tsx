@@ -1,7 +1,13 @@
 import React from 'react';
 import styles from './Button.module.css';
 
-export type ButtonVariant = 'revolving-outline' | 'primary' | 'secondary' | 'ghost' | 'admin';
+export type ButtonVariant =
+  | 'revolving-outline'
+  | 'primary'
+  | 'secondary'
+  | 'ghost'
+  | 'admin'
+  | 'danger';
 export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
 
 export interface ButtonProps {
@@ -16,10 +22,14 @@ export interface ButtonProps {
   onClick?: (e: React.MouseEvent<HTMLElement>) => void;
   onMouseEnter?: (e: React.MouseEvent<HTMLElement>) => void;
   onMouseLeave?: (e: React.MouseEvent<HTMLElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLElement>) => void;
   className?: string;
   style?: React.CSSProperties;
   children: React.ReactNode;
   'aria-label'?: string;
+  'aria-expanded'?: boolean;
+  'aria-haspopup'?: React.AriaAttributes['aria-haspopup'];
+  'aria-controls'?: string;
   title?: string;
   disabled?: boolean;
   target?: string;
@@ -37,6 +47,7 @@ const VARIANT_CLASS_MAP: Record<ButtonVariant, string> = {
   secondary: styles.variantSecondary,
   ghost: styles.variantGhost,
   admin: styles.variantAdmin,
+  danger: styles.variantDanger,
 };
 
 const SIZE_CLASS_MAP: Record<ButtonSize, string> = {
@@ -58,10 +69,14 @@ export const Button: React.FC<ButtonProps> = ({
   onClick,
   onMouseEnter,
   onMouseLeave,
+  onKeyDown,
   className,
   style,
   children,
   'aria-label': ariaLabel,
+  'aria-expanded': ariaExpanded,
+  'aria-haspopup': ariaHaspopup,
+  'aria-controls': ariaControls,
   title,
   disabled = false,
   target,
@@ -85,9 +100,9 @@ export const Button: React.FC<ButtonProps> = ({
     ...style,
     ...(outlineWidth !== undefined
       ? ({
-          '--outline-width':
-            typeof outlineWidth === 'number' ? `${outlineWidth}px` : outlineWidth,
-        } as React.CSSProperties)
+        '--outline-width':
+          typeof outlineWidth === 'number' ? `${outlineWidth}px` : outlineWidth,
+      } as React.CSSProperties)
       : {}),
   };
 
@@ -127,10 +142,14 @@ export const Button: React.FC<ButtonProps> = ({
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onKeyDown={onKeyDown}
       className={combinedClassName}
       style={inlineStyles}
       title={title}
       aria-label={ariaLabel}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHaspopup}
+      aria-controls={ariaControls}
       disabled={disabled}
       tabIndex={tabIndex}
       aria-hidden={ariaHidden}

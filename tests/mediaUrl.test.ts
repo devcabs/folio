@@ -178,30 +178,21 @@ describe('extractDriveFileId & resolveSingleDrivePhotoUrl (Subtask 2.11)', () =>
   });
 
   describe('Modal Integration Contracts', () => {
-    it('verifies UniversalEditModal wires resolveSingleDrivePhotoUrl and canvasDraft.driveUrl', () => {
-      const modalSrc = fs.readFileSync('src/components/dev/UniversalEditModal.tsx', 'utf8');
+    it('verifies CanvasElementFields wires resolveSingleDrivePhotoUrl and photo preview', () => {
+      const fieldsSrc = fs.readFileSync('src/components/canvas/CanvasElementFields.tsx', 'utf8');
 
-      // Must import resolveSingleDrivePhotoUrl
-      expect(modalSrc).toContain('resolveSingleDrivePhotoUrl');
-
-      // Must wire handlePhotoUrlChange to canvas-photo-url
-      expect(modalSrc).toContain('onChange={(e) => handlePhotoUrlChange(e.target.value)}');
-
-      // Must display canvasDraft.driveUrl || canvasDraft.src
-      expect(modalSrc).toContain('value={canvasDraft.driveUrl || canvasDraft.src || \'\'}');
-
-      // Must render preview using canvasDraft.src
-      expect(modalSrc).toContain('<img\n                  src={canvasDraft.src}');
+      expect(fieldsSrc).toContain('resolveSingleDrivePhotoUrl');
+      expect(fieldsSrc).toContain('handlePhotoUrlChange(e.target.value)');
+      expect(fieldsSrc).toContain('value.driveUrl || value.src');
+      expect(fieldsSrc).toContain('src={value.src}');
     });
 
-    it('verifies CanvasAddModal wires resolveSingleDrivePhotoUrl for new photo additions', () => {
+    it('verifies UniversalEditModal and CanvasAddModal delegate canvas element fields to CanvasElementFields', () => {
+      const modalSrc = fs.readFileSync('src/components/dev/UniversalEditModal.tsx', 'utf8');
       const addModalSrc = fs.readFileSync('src/components/canvas/CanvasAddModal.tsx', 'utf8');
 
-      // Must import resolveSingleDrivePhotoUrl
-      expect(addModalSrc).toContain('resolveSingleDrivePhotoUrl');
-
-      // Must wire resolveSingleDrivePhotoUrl on add-photo-url
-      expect(addModalSrc).toContain('resolveSingleDrivePhotoUrl(val)');
+      expect(modalSrc).toContain('CanvasElementFields');
+      expect(addModalSrc).toContain('CanvasElementFields');
     });
   });
 });

@@ -9,13 +9,52 @@ import {
   findPositiveActionElement,
   triggerPositiveAction,
 } from '../../utils/modalActions';
+import { IconButton } from './IconButton';
 import styles from './Modal.module.css';
+
+export interface ModalActionsProps {
+  children: React.ReactNode;
+  left?: React.ReactNode;
+  align?: 'end' | 'between' | 'start';
+  className?: string;
+}
+
+export const ModalActions: React.FC<ModalActionsProps> = ({
+  children,
+  left,
+  align = 'end',
+  className,
+}) => {
+  const effectiveAlign = left ? 'between' : align;
+  const alignClass =
+    effectiveAlign === 'between'
+      ? styles.actionsBetween
+      : effectiveAlign === 'start'
+        ? styles.actionsStart
+        : '';
+
+  if (left) {
+    return (
+      <div className={`${styles.actions} ${styles.actionsBetween} ${className || ''}`.trim()}>
+        <div className={styles.actionsLeft}>{left}</div>
+        <div className={styles.actionsRight}>{children}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${styles.actions} ${alignClass} ${className || ''}`.trim()}>
+      {children}
+    </div>
+  );
+};
 
 export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: React.ReactNode;
   children: React.ReactNode;
+  footer?: React.ReactNode;
   maxWidth?: string | number;
   className?: string;
   cardClassName?: string;
@@ -38,6 +77,7 @@ export const Modal: React.FC<ModalProps> = ({
   onClose,
   title,
   children,
+  footer,
   maxWidth,
   className,
   cardClassName,
@@ -86,7 +126,10 @@ export const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen]);
 
-  // Focus management & keyboard navigation (Escape + Focus Trapping + Positive Action Ctrl+Enter)
+  // Initial focus capture & restoration strictly on open/close transitions
+  const initialFocusRefLatest = useRef(initialFocusRef);
+  initialFocusRefLatest.current = initialFocusRef;
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -96,8 +139,8 @@ export const Modal: React.FC<ModalProps> = ({
     const timer = window.setTimeout(() => {
       if (!modalRef.current) return;
 
-      if (initialFocusRef?.current) {
-        initialFocusRef.current.focus();
+      if (initialFocusRefLatest.current?.current) {
+        initialFocusRefLatest.current.current.focus();
         return;
       }
 
@@ -126,6 +169,16 @@ export const Modal: React.FC<ModalProps> = ({
         modalRef.current.focus();
       }
     }, 25);
+
+    return () => {
+      window.clearTimeout(timer);
+      previouslyFocusedElement.current?.focus();
+    };
+  }, [isOpen]);
+
+  // Keyboard navigation (Escape + Focus Trapping + Positive Action Ctrl+Enter)
+  useEffect(() => {
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const isTargeted =
@@ -191,11 +244,9 @@ export const Modal: React.FC<ModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.clearTimeout(timer);
       window.removeEventListener('keydown', handleKeyDown);
-      previouslyFocusedElement.current?.focus();
     };
-  }, [isOpen, onClose, closeOnEscape, enableCtrlEnter, onConfirm, initialFocusRef]);
+  }, [isOpen, onClose, closeOnEscape, enableCtrlEnter, onConfirm]);
 
   if (!isMounted || !isOpen) {
     return null;
@@ -235,28 +286,32 @@ export const Modal: React.FC<ModalProps> = ({
               {title}
             </h2>
             {showCloseButton && (
-              <button
-                type="button"
+              <IconButton
+                variant="ghost"
+                size="sm"
                 className={styles.closeButton}
                 onClick={onClose}
                 aria-label="Close dialog"
               >
                 ✕
-              </button>
+              </IconButton>
             )}
           </div>
         ) : showCloseButton ? (
-          <button
-            type="button"
+          <IconButton
+            variant="ghost"
+            size="sm"
             className={styles.absoluteCloseButton}
             onClick={onClose}
             aria-label="Close dialog"
           >
             ✕
-          </button>
+          </IconButton>
         ) : null}
 
         {children}
+
+        {footer && <div className={styles.footer}>{footer}</div>}
       </div>
     </div>
   );

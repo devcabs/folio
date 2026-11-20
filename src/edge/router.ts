@@ -16,6 +16,7 @@ import { handleDriveMediaRoute } from './handlers/mediaHandler';
 import { handleLockRoute } from './handlers/lockHandler';
 import { handleDraftRoute } from './handlers/draftHandler';
 import { handleHistoryRoute } from './handlers/historyHandler';
+import { maybeInjectManifestResponse } from './handlers/htmlManifestInjector';
 
 export interface FolioEdgeOptions {
   /**
@@ -34,6 +35,10 @@ export interface FolioEdgeOptions {
    * When true, disables delegation to env.ASSETS.fetch for non-API routes
    */
   disableAssetsFallback?: boolean;
+  /**
+   * When true, disables injecting window.__FOLIO_MANIFEST__ into HTML responses
+   */
+  disableHtmlManifestInjection?: boolean;
 }
 
 /**
@@ -65,6 +70,17 @@ export function handleCorsPreflight(options?: FolioEdgeOptions): Response {
       'Access-Control-Max-Age': '86400',
     },
   });
+}
+
+function isHtmlNavigationRequest(request: Request, pathname: string): boolean {
+  if (request.method.toUpperCase() !== 'GET') return false;
+  if (pathname.startsWith('/api')) return false;
+
+  const lastSegment = pathname.split('/').pop() || '';
+  const hasFileExtension = /\.[a-z0-9]{1,10}$/i.test(lastSegment);
+  const accept = (request.headers.get('accept') || '').toLowerCase();
+
+  return !hasFileExtension || accept.includes('text/html');
 }
 
 /**
@@ -197,7 +213,24 @@ export async function handleFolioEdgeRequest(
     env?.ASSETS &&
     typeof env.ASSETS.fetch === 'function'
   ) {
-    return env.ASSETS.fetch(request);
+    let assetResponse: Response = await env.ASSETS.fetch(request);
+
+    if (assetResponse.status === 404 && isHtmlNavigationRequest(request, pathname)) {
+      const indexUrl = new URL('/index.html', request.url);
+      assetResponse = await env.ASSETS.fetch(
+        new Request(indexUrl.toString(), {
+          method: 'GET',
+          headers: request.headers,
+        })
+      );
+    }
+
+    if (!options?.disableHtmlManifestInjection) {
+      const kv = resolveKVNamespace(env, options);
+      return await maybeInjectManifestResponse(request, assetResponse, kv);
+    }
+
+    return assetResponse;
   }
 
   return new Response('Not Found', { status: 404 });

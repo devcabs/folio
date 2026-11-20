@@ -46,3 +46,11 @@ If another editor published a newer snapshot while your draft was open, **Publis
 ## 4. Leave Dev Mode
 
 After publishing (when you see no remaining unpublished edits), click **Exit** on the floating Dev Mode bar and confirm **Exit** to return to the normal public view.
+
+
+---
+
+## Cross-Page Undo/Redo & Nested Subpage Publishing
+
+- **Cross-Page `Cmd+Z` / `Cmd+Shift+Z`**: Workspace mutations (subpage creation, title/slug edits, card reordering, and branch deletions) are persisted via workspace-addressed undo actions. Pressing `Cmd+Z` reverts edits even after navigating to a different page. If you undo the creation of the subpage you are currently viewing, the editor automatically redirects you back to its parent page.
+- **Publishing & Restoring Subpages**: Publishing creates an immutable snapshot containing both root chapters and all nested subpages (`pages` + `canvases`). Restoring an earlier snapshot from **History** reinstates all deleted or modified subpages and their canvases into your active draft.

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Modal } from '../ui/Modal';
+import { Modal, ModalActions } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { Textarea } from '../ui/Textarea';
+import { InlineAlert } from '../ui/InlineAlert';
 import { publishNewSnapshot } from '../../services/historyService';
 import { discardDraftSession } from '../../services/draftService';
 import { useDeveloperMode } from '../../context/DeveloperModeContext';
@@ -57,7 +59,7 @@ export const DevPublishModal: React.FC<DevPublishModalProps> = ({
             A newer snapshot ({staleness.currentActiveId}) was published by another session. Publishing now will overwrite it.
           </p>
 
-          <div className={styles.actions}>
+          <ModalActions className={styles.actions}>
             <Button
               variant="secondary"
               size="sm"
@@ -70,15 +72,14 @@ export const DevPublishModal: React.FC<DevPublishModalProps> = ({
               Discard Draft
             </Button>
             <Button
-              variant="primary"
+              variant="danger"
               size="sm"
               type="button"
-              className={styles.btnDanger}
               onClick={() => setForcePublish(true)}
             >
               Publish Anyway
             </Button>
-          </div>
+          </ModalActions>
         </div>
       </Modal>
     );
@@ -141,73 +142,71 @@ export const DevPublishModal: React.FC<DevPublishModalProps> = ({
       role="dialog"
     >
       <form className={styles.form} onSubmit={handleSubmit}>
-        <div className={styles.fieldGroup}>
-          <textarea
-            id="publish-changelog"
-            className={styles.textarea}
-            placeholder="What changed in this version?"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            onKeyDown={handleKeyDown}
-            rows={3}
-            maxLength={400}
-            autoFocus
-            disabled={isSubmitting}
-            aria-label="Describe what changed in this version"
-            required
-          />
-        </div>
+        <Textarea
+          id="publish-changelog"
+          placeholder="What changed in this version?"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          onKeyDown={handleKeyDown}
+          rows={3}
+          maxLength={400}
+          autoFocus
+          disabled={isSubmitting}
+          aria-label="Describe what changed in this version"
+          required
+        />
 
         {errorMessage && (
-          <p className={styles.error} role="alert">
+          <InlineAlert variant="error">
             {errorMessage}
-          </p>
+          </InlineAlert>
         )}
 
-        <div className={styles.footer}>
-          <div className={styles.meta}>
-            <span
-              className={styles.shortcutHint}
-              title={isMac ? 'Press ⌘+Enter to publish' : 'Press Ctrl+Enter to publish'}
-              aria-label={isMac ? 'Press Command plus Enter to publish' : 'Press Control plus Enter to publish'}
-            >
-              <kbd className={styles.kbd}>{isMac ? '⌘↵' : 'Ctrl+↵'}</kbd>
-            </span>
-            {cleanDesc.length > 0 && cleanDesc.length < 4 && (
-              <span className={styles.charCounter} aria-live="polite">
-                Min 4 characters
-              </span>
-            )}
-            {description.length >= 300 && (
+        <ModalActions
+          className={styles.footer}
+          left={
+            <div className={styles.meta}>
               <span
-                className={`${styles.charCounter} ${description.length >= 400 ? styles.charCounterLimit : ''}`}
-                aria-live="polite"
+                className={styles.shortcutHint}
+                title={isMac ? 'Press ⌘+Enter to publish' : 'Press Ctrl+Enter to publish'}
+                aria-label={isMac ? 'Press Command plus Enter to publish' : 'Press Control plus Enter to publish'}
               >
-                {description.length}/400
+                <kbd className={styles.kbd}>{isMac ? '⌘↵' : 'Ctrl+↵'}</kbd>
               </span>
-            )}
-          </div>
-
-          <div className={styles.actions}>
-            <Button
-              variant="secondary"
-              size="sm"
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              type="submit"
-              disabled={!isValid || isSubmitting}
-            >
-              {isSubmitting ? 'Publishing...' : errorMessage ? 'Retry' : 'Publish'}
-            </Button>
-          </div>
-        </div>
+              {cleanDesc.length > 0 && cleanDesc.length < 4 && (
+                <span className={styles.charCounter} aria-live="polite">
+                  Min 4 characters
+                </span>
+              )}
+              {description.length >= 300 && (
+                <span
+                  className={`${styles.charCounter} ${description.length >= 400 ? styles.charCounterLimit : ''}`}
+                  aria-live="polite"
+                >
+                  {description.length}/400
+                </span>
+              )}
+            </div>
+          }
+        >
+          <Button
+            variant="secondary"
+            size="sm"
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            type="submit"
+            disabled={!isValid || isSubmitting}
+          >
+            {isSubmitting ? 'Publishing...' : errorMessage ? 'Retry' : 'Publish'}
+          </Button>
+        </ModalActions>
       </form>
     </Modal>
   );

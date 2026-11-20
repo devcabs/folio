@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { NavItem } from '../../types/navigation';
 import { ParametricShape } from '../ui/ParametricShape';
+import { IconButton } from '../ui/IconButton';
+import { Button } from '../ui/Button';
+import { ChevronDownIcon } from '../ui/Icons';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import styles from './AppHeader.module.css';
 
@@ -13,6 +16,8 @@ export interface AppHeaderProps {
   brandLetter?: string;
   navItems?: NavItem[];
   mobileOnlyNav?: boolean;
+  onNavigatePage?: (pageId: string) => void;
+  maxVisibleDesktopItems?: number;
   onRoadmapClick?: (e?: React.MouseEvent) => void;
   onOverviewClick?: (e?: React.MouseEvent) => void;
   onBrandClick?: (e?: React.MouseEvent) => void;
@@ -29,18 +34,32 @@ const DEFAULT_NAV_ITEMS: NavItem[] = [
   { label: 'Overview', href: '#main-content' },
 ];
 
+const MORE_DROPDOWN_KEY = '__more__';
+const LEAVE_GRACE_MS = 180;
+
+function getItemKey(item: NavItem): string {
+  return item.id || item.pageId || item.label;
+}
+
 export const AppHeader: React.FC<AppHeaderProps> = ({
   brandTitle = 'Portal',
   brandLetter,
   navItems,
   mobileOnlyNav = false,
+  onNavigatePage,
+  maxVisibleDesktopItems = 5,
   onRoadmapClick,
   onOverviewClick,
   onBrandClick,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const headerRef = useRef<HTMLElement>(null);
   const sealClicksRef = useRef<number[]>([]);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusFirstOnOpenRef = useRef<string | null>(null);
+  const triggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const menuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const { openPinModal } = useDeveloperMode();
 
   const handleSealClick = (e: React.MouseEvent) => {
@@ -56,21 +75,57 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const effectiveNavItems = navItems !== undefined ? navItems : DEFAULT_NAV_ITEMS;
 
+  const hasOverflow =
+    maxVisibleDesktopItems > 0 && effectiveNavItems.length > maxVisibleDesktopItems;
+  const visibleDesktopItems = hasOverflow
+    ? effectiveNavItems.slice(0, Math.max(0, maxVisibleDesktopItems - 1))
+    : effectiveNavItems;
+  const overflowDesktopItems = hasOverflow
+    ? effectiveNavItems.slice(Math.max(0, maxVisibleDesktopItems - 1))
+    : [];
+
+  const clearLeaveTimer = useCallback(() => {
+    if (leaveTimerRef.current !== null) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleCloseDropdown = useCallback(() => {
+    clearLeaveTimer();
+    leaveTimerRef.current = setTimeout(() => {
+      setOpenDropdownId(null);
+    }, LEAVE_GRACE_MS);
+  }, [clearLeaveTimer]);
+
   const handleToggle = () => {
     setIsOpen((prev) => !prev);
   };
 
   const handleClose = () => {
     setIsOpen(false);
+    setOpenDropdownId(null);
   };
 
   const handleNavClick = (item: NavItem, e: React.MouseEvent) => {
+    if (item.pageId && onNavigatePage) {
+      e.preventDefault();
+      setIsOpen(false);
+      setOpenDropdownId(null);
+      onNavigatePage(item.pageId);
+      return;
+    }
+
     const lower = item.label.toLowerCase();
 
     // 1. Home Roadmap Navigation
-    if (item.href === '#sequence-roadmap' || item.href === '#roadmap' || (lower === 'roadmap' && !item.href.startsWith('#node'))) {
+    if (
+      item.href === '#sequence-roadmap' ||
+      item.href === '#roadmap' ||
+      (lower === 'roadmap' && !item.href.startsWith('#node'))
+    ) {
       e.preventDefault();
-      setIsOpen(false);
+      handleClose();
       onRoadmapClick?.(e);
       return;
     }
@@ -78,7 +133,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     // 2. Home Overview Anchor
     if (item.href === '#main-content') {
       e.preventDefault();
-      setIsOpen(false);
+      handleClose();
       onOverviewClick?.(e);
       return;
     }
@@ -86,7 +141,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     // 3. In-page sections and sub-chapters anchor navigation (Node ToC sections)
     if (item.href.startsWith('#')) {
       e.preventDefault();
-      setIsOpen(false);
+      handleClose();
       const targetId = item.id || item.href.slice(1);
       const targetEl = document.getElementById(targetId);
       if (targetEl) {
@@ -103,35 +158,97 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
     if (lower === 'overview') {
       e.preventDefault();
-      setIsOpen(false);
+      handleClose();
       onOverviewClick?.(e);
-      return;
     }
   };
 
-  // Keyboard accessibility: Escape key closes the open mobile menu
+  const openDropdownAndFocusFirst = useCallback(
+    (dropdownKey: string) => {
+      clearLeaveTimer();
+      focusFirstOnOpenRef.current = dropdownKey;
+      setOpenDropdownId(dropdownKey);
+    },
+    [clearLeaveTimer]
+  );
+
+  // Focus first menu item when opened via keyboard ArrowDown
+  useEffect(() => {
+    if (openDropdownId && focusFirstOnOpenRef.current === openDropdownId) {
+      focusFirstOnOpenRef.current = null;
+      const menuEl = menuRefs.current[openDropdownId];
+      if (menuEl) {
+        const items = Array.from(menuEl.querySelectorAll('a')) as HTMLElement[];
+        items[0]?.focus();
+      }
+    }
+  }, [openDropdownId]);
+
+  // Cleanup hover timer on unmount
+  useEffect(() => {
+    return () => clearLeaveTimer();
+  }, [clearLeaveTimer]);
+
+  // Keyboard accessibility: Escape key closes open menus and restores trigger focus
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false);
+      if (e.key === 'Escape') {
+        if (openDropdownId) {
+          const closingKey = openDropdownId;
+          setOpenDropdownId(null);
+          triggerRefs.current[closingKey]?.focus();
+        }
+        if (isOpen) {
+          setIsOpen(false);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, openDropdownId]);
 
-  // Click outside listener: clicking outside the header capsule closes the mobile menu
+  // Click outside listener: clicking outside the header capsule closes open menus
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        setOpenDropdownId(null);
       }
     };
-    if (isOpen) {
+    if (isOpen || openDropdownId) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  }, [isOpen, openDropdownId]);
+
+  const handleMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, dropdownKey: string) => {
+    const menuEl = menuRefs.current[dropdownKey];
+    const items = menuEl ? (Array.from(menuEl.querySelectorAll('a')) as HTMLElement[]) : [];
+    if (items.length === 0) return;
+
+    const currentIndex = items.findIndex((el) => el === document.activeElement);
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextIndex = (currentIndex + 1) % items.length;
+      items[nextIndex]?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevIndex = currentIndex <= 0 ? items.length - 1 : currentIndex - 1;
+      items[prevIndex]?.focus();
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      items[0]?.focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      items[items.length - 1]?.focus();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpenDropdownId(null);
+      triggerRefs.current[dropdownKey]?.focus();
+    }
+  };
 
   return (
     <header ref={headerRef} className={styles.siteHeader} role="banner">
@@ -139,11 +256,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         Skip to content
       </a>
 
-      {/* Floating Capsule Navbar matching Portrait Inspiration Reference */}
-      <nav
-        className={`${styles.navCapsule} ${styles.noCta}`}
-        aria-label="Main Navigation"
-      >
+      {/* Floating Capsule Navbar */}
+      <nav className={`${styles.navCapsule} ${styles.noCta}`} aria-label="Main Navigation">
         {/* Brand Group */}
         <a
           href="#"
@@ -152,6 +266,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           onClick={(e) => {
             if (onBrandClick) {
               e.preventDefault();
+              handleClose();
               onBrandClick(e);
             }
           }}
@@ -171,17 +286,208 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         {/* Center Navigation Links (Desktop) */}
         {!mobileOnlyNav && effectiveNavItems.length > 0 && (
           <ul className={styles.navLinks}>
-            {effectiveNavItems.map((item) => (
-              <li key={item.label}>
-                <a
-                  href={item.href}
-                  className={styles.navLink}
-                  onClick={(e) => handleNavClick(item, e)}
+            {visibleDesktopItems.map((item) => {
+              const key = getItemKey(item);
+              const level2Children = item.children ?? [];
+              const hasChildren = level2Children.length > 0;
+              const isDropdownOpen = openDropdownId === key;
+              const dropdownId = `header-dropdown-${key}`;
+
+              return (
+                <li
+                  key={key}
+                  className={styles.navItem}
+                  onMouseEnter={() => {
+                    if (hasChildren) {
+                      clearLeaveTimer();
+                      setOpenDropdownId(key);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (hasChildren) {
+                      scheduleCloseDropdown();
+                    }
+                  }}
                 >
-                  {item.label}
-                </a>
+                  {hasChildren ? (
+                    <div className={styles.navItemGroup}>
+                      <a
+                        href={item.href}
+                        className={`${styles.navLink} ${
+                          item.isActive ? styles.navLinkActive : ''
+                        }`}
+                        aria-current={item.isActive ? 'page' : undefined}
+                        onClick={(e) => handleNavClick(item, e)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            openDropdownAndFocusFirst(key);
+                          }
+                        }}
+                      >
+                        {item.label}
+                      </a>
+                      <IconButton
+                        ref={(el) => {
+                          triggerRefs.current[key] = el;
+                        }}
+                        variant="ghost"
+                        size="xs"
+                        className={styles.dropdownChevronBtn}
+                        aria-label={`${item.label} subpages`}
+                        aria-haspopup="menu"
+                        aria-expanded={isDropdownOpen}
+                        aria-controls={dropdownId}
+                        onClick={() => {
+                          clearLeaveTimer();
+                          setOpenDropdownId((prev) => (prev === key ? null : key));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            openDropdownAndFocusFirst(key);
+                          }
+                        }}
+                      >
+                        <span
+                          className={`${styles.chevronIcon} ${
+                            isDropdownOpen ? styles.chevronIconOpen : ''
+                          }`}
+                        >
+                          <ChevronDownIcon size={12} />
+                        </span>
+                      </IconButton>
+
+                      {isDropdownOpen && (
+                        <div
+                          id={dropdownId}
+                          ref={(el) => {
+                            menuRefs.current[key] = el;
+                          }}
+                          className={styles.desktopDropdown}
+                          role="menu"
+                          aria-label={`${item.label} subpages`}
+                          onKeyDown={(e) => handleMenuKeyDown(e, key)}
+                        >
+                          {level2Children.map((child) => (
+                            <a
+                              key={getItemKey(child)}
+                              href={child.href}
+                              role="menuitem"
+                              className={`${styles.desktopDropdownItem} ${
+                                child.isActive ? styles.desktopDropdownItemActive : ''
+                              }`}
+                              aria-current={child.isActive ? 'page' : undefined}
+                              onClick={(e) => handleNavClick(child, e)}
+                            >
+                              {child.label}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <a
+                      href={item.href}
+                      className={`${styles.navLink} ${
+                        item.isActive ? styles.navLinkActive : ''
+                      }`}
+                      aria-current={item.isActive ? 'page' : undefined}
+                      onClick={(e) => handleNavClick(item, e)}
+                    >
+                      {item.label}
+                    </a>
+                  )}
+                </li>
+              );
+            })}
+
+            {hasOverflow && (
+              <li
+                className={styles.navItem}
+                onMouseEnter={() => {
+                  clearLeaveTimer();
+                  setOpenDropdownId(MORE_DROPDOWN_KEY);
+                }}
+                onMouseLeave={scheduleCloseDropdown}
+              >
+                <Button
+                  ref={(el) => {
+                    triggerRefs.current[MORE_DROPDOWN_KEY] = el;
+                  }}
+                  variant="ghost"
+                  size="xs"
+                  className={styles.moreTrigger}
+                  aria-haspopup="menu"
+                  aria-expanded={openDropdownId === MORE_DROPDOWN_KEY}
+                  aria-controls="header-dropdown-more"
+                  onClick={() => {
+                    clearLeaveTimer();
+                    setOpenDropdownId((prev) =>
+                      prev === MORE_DROPDOWN_KEY ? null : MORE_DROPDOWN_KEY
+                    );
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      openDropdownAndFocusFirst(MORE_DROPDOWN_KEY);
+                    }
+                  }}
+                >
+                  <span>More</span>
+                  <span
+                    className={`${styles.chevronIcon} ${
+                      openDropdownId === MORE_DROPDOWN_KEY ? styles.chevronIconOpen : ''
+                    }`}
+                  >
+                    <ChevronDownIcon size={12} />
+                  </span>
+                </Button>
+
+                {openDropdownId === MORE_DROPDOWN_KEY && (
+                  <div
+                    id="header-dropdown-more"
+                    ref={(el) => {
+                      menuRefs.current[MORE_DROPDOWN_KEY] = el;
+                    }}
+                    className={`${styles.desktopDropdown} ${styles.desktopDropdownRight}`}
+                    role="menu"
+                    aria-label="More chapters"
+                    onKeyDown={(e) => handleMenuKeyDown(e, MORE_DROPDOWN_KEY)}
+                  >
+                    {overflowDesktopItems.map((chapter) => (
+                      <React.Fragment key={getItemKey(chapter)}>
+                        <a
+                          href={chapter.href}
+                          role="menuitem"
+                          className={`${styles.desktopDropdownItem} ${
+                            chapter.isActive ? styles.desktopDropdownItemActive : ''
+                          }`}
+                          aria-current={chapter.isActive ? 'page' : undefined}
+                          onClick={(e) => handleNavClick(chapter, e)}
+                        >
+                          {chapter.label}
+                        </a>
+                        {(chapter.children ?? []).map((sub) => (
+                          <a
+                            key={getItemKey(sub)}
+                            href={sub.href}
+                            role="menuitem"
+                            className={`${styles.desktopDropdownItem} ${styles.desktopDropdownSubItem} ${
+                              sub.isActive ? styles.desktopDropdownItemActive : ''
+                            }`}
+                            aria-current={sub.isActive ? 'page' : undefined}
+                            onClick={(e) => handleNavClick(sub, e)}
+                          >
+                            {sub.label}
+                          </a>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )}
               </li>
-            ))}
+            )}
           </ul>
         )}
 
@@ -192,9 +498,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               mobileOnlyNav ? styles.navActionMobileOnly : ''
             }`}
           >
-            {/* Animated 2-Line Menu Toggle Button (Portrait.so Inspiration) */}
-            <button
-              type="button"
+            <IconButton
+              variant="ghost"
+              size="sm"
               className={styles.menuToggle}
               onClick={handleToggle}
               aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
@@ -213,33 +519,64 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   }`}
                 />
               </div>
-            </button>
+            </IconButton>
           </div>
         )}
 
-        {/* Mobile Dropdown Menu (revealed when animated menu button is open) */}
+        {/* Mobile Dropdown Menu (Option A: Strictly 2-Level Chapters + Level 2 Subpages) */}
         {isOpen && effectiveNavItems.length > 0 && (
           <div
             id="app-mobile-nav"
-            className={styles.mobileDropdown}
+            className={`${styles.mobileDropdown} ${
+              mobileOnlyNav ? styles.mobileDropdownAlways : ''
+            }`}
             role="menu"
             aria-label="Mobile Navigation Menu"
           >
-            {effectiveNavItems.map((item) => (
-              <a
-                key={item.id || item.href || item.label}
-                href={item.href}
-                className={styles.mobileNavLink}
-                role="menuitem"
-                onClick={(e) => {
-                  handleClose();
-                  handleNavClick(item, e);
-                }}
-              >
-                {item.number && <span className={styles.itemNumber}>{item.number}</span>}
-                <span className={styles.itemLabel}>{item.label}</span>
-              </a>
-            ))}
+            {effectiveNavItems.map((item) => {
+              const level2Children = item.children ?? [];
+              return (
+                <div key={getItemKey(item)} className={styles.mobileChapterGroup}>
+                  <a
+                    href={item.href}
+                    className={`${styles.mobileNavLink} ${
+                      item.isActive ? styles.mobileNavLinkActive : ''
+                    }`}
+                    role="menuitem"
+                    aria-current={item.isActive ? 'page' : undefined}
+                    onClick={(e) => {
+                      handleClose();
+                      handleNavClick(item, e);
+                    }}
+                  >
+                    {item.number && <span className={styles.itemNumber}>{item.number}</span>}
+                    <span className={styles.itemLabel}>{item.label}</span>
+                  </a>
+
+                  {level2Children.length > 0 && (
+                    <div className={styles.mobileSubList}>
+                      {level2Children.map((child) => (
+                        <a
+                          key={getItemKey(child)}
+                          href={child.href}
+                          className={`${styles.mobileSubNavLink} ${
+                            child.isActive ? styles.mobileSubNavLinkActive : ''
+                          }`}
+                          role="menuitem"
+                          aria-current={child.isActive ? 'page' : undefined}
+                          onClick={(e) => {
+                            handleClose();
+                            handleNavClick(child, e);
+                          }}
+                        >
+                          <span className={styles.itemLabel}>{child.label}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </nav>
@@ -248,4 +585,3 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 };
 
 export default AppHeader;
-

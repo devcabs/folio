@@ -5,6 +5,7 @@ import type {
   CanvasModalMode,
   CanvasModalElementType,
   CanvasElementFormData,
+  NodeCanvasDocument,
   SectionElement,
   SubsectionElement,
   TextElement,
@@ -19,7 +20,24 @@ import type { SheetChartConfig } from '../../types/chart';
 import { useDocumentCanvas } from '../../hooks/useNodeCanvas';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
-import { generateCanvasId, createDefaultSection } from '../../utils/canvasDefaults';
+import { usePortalChrome } from '../../context/PortalChromeContext';
+import { getActiveNodes, getEngineConfig } from '../../config/engine.config';
+import {
+  generateCanvasId,
+  createDefaultCanvasDocument,
+  createDefaultPageLink,
+} from '../../utils/canvasDefaults';
+import { insertCanvasElement, removeCanvasItem } from '../../services/canvasLayoutService';
+import {
+  buildPagePath,
+  createPageNode,
+  updatePageNodeMetadata,
+  deriveSubpageOrderFromCanvas,
+  countDescendantPages,
+  cascadeDeleteSubtree,
+} from '../../services/pageTreeService';
+import { getDraftWorkspace } from '../../services/draftService';
+import { createWorkspaceUndoAction } from '../../services/undoRedoService';
 import { resolveSingleDrivePdfUrl } from '../../utils/mediaUrl';
 import { CanvasSection } from './CanvasSection';
 import { CanvasSubsection } from './CanvasSubsection';
@@ -29,6 +47,7 @@ import { CanvasGallery, type GalleryElementUpdates } from './CanvasGallery';
 import { CanvasChart } from './CanvasChart';
 import { CanvasPdf } from './CanvasPdf';
 import { CanvasDocuments, type DocumentsElementUpdates } from './CanvasDocuments';
+import { CanvasPageLink } from './CanvasPageLink';
 import { CanvasAddBar } from './CanvasAddBar';
 import { CanvasGhostWireframe } from './CanvasGhostWireframe';
 import { CanvasEmptyNotice } from './CanvasEmptyNotice';
@@ -46,6 +65,7 @@ export interface NodeCanvasProps {
   nodeTitle: string;
   accentColor?: string;
   className?: string;
+  onNavigateToPage?: (pageId: string) => void;
 }
 
 interface ActiveCanvasModalState {
@@ -54,6 +74,7 @@ interface ActiveCanvasModalState {
   elementType: CanvasModalElementType;
   itemId?: string;
   pointId?: string;
+  editingPageId?: string;
   initialData?: CanvasElementFormData;
   targetSectionId?: string;
   targetIndex?: number;
@@ -106,7 +127,8 @@ function renderCanvasLeaf(
   onUpdateDocuments?: (
     leafId: string,
     updates: DocumentsElementUpdates
-  ) => Promise<{ ok: boolean; error?: string } | void> | void
+  ) => Promise<{ ok: boolean; error?: string } | void> | void,
+  onNavigateToPage?: (pageId: string) => void
 ): React.ReactNode {
   switch (leaf.type) {
     case 'text':
@@ -175,6 +197,16 @@ function renderCanvasLeaf(
           onEdit={onEditLeaf ? () => onEditLeaf(leaf) : undefined}
         />
       );
+    case 'page-link':
+      return (
+        <CanvasPageLink
+          element={leaf}
+          nodeId={nodeId}
+          accentColor={accentColor}
+          onNavigate={onNavigateToPage}
+          onEdit={onEditLeaf ? () => onEditLeaf(leaf) : undefined}
+        />
+      );
     default:
       return null;
   }
@@ -193,6 +225,8 @@ function buildPdfElementFields(data: CanvasElementFormData): Omit<PdfElement, 'i
   };
 }
 
+
+
 /**
  * DocumentCanvas Component
  * Folio Engine — Task 9.8: Unified Dynamic Canvas Add & Edit Modals and Drawers Architecture
@@ -209,16 +243,24 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
   nodeTitle,
   accentColor,
   className,
+  onNavigateToPage,
 }) => {
-  const { isDevMode, isDesktop } = useDeveloperMode();
+  const { isDevMode, isDesktop, lockToken } = useDeveloperMode();
   const isAuthoringActive = isDevMode && isDesktop;
+  const portalChrome = usePortalChrome();
+  const parentPagePath = buildPagePath(
+    nodeId,
+    getActiveNodes(),
+    portalChrome?.pages ?? {},
+    getEngineConfig().basePath
+  );
 
   const {
     document,
     isHydrating,
+    addSection,
+    addSubsection,
     addElement,
-    restoreSection,
-    restoreSubsection,
     moveItem,
     relocateItem,
     removeItem,
@@ -229,8 +271,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     retryFetch,
   } = useDocumentCanvas(nodeId);
 
-  const sectionNumbers = useDynamicCanvasSectionNumbers(nodeId, document?.sections || []);
-  const { undo } = useUndoRedo();
+  const sectionNumbers = useDynamicCanvasSectionNumbers(nodeId, document?.elements || []);
+  const { undo, pushAction } = useUndoRedo();
 
   const [showUndoToast, setShowUndoToast] = useState(false);
   const [activeAddBarId, setActiveAddBarId] = useState<string | null>(null);
@@ -245,14 +287,87 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     setActiveAddBarId(isOpen ? barId : null);
   }, []);
 
+  const executeAtomicCascadeDelete = useCallback(async (params: {
+    itemId: string;
+    parentId?: string;
+    targetPageIds: string[];
+    description: string;
+  }) => {
+    if (!document || !portalChrome) return;
+    const beforeParentCanvas = document;
+    const beforePages = portalChrome.pages;
+
+    let prunedPages = beforePages;
+    const deletedSet = new Set<string>();
+    for (const targetPageId of params.targetPageIds) {
+      if (!prunedPages[targetPageId]) continue;
+      const res = cascadeDeleteSubtree(prunedPages, targetPageId);
+      prunedPages = res.pages;
+      for (const id of res.deletedIds) {
+        deletedSet.add(id);
+      }
+    }
+
+    const deletedIds = Array.from(deletedSet);
+    if (deletedIds.length === 0) {
+      removeItem(params.itemId, params.parentId);
+      setShowUndoToast(true);
+      return;
+    }
+
+    const purgedCanvases: Record<string, NodeCanvasDocument> = {};
+    try {
+      const draftWorkspace = await getDraftWorkspace(lockToken);
+      for (const id of deletedIds) {
+        if (draftWorkspace.canvases?.[id]) {
+          purgedCanvases[id] = draftWorkspace.canvases[id];
+        }
+      }
+    } catch {
+      // Proceed with available state if workspace read fails
+    }
+
+    const nextParentCanvas = removeCanvasItem(beforeParentCanvas, params.itemId, params.parentId);
+    const { pages: finalPages } = deriveSubpageOrderFromCanvas(
+      prunedPages,
+      nodeId,
+      nextParentCanvas
+    );
+
+    await portalChrome.commitWorkspaceMutation({
+      canvases: { [nodeId]: nextParentCanvas },
+      pages: finalPages,
+      deletedPageIds: deletedIds,
+    });
+
+    setShowUndoToast(true);
+    pushAction(
+      createWorkspaceUndoAction({
+        type: 'page_delete_subtree',
+        description: params.description,
+        before: {
+          canvases: { [nodeId]: beforeParentCanvas, ...purgedCanvases },
+          pages: beforePages,
+        },
+        after: {
+          canvases: { [nodeId]: nextParentCanvas },
+          pages: finalPages,
+          deletedPageIds: deletedIds,
+        },
+        getLockToken: () => lockToken ?? null,
+      })
+    );
+  }, [document, lockToken, nodeId, portalChrome, pushAction, removeItem]);
+
   // Deletion Handlers with Toast Undo registration (delegated to UndoRedoContext)
+  // Deleting a Section or Subsection removes ONLY the heading block; lower content merges upward.
   const handleDeleteSection = useCallback((section: SectionElement, _index: number) => {
     removeItem(section.id);
     setShowUndoToast(true);
   }, [removeItem]);
 
-  const handleDeleteSubsection = useCallback((sectionId: string, subsection: SubsectionElement, _index: number) => {
-    removeItem(subsection.id, sectionId);
+  const handleDeleteSubsection = useCallback((subsection: SubsectionElement, _index: number) => {
+    removeItem(subsection.id);
     setShowUndoToast(true);
   }, [removeItem]);
 
@@ -262,9 +377,29 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     _index: number,
     subsectionId?: string
   ) => {
+    if (leaf.type === 'page-link') {
+      const pages = portalChrome?.pages ?? {};
+      const targetPage = pages[leaf.targetPageId];
+      if (!targetPage || !portalChrome || !document) {
+        removeItem(leaf.id, subsectionId || sectionId);
+        setShowUndoToast(true);
+        return;
+      }
+      const descendantCount = countDescendantPages(pages, targetPage.id);
+      void executeAtomicCascadeDelete({
+        itemId: leaf.id,
+        parentId: subsectionId || sectionId,
+        targetPageIds: [targetPage.id],
+        description:
+          descendantCount > 0
+            ? `Delete "${targetPage.title}" and ${descendantCount} nested subpages`
+            : `Delete subpage "${targetPage.title}"`,
+      });
+      return;
+    }
     removeItem(leaf.id, subsectionId || sectionId);
     setShowUndoToast(true);
-  }, [removeItem]);
+  }, [document, executeAtomicCascadeDelete, portalChrome, removeItem]);
 
   // Undo Handler popping directly from UndoRedoContext
   const handleUndoDelete = useCallback(() => {
@@ -425,6 +560,25 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       return;
     }
 
+    if (leaf.type === 'page-link') {
+      const targetPage = portalChrome?.pages?.[leaf.targetPageId];
+      if (!targetPage) return;
+      setActiveModal({
+        isOpen: true,
+        mode: 'edit',
+        elementType: 'page-link',
+        itemId: leaf.id,
+        editingPageId: targetPage.id,
+        initialData: {
+          title: targetPage.title,
+          slug: targetPage.slug,
+          summary: targetPage.summary || '',
+          coverImage: targetPage.coverImage || '',
+        },
+      });
+      return;
+    }
+
     if (leaf.type !== 'text' && leaf.type !== 'pdf') {
       return;
     }
@@ -433,16 +587,16 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     const initialData: CanvasElementFormData =
       leaf.type === 'pdf'
         ? {
-            title: leaf.title || '',
-            src: leaf.src || '',
-            driveUrl: leaf.driveUrl || '',
-            caption: leaf.caption || '',
-            showCaption: Boolean(leaf.showCaption || (leaf.caption && leaf.caption.trim().length > 0)),
-          }
+          title: leaf.title || '',
+          src: leaf.src || '',
+          driveUrl: leaf.driveUrl || '',
+          caption: leaf.caption || '',
+          showCaption: Boolean(leaf.showCaption || (leaf.caption && leaf.caption.trim().length > 0)),
+        }
         : {
-            content: leaf.content,
-            as: leaf.as || 'p',
-          };
+          content: leaf.content,
+          as: leaf.as || 'p',
+        };
 
     setActiveModal({
       isOpen: true,
@@ -452,15 +606,15 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       pointId,
       initialData,
     });
-  }, [handleEditPhoto]);
+  }, [handleEditPhoto, portalChrome?.pages]);
 
   // Creation Handler executing upon valid submission in Add Mode
   const handleExecuteAdd = useCallback((
     type: CanvasModalElementType,
     payload: CanvasElementFormData,
-    targetSectionId?: string,
+    _targetSectionId?: string,
     targetIndex?: number,
-    targetSubsectionId?: string
+    _targetSubsectionId?: string
   ) => {
     if (type === 'section') {
       const secId = generateCanvasId('section');
@@ -473,16 +627,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         title: payload.title?.trim() || 'Section',
         titlePointId,
         isNumbered,
-        elements: [],
       };
-      if (targetSectionId) {
-        const secIdx = document.sections.findIndex((s) => s.id === targetSectionId);
-        if (secIdx !== -1) {
-          restoreSection(newSec, secIdx + 1);
-          return;
-        }
-      }
-      restoreSection(newSec, targetIndex);
+      addSection(targetIndex, newSec);
       return;
     }
 
@@ -494,39 +640,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         type: 'subsection',
         title: payload.title?.trim() || 'Subsection',
         titlePointId,
-        elements: [],
       };
-      if (targetSectionId) {
-        if (targetSubsectionId) {
-          const parentSec = document.sections.find((s) => s.id === targetSectionId);
-          const subIdx = parentSec
-            ? parentSec.elements.findIndex((el) => el.id === targetSubsectionId)
-            : -1;
-          restoreSubsection(
-            targetSectionId,
-            newSub,
-            subIdx !== -1 ? subIdx + 1 : undefined
-          );
-        } else {
-          restoreSubsection(targetSectionId, newSub, targetIndex);
-        }
-      } else if (document.sections.length > 0) {
-        const targetSec = (typeof targetIndex === 'number' && targetIndex === 0)
-          ? document.sections[0]
-          : document.sections[Math.min((targetIndex ?? 1) - 1, document.sections.length - 1)];
-        restoreSubsection(targetSec.id, newSub);
-      } else {
-        const secId = generateCanvasId('section');
-        const newSec: SectionElement = {
-          id: secId,
-          type: 'section',
-          title: 'Section 1',
-          titlePointId: `node.${nodeId}.section.${secId}.title`,
-          isNumbered: true,
-          elements: [newSub],
-        };
-        restoreSection(newSec, 0);
-      }
+      addSubsection(targetIndex, newSub);
       return;
     }
 
@@ -576,30 +691,120 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       };
     }
 
-    if (targetSectionId) {
-      addElement(targetSectionId, leaf, targetIndex, targetSubsectionId);
-    } else {
-      if (document.sections.length === 0) {
-        const newSec = createDefaultSection(0, nodeId);
-        newSec.elements.push(leaf);
-        restoreSection(newSec, 0);
-      } else {
-        const targetSec = (typeof targetIndex === 'number' && targetIndex === 0)
-          ? document.sections[0]
-          : document.sections[Math.min((targetIndex ?? 1) - 1, document.sections.length - 1)];
-        const insertIdx = (typeof targetIndex === 'number' && targetIndex === 0)
-          ? 0
-          : undefined;
-        addElement(targetSec.id, leaf, insertIdx);
-      }
-    }
-  }, [nodeId, document.sections, restoreSection, restoreSubsection, addElement]);
+    addElement(leaf, targetIndex);
+  }, [nodeId, addSection, addSubsection, addElement]);
 
   // Unified submit dispatcher executing Canvas AST persistence
-  const handleModalSubmit = useCallback((data: CanvasElementFormData) => {
+  const handleModalSubmit = useCallback(async (data: CanvasElementFormData) => {
     if (!activeModal) return;
 
-    const { mode, elementType, itemId, targetSectionId, targetIndex, targetSubsectionId } = activeModal;
+    const {
+      mode,
+      elementType,
+      itemId,
+      editingPageId,
+      targetSectionId,
+      targetIndex,
+      targetSubsectionId,
+    } = activeModal;
+
+    if (elementType === 'page-link') {
+      if (!portalChrome) {
+        throw new Error('Portal workspace is not ready.');
+      }
+
+      if (mode === 'add') {
+        const beforeParentCanvas = document;
+        const beforePages = portalChrome.pages;
+        const trimmedSummary = data.summary?.trim();
+        const trimmedCover = data.coverImage?.trim();
+        const { pages: createdPages, page: newPage } = createPageNode(beforePages, {
+          parentId: nodeId,
+          title: data.title?.trim() || 'Untitled Page',
+          slug: data.slug?.trim(),
+          ...(trimmedSummary ? { summary: trimmedSummary } : {}),
+          ...(trimmedCover ? { coverImage: trimmedCover } : {}),
+        });
+        const newSubpageCanvas = createDefaultCanvasDocument(newPage.id);
+        const newCard = createDefaultPageLink(newPage.id);
+
+        const nextParentCanvas = insertCanvasElement(
+          beforeParentCanvas,
+          newCard,
+          targetIndex
+        );
+
+        const { pages: finalPages } = deriveSubpageOrderFromCanvas(
+          createdPages,
+          nodeId,
+          nextParentCanvas
+        );
+
+        await portalChrome.commitWorkspaceMutation({
+          canvases: {
+            [nodeId]: nextParentCanvas,
+            [newPage.id]: newSubpageCanvas,
+          },
+          pages: finalPages,
+        });
+
+        pushAction(
+          createWorkspaceUndoAction({
+            type: 'page_create',
+            description: `Add page "${newPage.title}"`,
+            before: {
+              canvases: { [nodeId]: beforeParentCanvas },
+              pages: beforePages,
+              deletedPageIds: [newPage.id],
+            },
+            after: {
+              canvases: {
+                [nodeId]: nextParentCanvas,
+                [newPage.id]: newSubpageCanvas,
+              },
+              pages: finalPages,
+            },
+            getLockToken: () => lockToken ?? null,
+          })
+        );
+
+        setActiveModal(null);
+        return;
+      }
+
+      if (mode === 'edit' && editingPageId) {
+        const beforePages = portalChrome.pages;
+        const trimmedSummary = data.summary?.trim();
+        const trimmedCover = data.coverImage?.trim();
+        const { pages: nextPages, page: updatedPage } = updatePageNodeMetadata(
+          beforePages,
+          editingPageId,
+          {
+            title: data.title?.trim() || 'Untitled Page',
+            slug: data.slug?.trim(),
+            summary: trimmedSummary ?? '',
+            coverImage: trimmedCover || undefined,
+          }
+        );
+
+        await portalChrome.commitWorkspaceMutation({
+          pages: nextPages,
+        });
+
+        pushAction(
+          createWorkspaceUndoAction({
+            type: 'page_update_metadata',
+            description: `Update page "${updatedPage.title}"`,
+            before: { pages: beforePages },
+            after: { pages: nextPages },
+            getLockToken: () => lockToken ?? null,
+          })
+        );
+
+        setActiveModal(null);
+        return;
+      }
+    }
 
     if (mode === 'add') {
       handleExecuteAdd(elementType, data, targetSectionId, targetIndex, targetSubsectionId);
@@ -639,7 +844,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     }
 
     setActiveModal(null);
-  }, [activeModal, updateItem, handleExecuteAdd]);
+  }, [activeModal, document, lockToken, nodeId, portalChrome, pushAction, updateItem, handleExecuteAdd]);
 
   // Gallery Element dynamic update handler (fail-stop KV persistence)
   const handleUpdateGallery = useCallback(
@@ -710,8 +915,12 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
   }, [relocateItem]);
 
 
+  const validElements = (document?.elements || []).filter(
+    (el): el is typeof el => Boolean(el && el.id && el.type)
+  );
+
   // Subtask 2.8: Zero Flash-of-Baseline — render calm skeleton wireframe on cold load
-  if (isHydrating && (!document || document.sections.length === 0)) {
+  if (isHydrating && validElements.length === 0) {
     return <CanvasGhostWireframe nodeId={nodeId} className={className} />;
   }
 
@@ -727,7 +936,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
   }
 
   // Subtask 3.4: Dignified Public Empty Canvas State — render dignified notice in public mode ONLY once hydrated without error
-  if (!fetchError && (!document || document.sections.length === 0) && !isAuthoringActive) {
+  if (!fetchError && validElements.length === 0 && !isAuthoringActive) {
     return <CanvasEmptyNotice nodeTitle={nodeTitle} accentColor={accentColor} className={className} />;
   }
 
@@ -739,226 +948,153 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         transition: 'opacity var(--duration-normal) var(--ease-out)',
       }}
     >
-      {document.sections.length === 0 ? (
+      {/* Top Insertion Bar (also serves as the empty-canvas starter in Dev Mode) */}
+      {isAuthoringActive && (
         <CanvasAddBar
-          isInitialStarter={true}
-          barId="starter-bar"
+          barId="top-bar"
           activeBarId={activeAddBarId}
           onToggleActive={handleToggleAddBarActive}
-          onAddElement={() => handleAddElement('section')}
-          label="Click to add the first Section"
+          onAddElement={(type) => handleAddElement(type, undefined, 0)}
           accentColor={accentColor}
         />
-      ) : (
-        <>
-          {/* Top Section Insertion Bar */}
-          {isAuthoringActive && (
-            <CanvasAddBar
-              barId="top-bar"
-              activeBarId={activeAddBarId}
-              onToggleActive={handleToggleAddBarActive}
-              onAddElement={(type) => handleAddElement(type, undefined, 0)}
-              accentColor={accentColor}
-            />
-          )}
+      )}
 
-          {/* Dynamic Sections Loop */}
-          {document.sections.map((section, secIdx) => {
-            const canMoveSecUp = secIdx > 0;
-            const canMoveSecDown = secIdx < document.sections.length - 1;
-            const computedNumber = sectionNumbers[section.id];
+      {/* Flat Canvas Elements Loop */}
+      {validElements.map((element, idx) => {
+        const canMoveUp = idx > 0;
+        const canMoveDown = idx < validElements.length - 1;
 
+          if (element.type === 'section') {
+            const computedNumber = sectionNumbers[element.id];
             return (
-              <React.Fragment key={section.id}>
+              <React.Fragment key={element.id}>
                 <CanvasItemControls
-                  itemId={section.id}
+                  itemId={element.id}
                   itemType="section"
-                  canMoveUp={canMoveSecUp}
-                  canMoveDown={canMoveSecDown}
-                  onMoveUp={() => moveItem(section.id, 'up')}
-                  onMoveDown={() => moveItem(section.id, 'down')}
-                  onDelete={() => handleDeleteSection(section, secIdx)}
-                  onEdit={() => handleEditSection(section)}
+                  canMoveUp={canMoveUp}
+                  canMoveDown={canMoveDown}
+                  onMoveUp={() => moveItem(element.id, 'up')}
+                  onMoveDown={() => moveItem(element.id, 'down')}
+                  onDelete={() => handleDeleteSection(element, idx)}
+                  onEdit={() => handleEditSection(element)}
                   suppressHover={Boolean(activeAddBarId)}
                   sourceParentId={nodeId}
-                  sourceIndex={secIdx}
-                  hasChildren={section.elements.length > 0}
+                  sourceIndex={idx}
                   onDropItem={handleDropItem}
                 >
                   <CanvasSection
-                    section={section}
+                    section={element}
                     nodeId={nodeId}
                     nodeTitle={nodeTitle}
                     accentColor={accentColor}
                     computedNumber={computedNumber}
-                    onEdit={() => handleEditSection(section)}
-                  >
-                    {/* Section-Level Post-Header Insertion Bar: Always shown in Dev Mode to allow inserting at index 0 */}
-                    {isAuthoringActive && (
-                      <CanvasAddBar
-                        barId={`sec-top-${section.id}`}
-                        activeBarId={activeAddBarId}
-                        onToggleActive={handleToggleAddBarActive}
-                        onAddElement={(type) => handleAddElement(type, section.id, 0)}
-                        accentColor={accentColor}
-                      />
-                    )}
-
-                    {/* Section Child Elements */}
-                    {(section.elements || [])
-                      .filter((child): child is typeof child => Boolean(child && child.id && child.type))
-                      .map((child, childIdx, validChildren) => {
-                        const canMoveChildUp = !(secIdx === 0 && childIdx === 0);
-                        const canMoveChildDown = !(
-                          secIdx === document.sections.length - 1 &&
-                          childIdx === validChildren.length - 1
-                        );
-
-                        if (child.type === 'subsection') {
-                          const validSubLeaves = (child.elements || []).filter(
-                            (subLeaf): subLeaf is typeof subLeaf => Boolean(subLeaf && subLeaf.id && subLeaf.type)
-                          );
-                          return (
-                            <React.Fragment key={child.id}>
-                              <CanvasItemControls
-                                itemId={child.id}
-                                itemType="subsection"
-                                canMoveUp={canMoveChildUp}
-                                canMoveDown={canMoveChildDown}
-                                onMoveUp={() => moveItem(child.id, 'up', section.id)}
-                                onMoveDown={() => moveItem(child.id, 'down', section.id)}
-                                onDelete={() => handleDeleteSubsection(section.id, child, childIdx)}
-                                onEdit={() => handleEditSubsection(child)}
-                                suppressHover={Boolean(activeAddBarId)}
-                                sourceParentId={section.id}
-                                sourceIndex={childIdx}
-                                hasChildren={validSubLeaves.length > 0}
-                                onDropItem={handleDropItem}
-                              >
-                                <CanvasSubsection
-                                  subsection={child}
-                                  nodeId={nodeId}
-                                  accentColor={accentColor}
-                                  onEdit={() => handleEditSubsection(child)}
-                                >
-                                  {/* Subsection-Level Post-Header Insertion Bar: Always shown in Dev Mode */}
-                                  {isAuthoringActive && (
-                                    <CanvasAddBar
-                                      barId={`sub-top-${child.id}`}
-                                      activeBarId={activeAddBarId}
-                                      onToggleActive={handleToggleAddBarActive}
-                                      onAddElement={(type) => handleAddElement(type, section.id, 0, child.id)}
-                                      accentColor={accentColor}
-                                    />
-                                  )}
-
-                                  {/* Subsection Leaf Elements */}
-                                  {validSubLeaves.map((subLeaf, leafIdx) => {
-                                    const canMoveLeafUp = !(secIdx === 0 && childIdx === 0 && leafIdx === 0);
-                                    const canMoveLeafDown = !(
-                                      secIdx === document.sections.length - 1 &&
-                                      childIdx === validChildren.length - 1 &&
-                                      leafIdx === validSubLeaves.length - 1
-                                    );
-
-                                    return (
-                                      <React.Fragment key={subLeaf.id}>
-                                        <CanvasItemControls
-                                          itemId={subLeaf.id}
-                                          itemType={subLeaf.type}
-                                          canMoveUp={canMoveLeafUp}
-                                          canMoveDown={canMoveLeafDown}
-                                          onMoveUp={() => moveItem(subLeaf.id, 'up', child.id)}
-                                          onMoveDown={() => moveItem(subLeaf.id, 'down', child.id)}
-                                          onDelete={() => handleDeleteLeaf(section.id, subLeaf, leafIdx, child.id)}
-                                          onEdit={() => handleEditLeaf(subLeaf)}
-                                          suppressHover={Boolean(activeAddBarId)}
-                                          sourceParentId={child.id}
-                                          sourceIndex={leafIdx}
-                                          onDropItem={handleDropItem}
-                                        >
-                                          {renderCanvasLeaf(
-                                            subLeaf,
-                                            nodeId,
-                                            nodeTitle,
-                                            accentColor,
-                                            handleEditPhoto,
-                                            handleEditLeaf,
-                                            handleUpdateGallery,
-                                            updateItem,
-                                            handleUpdateDocuments
-                                          )}
-                                        </CanvasItemControls>
-
-                                        {isAuthoringActive && (
-                                          <CanvasAddBar
-                                            barId={`leaf-${subLeaf.id}`}
-                                            activeBarId={activeAddBarId}
-                                            onToggleActive={handleToggleAddBarActive}
-                                            onAddElement={(type) =>
-                                              handleAddElement(type, section.id, leafIdx + 1, child.id)
-                                            }
-                                            accentColor={accentColor}
-                                          />
-                                        )}
-                                      </React.Fragment>
-                                    );
-                                  })}
-                                </CanvasSubsection>
-                              </CanvasItemControls>
-                            </React.Fragment>
-                          );
-                        }
-
-                        // Direct Section Leaf Elements
-                        return (
-                          <React.Fragment key={child.id}>
-                            <CanvasItemControls
-                              itemId={child.id}
-                              itemType={child.type}
-                              canMoveUp={canMoveChildUp}
-                              canMoveDown={canMoveChildDown}
-                              onMoveUp={() => moveItem(child.id, 'up', section.id)}
-                              onMoveDown={() => moveItem(child.id, 'down', section.id)}
-                              onDelete={() => handleDeleteLeaf(section.id, child, childIdx)}
-                              onEdit={() => handleEditLeaf(child)}
-                              suppressHover={Boolean(activeAddBarId)}
-                              sourceParentId={section.id}
-                              sourceIndex={childIdx}
-                              onDropItem={handleDropItem}
-                            >
-                              {renderCanvasLeaf(
-                                child,
-                                nodeId,
-                                nodeTitle,
-                                accentColor,
-                                handleEditPhoto,
-                                handleEditLeaf,
-                                handleUpdateGallery,
-                                updateItem,
-                                handleUpdateDocuments
-                              )}
-                            </CanvasItemControls>
-
-                            {isAuthoringActive && (
-                              <CanvasAddBar
-                                barId={`direct-leaf-${child.id}`}
-                                activeBarId={activeAddBarId}
-                                onToggleActive={handleToggleAddBarActive}
-                                onAddElement={(type) => handleAddElement(type, section.id, childIdx + 1)}
-                                accentColor={accentColor}
-                              />
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                  </CanvasSection>
+                    onEdit={() => handleEditSection(element)}
+                  />
                 </CanvasItemControls>
+
+                {isAuthoringActive && (
+                  <CanvasAddBar
+                    barId={`after-${element.id}`}
+                    activeBarId={activeAddBarId}
+                    onToggleActive={handleToggleAddBarActive}
+                    onAddElement={(type) => handleAddElement(type, undefined, idx + 1)}
+                    accentColor={accentColor}
+                  />
+                )}
               </React.Fragment>
             );
-          })}
-        </>
-      )}
+          }
+
+          if (element.type === 'subsection') {
+            return (
+              <React.Fragment key={element.id}>
+                <CanvasItemControls
+                  itemId={element.id}
+                  itemType="subsection"
+                  canMoveUp={canMoveUp}
+                  canMoveDown={canMoveDown}
+                  onMoveUp={() => moveItem(element.id, 'up')}
+                  onMoveDown={() => moveItem(element.id, 'down')}
+                  onDelete={() => handleDeleteSubsection(element, idx)}
+                  onEdit={() => handleEditSubsection(element)}
+                  suppressHover={Boolean(activeAddBarId)}
+                  sourceParentId={nodeId}
+                  sourceIndex={idx}
+                  onDropItem={handleDropItem}
+                >
+                  <CanvasSubsection
+                    subsection={element}
+                    nodeId={nodeId}
+                    accentColor={accentColor}
+                    onEdit={() => handleEditSubsection(element)}
+                  />
+                </CanvasItemControls>
+
+                {isAuthoringActive && (
+                  <CanvasAddBar
+                    barId={`after-${element.id}`}
+                    activeBarId={activeAddBarId}
+                    onToggleActive={handleToggleAddBarActive}
+                    onAddElement={(type) => handleAddElement(type, undefined, idx + 1)}
+                    accentColor={accentColor}
+                  />
+                )}
+              </React.Fragment>
+            );
+          }
+
+          const leafTargetPage =
+            element.type === 'page-link'
+              ? portalChrome?.pages?.[element.targetPageId]
+              : undefined;
+          const leafDescendantCount = leafTargetPage
+            ? countDescendantPages(portalChrome?.pages ?? {}, leafTargetPage.id)
+            : 0;
+
+          return (
+            <React.Fragment key={element.id}>
+              <CanvasItemControls
+                itemId={element.id}
+                itemType={element.type}
+                canMoveUp={canMoveUp}
+                canMoveDown={canMoveDown}
+                onMoveUp={() => moveItem(element.id, 'up')}
+                onMoveDown={() => moveItem(element.id, 'down')}
+                onDelete={() => handleDeleteLeaf(nodeId, element, idx)}
+                onEdit={() => handleEditLeaf(element)}
+                suppressHover={Boolean(activeAddBarId)}
+                sourceParentId={nodeId}
+                sourceIndex={idx}
+                targetPageTitle={leafTargetPage?.title}
+                descendantPageCount={leafDescendantCount}
+                onDropItem={handleDropItem}
+              >
+                {renderCanvasLeaf(
+                  element,
+                  nodeId,
+                  nodeTitle,
+                  accentColor,
+                  handleEditPhoto,
+                  handleEditLeaf,
+                  handleUpdateGallery,
+                  updateItem,
+                  handleUpdateDocuments,
+                  onNavigateToPage
+                )}
+              </CanvasItemControls>
+
+              {isAuthoringActive && (
+                <CanvasAddBar
+                  barId={`after-${element.id}`}
+                  activeBarId={activeAddBarId}
+                  onToggleActive={handleToggleAddBarActive}
+                  onAddElement={(type) => handleAddElement(type, undefined, idx + 1)}
+                  accentColor={accentColor}
+                />
+              )}
+            </React.Fragment>
+          );
+        })}
 
       {/* Undo Toast Notification */}
       {showUndoToast && (
@@ -996,6 +1132,10 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         targetSectionId={activeModal?.targetSectionId}
         targetIndex={activeModal?.targetIndex}
         targetSubsectionId={activeModal?.targetSubsectionId}
+        parentPagePath={parentPagePath}
+        parentPageId={nodeId}
+        existingPages={portalChrome?.pages}
+        editingPageId={activeModal?.editingPageId}
         onClose={() => setActiveModal(null)}
         onSubmit={handleModalSubmit}
         onResetToDefault={handleResetModal}
@@ -1017,42 +1157,25 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                 generateCanvasId(isDocs ? 'documents' : 'gallery');
               const newLeaf: GalleryElement | DocumentsElement = isDocs
                 ? {
-                    id: newId,
-                    type: 'documents',
-                    pointId: activeGalleryModal.pointId,
-                    title: newTitle.trim() || undefined,
-                    titlePointId: `node.${nodeId}.documents.${newId}.title`,
-                    driveUrl: newUrl.trim() || undefined,
-                  }
+                  id: newId,
+                  type: 'documents',
+                  pointId: activeGalleryModal.pointId,
+                  title: newTitle.trim() || undefined,
+                  titlePointId: `node.${nodeId}.documents.${newId}.title`,
+                  driveUrl: newUrl.trim() || undefined,
+                }
                 : {
-                    id: newId,
-                    type: 'gallery',
-                    pointId: activeGalleryModal.pointId,
-                    title: newTitle.trim() || undefined,
-                    titlePointId: `node.${nodeId}.gallery.${newId}.title`,
-                    driveUrl: newUrl.trim() || undefined,
-                  };
-              let result: { ok: boolean; error?: string } | undefined;
-              if (activeGalleryModal.targetSectionId) {
-                result = await addElement(
-                  activeGalleryModal.targetSectionId,
-                  newLeaf,
-                  activeGalleryModal.targetIndex,
-                  activeGalleryModal.targetSubsectionId
-                );
-              } else if (document.sections.length === 0) {
-                const newSec = createDefaultSection(0, nodeId);
-                newSec.elements.push(newLeaf);
-                result = await restoreSection(newSec, 0);
-              } else {
-                const targetSec = (typeof activeGalleryModal.targetIndex === 'number' && activeGalleryModal.targetIndex === 0)
-                  ? document.sections[0]
-                  : document.sections[Math.min((activeGalleryModal.targetIndex ?? 1) - 1, document.sections.length - 1)];
-                const insertIdx = (typeof activeGalleryModal.targetIndex === 'number' && activeGalleryModal.targetIndex === 0)
-                  ? 0
-                  : undefined;
-                result = await addElement(targetSec.id, newLeaf, insertIdx);
-              }
+                  id: newId,
+                  type: 'gallery',
+                  pointId: activeGalleryModal.pointId,
+                  title: newTitle.trim() || undefined,
+                  titlePointId: `node.${nodeId}.gallery.${newId}.title`,
+                  driveUrl: newUrl.trim() || undefined,
+                };
+              const result = await addElement(
+                newLeaf,
+                activeGalleryModal.targetIndex
+              );
               if (result && !result.ok) {
                 return result;
               }
@@ -1094,29 +1217,10 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                 config,
                 dataset,
               };
-              let result: { ok: boolean; error?: string } | undefined;
-              if (activeChartDrawer.targetSectionId) {
-                result = await addElement(
-                  activeChartDrawer.targetSectionId,
-                  chartLeaf,
-                  activeChartDrawer.targetIndex,
-                  activeChartDrawer.targetSubsectionId
-                );
-              } else {
-                if (document.sections.length === 0) {
-                  const newSec = createDefaultSection(0, nodeId);
-                  newSec.elements.push(chartLeaf);
-                  result = await restoreSection(newSec, 0);
-                } else {
-                  const targetSec = (typeof activeChartDrawer.targetIndex === 'number' && activeChartDrawer.targetIndex === 0)
-                    ? document.sections[0]
-                    : document.sections[Math.min((activeChartDrawer.targetIndex ?? 1) - 1, document.sections.length - 1)];
-                  const insertIdx = (typeof activeChartDrawer.targetIndex === 'number' && activeChartDrawer.targetIndex === 0)
-                    ? 0
-                    : undefined;
-                  result = await addElement(targetSec.id, chartLeaf, insertIdx);
-                }
-              }
+              const result = await addElement(
+                chartLeaf,
+                activeChartDrawer.targetIndex
+              );
               if (result && !result.ok) {
                 return result;
               }

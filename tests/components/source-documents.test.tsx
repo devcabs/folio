@@ -325,15 +325,15 @@ describe('11.5 SourceDocuments, PdfPreviewModal, CanvasAddBar Submenu & Document
 
     const doc: NodeCanvasDocument = {
       nodeId: 'access',
-      version: 1,
+      version: 3,
       updatedAt: '2026-10-01T00:00:00.000Z',
-      sections: [
+      elements: [
         {
           id: 'sec-1',
           type: 'section',
           title: 'Section 1',
-          elements: [docsElement],
         },
+        docsElement,
       ],
     };
 

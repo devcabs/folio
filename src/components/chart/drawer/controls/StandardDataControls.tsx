@@ -1,9 +1,15 @@
 import React from 'react';
 import type { ChartType } from '../../../../types/chart';
 import {
+  Button,
+  Checkbox,
   ColumnSelect,
   DraggableRows,
   AccordionSection,
+  FormField,
+  Input,
+  SegmentedControl,
+  Select,
 } from '../../../ui';
 import { resolveUniqueChartColors } from '../../../../utils/chartColors';
 import { indexToColLetter } from '../../../../utils/chartSanitizer';
@@ -70,10 +76,10 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
           chartType === 'line'
             ? 'Category / Date (X-Axis)'
             : chartType === 'donut'
-            ? 'Slice Categories'
-            : chartType === 'histogram'
-            ? 'Values to Group (X-Axis)'
-            : 'Category (X-Axis)'
+              ? 'Slice Categories'
+              : chartType === 'histogram'
+                ? 'Values to Group (X-Axis)'
+                : 'Category (X-Axis)'
         }
         defaultOpen={true}
       >
@@ -103,63 +109,50 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
         <AccordionSection title="Binning & Distribution" defaultOpen={true}>
           {binStrategy === 'custom' ? (
             <div className={styles.twoColRow}>
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="cfg-bin-strategy">
-                  <span>Grouping Method</span>
-                </label>
-                <select
+              <FormField id="cfg-bin-strategy" label="Grouping Method">
+                <Select
                   id="cfg-bin-strategy"
-                  className={styles.select}
                   value={binStrategy}
                   onChange={(e) => setBinStrategy(e.target.value as 'auto' | 'custom')}
                 >
                   <option value="auto">Automatic Best Fit</option>
                   <option value="custom">Custom Ranges</option>
-                </select>
-              </div>
+                </Select>
+              </FormField>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="cfg-custom-bin-mode">
-                  <span>Custom Range By</span>
-                </label>
-                <select
+              <FormField id="cfg-custom-bin-mode" label="Custom Range By">
+                <Select
                   id="cfg-custom-bin-mode"
-                  className={styles.select}
                   value={customBinMode}
                   onChange={(e) => setCustomBinMode(e.target.value as 'step' | 'count')}
                 >
                   <option value="step">Range Size</option>
                   <option value="count">Number of Groups</option>
-                </select>
-              </div>
+                </Select>
+              </FormField>
             </div>
           ) : (
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="cfg-bin-strategy">
-                <span>Grouping Method</span>
-              </label>
-              <select
+            <FormField id="cfg-bin-strategy" label="Grouping Method">
+              <Select
                 id="cfg-bin-strategy"
-                className={styles.select}
                 value={binStrategy}
                 onChange={(e) => setBinStrategy(e.target.value as 'auto' | 'custom')}
               >
                 <option value="auto">Automatic Best Fit</option>
                 <option value="custom">Custom Ranges</option>
-              </select>
-            </div>
+              </Select>
+            </FormField>
           )}
 
           {binStrategy === 'custom' && (
-            <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor={customBinMode === 'step' ? 'cfg-bucket-size' : 'cfg-bin-count'}>
-                <span>{customBinMode === 'step' ? 'Range Size' : 'Number of Groups'}</span>
-              </label>
+            <FormField
+              id={customBinMode === 'step' ? 'cfg-bucket-size' : 'cfg-bin-count'}
+              label={customBinMode === 'step' ? 'Range Size' : 'Number of Groups'}
+            >
               {customBinMode === 'step' ? (
-                <input
+                <Input
                   id="cfg-bucket-size"
                   type="number"
-                  className={styles.input}
                   min={1}
                   step={1}
                   value={bucketSize}
@@ -179,10 +172,9 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
                   }}
                 />
               ) : (
-                <input
+                <Input
                   id="cfg-bin-count"
                   type="number"
-                  className={styles.input}
                   min={2}
                   max={50}
                   step={1}
@@ -205,39 +197,21 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
                   }}
                 />
               )}
-            </div>
+            </FormField>
           )}
 
           <div className={styles.formGroup}>
             <span className={styles.label}>Display Values As</span>
-            <div
-              className={styles.segmentedControl}
-              role="radiogroup"
+            <SegmentedControl<'frequency' | 'relative'>
+              value={histogramYMode}
+              onChange={setHistogramYMode}
               aria-label="Display Values As"
-            >
-              <button
-                type="button"
-                role="radio"
-                aria-checked={histogramYMode === 'frequency'}
-                className={`${styles.segmentBtn} ${
-                  histogramYMode === 'frequency' ? styles.segmentBtnActive : ''
-                }`}
-                onClick={() => setHistogramYMode('frequency')}
-              >
-                Count
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={histogramYMode === 'relative'}
-                className={`${styles.segmentBtn} ${
-                  histogramYMode === 'relative' ? styles.segmentBtnActive : ''
-                }`}
-                onClick={() => setHistogramYMode('relative')}
-              >
-                Percentage
-              </button>
-            </div>
+              size="sm"
+              options={[
+                { value: 'frequency', label: 'Count' },
+                { value: 'relative', label: 'Percentage' },
+              ]}
+            />
           </div>
         </AccordionSection>
       )}
@@ -268,18 +242,12 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
               }))}
           />
 
-          <div className={styles.formGroup}>
-            <label htmlFor="cfg-group-others" className={styles.checkboxLabel}>
-              <input
-                id="cfg-group-others"
-                type="checkbox"
-                className={styles.checkbox}
-                checked={groupOthers}
-                onChange={(e) => setGroupOthers(e.target.checked)}
-              />
-              <span>Group smaller slices into 'Other' (Top 5)</span>
-            </label>
-          </div>
+          <Checkbox
+            id="cfg-group-others"
+            checked={groupOthers}
+            onChange={setGroupOthers}
+            label="Group smaller slices into 'Other' (Top 5)"
+          />
         </AccordionSection>
       ) : (
         detectedColumns.filter((c) => c.index !== categoryColIndex).length > 0 && (() => {
@@ -315,16 +283,20 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
               <div className={styles.formGroup}>
                 {candidateColumns.length > 1 && (
                   <div className={styles.seriesActionsRow}>
-                    <button
+                    <Button
                       type="button"
+                      variant="secondary"
+                      size="xs"
                       className={styles.quickActionBtn}
                       disabled={activeIncluded.length === candidateColumns.length}
                       onClick={() => setIncludedSeriesIndices(candidateColumns.map((c) => c.index))}
                     >
                       All
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="secondary"
+                      size="xs"
                       className={styles.quickActionBtn}
                       disabled={
                         activeIncluded.length === 1 &&
@@ -333,7 +305,7 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
                       onClick={() => setIncludedSeriesIndices([candidateColumns[0].index])}
                     >
                       First
-                    </button>
+                    </Button>
                   </div>
                 )}
                 <DraggableRows<ColumnItem>
@@ -351,21 +323,23 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
                     const color = candidateColors[meta.index] || 'var(--folio-primary)';
 
                     return (
-                      <label className={styles.draggableRowLabel}>
-                        <input
-                          type="checkbox"
-                          className={styles.checkbox}
-                          checked={isChecked}
-                          onChange={() => handleToggleSeries(col.index)}
-                        />
-                        <span className={styles.seriesSwatch} style={{ backgroundColor: color }} />
-                        <span className={styles.draggableRowText}>
-                          {col.label}{' '}
-                          <span className={styles.draggableColLetter}>
-                            [{indexToColLetter(col.index)}]
+                      <Checkbox
+                        checked={isChecked}
+                        onChange={() => handleToggleSeries(col.index)}
+                        aria-label={col.label}
+                        className={styles.draggableRowLabel}
+                        label={
+                          <span className={styles.draggableRowContent}>
+                            <span className={styles.seriesSwatch} style={{ backgroundColor: color }} />
+                            <span className={styles.draggableRowText}>
+                              {col.label}{' '}
+                              <span className={styles.draggableColLetter}>
+                                [{indexToColLetter(col.index)}]
+                              </span>
+                            </span>
                           </span>
-                        </span>
-                      </label>
+                        }
+                      />
                     );
                   }}
                 />

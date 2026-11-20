@@ -1,5 +1,8 @@
 import React, { memo } from 'react';
 import { createPortal } from 'react-dom';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
+import { AlertCircleIcon, CloseIcon } from '../ui/Icons';
 import styles from './TopErrorBanner.module.css';
 
 export interface TopErrorBannerProps {
@@ -39,26 +42,7 @@ export const TopErrorBanner: React.FC<TopErrorBannerProps> = memo(({
       <div className={styles.contentWrapper}>
         <div className={styles.messageGroup}>
           <span className={styles.iconWrapper} aria-hidden="true">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M8 1.5C4.41 1.5 1.5 4.41 1.5 8C1.5 11.59 4.41 14.5 8 14.5C11.59 14.5 14.5 11.59 14.5 8C14.5 4.41 11.59 1.5 8 1.5Z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <path
-                d="M8 5V8.5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-              <circle cx="8" cy="11" r="0.75" fill="currentColor" />
-            </svg>
+            <AlertCircleIcon size={14} />
           </span>
 
           <span className={styles.badge}>Edge Error</span>
@@ -76,27 +60,27 @@ export const TopErrorBanner: React.FC<TopErrorBannerProps> = memo(({
 
         <div className={styles.actionGroup}>
           {onRetry && (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="xs"
               className={styles.retryButton}
               onClick={onRetry}
               aria-label="Retry loading domain data"
             >
               Retry
-            </button>
+            </Button>
           )}
 
           {onDismiss && (
-            <button
-              type="button"
+            <IconButton
+              variant="ghost"
+              size="xs"
               className={styles.dismissButton}
               onClick={onDismiss}
               aria-label="Dismiss error notice"
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </button>
+              <CloseIcon size={12} />
+            </IconButton>
           )}
         </div>
       </div>

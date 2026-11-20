@@ -1,7 +1,8 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 
 function loadSampleCanvases(): Record<string, any> {
@@ -38,39 +39,74 @@ function loadSampleCanvases(): Record<string, any> {
 }
 
 function createLocalEdgeDevPlugin(): Plugin {
+  const kvFilePath = fileURLToPath(new URL('./.vite/local-kv.json', import.meta.url));
   const kvStore = new Map<string, string>();
-  const now = new Date().toISOString();
-  const sampleNodeIds = ['access', 'equity', 'quality', 'resiliency', 'governance'];
-  const sampleCanvases = loadSampleCanvases();
 
-  kvStore.set(
-    'portal:manifest',
-    JSON.stringify({
-      activeSnapshotId: 'local-dev',
-      publishedAt: now,
-      nodeIds: sampleNodeIds,
-      schemaVersion: 1,
-      contentOverrides: {},
-    })
-  );
+  const persistKvStore = () => {
+    try {
+      mkdirSync(dirname(kvFilePath), { recursive: true });
+      writeFileSync(kvFilePath, JSON.stringify(Object.fromEntries(kvStore.entries())), 'utf8');
+    } catch {
+      // Best-effort persistence for local dev preview
+    }
+  };
 
-  for (const nodeId of sampleNodeIds) {
-    const canvas = sampleCanvases[nodeId] ?? {
-      nodeId,
-      version: 2,
-      sections: [],
-      updatedAt: now,
-    };
+  let hydratedFromDisk = false;
+  if (existsSync(kvFilePath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(kvFilePath, 'utf8')) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const entries = Object.entries(parsed as Record<string, unknown>);
+        if (entries.length > 0) {
+          for (const [k, v] of entries) {
+            if (typeof v === 'string') {
+              kvStore.set(k, v);
+            }
+          }
+          hydratedFromDisk = kvStore.size > 0;
+        }
+      }
+    } catch {
+      // Fall back to sample seed if local-kv.json is corrupted
+    }
+  }
+
+  if (!hydratedFromDisk) {
+    const now = new Date().toISOString();
+    const sampleNodeIds = ['access', 'equity', 'quality', 'resiliency', 'governance'];
+    const sampleCanvases = loadSampleCanvases();
+
     kvStore.set(
-      `node:${nodeId}`,
+      'portal:manifest',
       JSON.stringify({
-        nodeId,
-        snapshotId: 'local-dev',
-        version: 2,
-        updatedAt: now,
-        canvas,
+        activeSnapshotId: 'local-dev',
+        publishedAt: now,
+        nodeIds: sampleNodeIds,
+        schemaVersion: 1,
+        contentOverrides: {},
       })
     );
+
+    for (const nodeId of sampleNodeIds) {
+      const canvas = sampleCanvases[nodeId] ?? {
+        nodeId,
+        version: 2,
+        sections: [],
+        updatedAt: now,
+      };
+      kvStore.set(
+        `node:${nodeId}`,
+        JSON.stringify({
+          nodeId,
+          snapshotId: 'local-dev',
+          version: 2,
+          updatedAt: now,
+          canvas,
+        })
+      );
+    }
+
+    persistKvStore();
   }
 
   const localKv = {
@@ -84,12 +120,19 @@ function createLocalEdgeDevPlugin(): Plugin {
     async put(key: string, value: string | ArrayBuffer | ReadableStream) {
       if (typeof value === 'string') {
         kvStore.set(key, value);
+        persistKvStore();
       } else if (value instanceof ArrayBuffer) {
         kvStore.set(key, new TextDecoder().decode(value));
+        persistKvStore();
+      } else if (value && typeof (value as ReadableStream).getReader === 'function') {
+        const text = await new Response(value).text();
+        kvStore.set(key, text);
+        persistKvStore();
       }
     },
     async delete(key: string) {
       kvStore.delete(key);
+      persistKvStore();
     },
     async list(options?: { prefix?: string; limit?: number }) {
       const prefix = options?.prefix ?? '';
@@ -183,5 +226,8 @@ export default defineConfig({
   server: {
     port: 5174,
     host: true,
+    watch: {
+      ignored: ['**/.vite/**'],
+    },
   },
 });

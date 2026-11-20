@@ -9,7 +9,6 @@ export interface CanvasSubsectionProps {
   accentColor?: string;
   isDevMode?: boolean;
   className?: string;
-  children?: React.ReactNode;
   onEdit?: () => void;
 }
 
@@ -29,7 +28,6 @@ export const CanvasSubsection: React.FC<CanvasSubsectionProps> = memo(({
   accentColor,
   isDevMode: _isDevMode,
   className,
-  children,
   onEdit,
 }) => {
   const domId = subsection.id.startsWith('subsec-') ? subsection.id : `subsec-${subsection.id}`;
@@ -52,9 +50,6 @@ export const CanvasSubsection: React.FC<CanvasSubsectionProps> = memo(({
         editTriggerId={subsection.id}
         onEdit={onEdit}
       />
-      <div className={styles.subsectionBody}>
-        {children}
-      </div>
     </div>
   );
 });

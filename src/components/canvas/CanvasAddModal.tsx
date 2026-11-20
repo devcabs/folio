@@ -4,7 +4,10 @@ import { Button } from '../ui/Button';
 import type { CanvasElementType } from '../../types/canvas';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUnsavedChangesPrompt } from '../../hooks/useUnsavedChangesPrompt';
-import { resolveSingleDrivePhotoUrl } from '../../utils/mediaUrl';
+import {
+  CanvasElementFields,
+  type CanvasElementFieldsValue,
+} from './CanvasElementFields';
 import styles from './CanvasAddModal.module.css';
 
 export type AddModalElementType = CanvasElementType | 'gallery';
@@ -39,16 +42,25 @@ export interface CanvasAddModalProps {
   ) => void;
 }
 
+const INITIAL_DRAFT: CanvasElementFieldsValue = {
+  title: '',
+  isNumbered: true,
+  content: '',
+  as: 'p',
+  src: '',
+  alt: '',
+  caption: '',
+  showCaption: false,
+  driveUrl: '',
+  subtitle: '',
+};
+
 /**
  * CanvasAddModal Component
  * Folio Engine — Task 8.11: Required Form Fill Before Adding Elements
  *
- * Mandatory creation dialog requiring coordinators in Developer Mode to fill out
- * the necessary fields (titles, narratives, media) before adding elements to the canvas:
- * - Empty by default: Never populates fields with generic dummy values
- * - Enforces required field validation before the Add button is enabled
- * - Consumes canonical Modal and Button components with 100% token purity
- * - Adheres strictly to Universal Zero Outline Policy and Absolute Ban on Dividers
+ * Thin state/validation/submit shell delegating element form fields to
+ * canonical CanvasElementFields.
  */
 export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
   isOpen,
@@ -61,33 +73,13 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
   onConfirmAdd,
 }) => {
   const { showToast } = useDeveloperMode();
-  // Field drafts — initialized clean with zero default placeholder strings
-  const [title, setTitle] = useState('');
-  const [isNumbered, setIsNumbered] = useState(true);
-  const [content, setContent] = useState('');
-  const [textRole, setTextRole] = useState<'p' | 'blockquote'>('p');
-  const [imageSrc, setImageSrc] = useState('');
-  const [imageAlt, setImageAlt] = useState('');
-  const [imageCaption, setImageCaption] = useState('');
-  const [showCaption, setShowCaption] = useState(false);
-  const [driveUrl, setDriveUrl] = useState('');
-  const [subtitle, setSubtitle] = useState('');
-
+  const [draft, setDraft] = useState<CanvasElementFieldsValue>(INITIAL_DRAFT);
   const initialFocusRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
   // Reset drafts whenever modal opens or element type changes
   useEffect(() => {
     if (isOpen) {
-      setTitle('');
-      setIsNumbered(true);
-      setContent('');
-      setTextRole('p');
-      setImageSrc('');
-      setImageAlt('');
-      setImageCaption('');
-      setShowCaption(false);
-      setDriveUrl('');
-      setSubtitle('');
+      setDraft(INITIAL_DRAFT);
 
       const timer = setTimeout(() => {
         initialFocusRef.current?.focus();
@@ -100,15 +92,15 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
   const isFormDirty = useMemo(() => {
     if (!isOpen) return false;
     return Boolean(
-      title.trim() ||
-      content.trim() ||
-      imageSrc.trim() ||
-      imageAlt.trim() ||
-      imageCaption.trim() ||
-      driveUrl.trim() ||
-      subtitle.trim()
+      draft.title?.trim() ||
+      draft.content?.trim() ||
+      draft.src?.trim() ||
+      draft.alt?.trim() ||
+      draft.caption?.trim() ||
+      draft.driveUrl?.trim() ||
+      draft.subtitle?.trim()
     );
-  }, [isOpen, title, content, imageSrc, imageAlt, imageCaption, driveUrl, subtitle]);
+  }, [isOpen, draft]);
 
   // Prevent accidental reload or navigation when element form has unsaved entries
   useUnsavedChangesPrompt(isOpen && isFormDirty, 'canvas-add-modal');
@@ -122,32 +114,32 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
 
   switch (type) {
     case 'section':
-      canSubmit = title.trim().length > 0;
+      canSubmit = Boolean(draft.title?.trim());
       modalTitle = 'Add Section';
       submitLabel = 'Add Section';
       break;
     case 'subsection':
-      canSubmit = title.trim().length > 0;
+      canSubmit = Boolean(draft.title?.trim());
       modalTitle = 'Add Subsection';
       submitLabel = 'Add Subsection';
       break;
     case 'text':
-      canSubmit = content.trim().length > 0;
+      canSubmit = Boolean(draft.content?.trim());
       modalTitle = 'Add Narrative Text';
       submitLabel = 'Add Text';
       break;
     case 'photo':
-      canSubmit = imageSrc.trim().length > 0 && imageAlt.trim().length > 0;
+      canSubmit = Boolean(draft.src?.trim()) && Boolean(draft.alt?.trim());
       modalTitle = 'Add Photo Evidence';
       submitLabel = 'Add Photo';
       break;
     case 'gallery':
-      canSubmit = title.trim().length > 0;
+      canSubmit = Boolean(draft.title?.trim());
       modalTitle = 'Add Photo Gallery';
       submitLabel = 'Add Gallery';
       break;
     case 'chart':
-      canSubmit = title.trim().length > 0;
+      canSubmit = Boolean(draft.title?.trim());
       modalTitle = 'Add Indicator Chart';
       submitLabel = 'Add Chart';
       break;
@@ -158,16 +150,16 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
     if (!canSubmit) return;
 
     const payload: CanvasAddElementPayload = {
-      title: title.trim(),
-      isNumbered,
-      content: content.trim(),
-      as: textRole,
-      src: imageSrc.trim(),
-      alt: imageAlt.trim(),
-      caption: imageCaption.trim(),
-      showCaption,
-      driveUrl: driveUrl.trim(),
-      subtitle: subtitle.trim(),
+      title: (draft.title || '').trim(),
+      isNumbered: draft.isNumbered !== false,
+      content: (draft.content || '').trim(),
+      as: draft.as || 'p',
+      src: (draft.src || '').trim(),
+      alt: (draft.alt || '').trim(),
+      caption: (draft.caption || '').trim(),
+      showCaption: Boolean(draft.showCaption),
+      driveUrl: (draft.driveUrl || '').trim(),
+      subtitle: (draft.subtitle || '').trim(),
     };
 
     onConfirmAdd(type, payload, targetSectionId, targetIndex, targetSubsectionId);
@@ -185,270 +177,13 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
       ariaLabel={modalTitle}
     >
       <form onSubmit={handleSubmit} className={styles.container}>
-        {/* Section Form */}
-        {type === 'section' && (
-          <div className={styles.panel}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="add-section-title">
-                Section Title <span className={styles.requiredMark}>*</span>
-              </label>
-              <input
-                ref={(el) => { initialFocusRef.current = el; }}
-                id="add-section-title"
-                type="text"
-                className={styles.input}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Learning Continuity & Remediation"
-                required
-              />
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel}>Section Numbering</label>
-              <div className={styles.segmentedControl} role="radiogroup" aria-label="Section Numbering">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={isNumbered}
-                  className={`${styles.segmentButton} ${isNumbered ? styles.segmentButtonActive : ''}`}
-                  onClick={() => setIsNumbered(true)}
-                >
-                  Numbered
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={!isNumbered}
-                  className={`${styles.segmentButton} ${!isNumbered ? styles.segmentButtonActive : ''}`}
-                  onClick={() => setIsNumbered(false)}
-                >
-                  Unnumbered
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Subsection Form */}
-        {type === 'subsection' && (
-          <div className={styles.panel}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="add-subsec-title">
-                Subsection Title <span className={styles.requiredMark}>*</span>
-              </label>
-              <input
-                ref={(el) => { initialFocusRef.current = el; }}
-                id="add-subsec-title"
-                type="text"
-                className={styles.input}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Grade 7 Catch-Up Fridays & Remediation"
-                required
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Text Form */}
-        {type === 'text' && (
-          <div className={styles.panel}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel}>Typography Style</label>
-              <div className={styles.segmentedControl} role="radiogroup" aria-label="Text Typography Style">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={textRole === 'p'}
-                  className={`${styles.segmentButton} ${textRole === 'p' ? styles.segmentButtonActive : ''}`}
-                  onClick={() => setTextRole('p')}
-                >
-                  Body Paragraph
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={textRole === 'blockquote'}
-                  className={`${styles.segmentButton} ${textRole === 'blockquote' ? styles.segmentButtonActive : ''}`}
-                  onClick={() => setTextRole('blockquote')}
-                >
-                  Editorial Quote
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="add-text-content">
-                Narrative Content <span className={styles.requiredMark}>*</span>
-              </label>
-              <textarea
-                ref={(el) => { initialFocusRef.current = el; }}
-                id="add-text-content"
-                className={styles.textarea}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Type narrative overview, milestone progress, or strategic initiative..."
-                rows={5}
-                required
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Photo Form */}
-        {type === 'photo' && (
-          <div className={styles.panel}>
-            {imageSrc && (
-              <div className={styles.imagePreviewWrapper}>
-                <img
-                  src={imageSrc}
-                  alt={imageAlt || 'Selected preview'}
-                  className={styles.previewThumb}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="add-photo-url">
-                Photo URL <span className={styles.requiredMark}>*</span>
-              </label>
-              <input
-                id="add-photo-url"
-                type="text"
-                className={styles.input}
-                value={imageSrc.startsWith('data:') ? '' : (driveUrl || imageSrc)}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const resolved = resolveSingleDrivePhotoUrl(val);
-                  if (resolved) {
-                    setImageSrc(resolved.displayUrl);
-                    setDriveUrl(resolved.rawUrl);
-                  } else {
-                    setImageSrc(val);
-                    setDriveUrl('');
-                  }
-                }}
-                placeholder="https://drive.google.com/file/d/.../view"
-              />
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="add-photo-alt">
-                Alt Text <span className={styles.requiredMark}>*</span>
-              </label>
-              <input
-                ref={(el) => { if (!initialFocusRef.current) initialFocusRef.current = el; }}
-                id="add-photo-alt"
-                type="text"
-                className={styles.input}
-                value={imageAlt}
-                onChange={(e) => setImageAlt(e.target.value)}
-                placeholder="Brief visual description for screen readers"
-                required
-              />
-            </div>
-
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                className={styles.checkbox}
-                checked={showCaption}
-                onChange={(e) => setShowCaption(e.target.checked)}
-              />
-              <span>Show caption below photo</span>
-            </label>
-
-            {showCaption && (
-              <div className={styles.formField}>
-                <label className={styles.fieldLabel} htmlFor="add-photo-caption">
-                  Caption
-                </label>
-                <input
-                  id="add-photo-caption"
-                  type="text"
-                  className={styles.input}
-                  value={imageCaption}
-                  onChange={(e) => setImageCaption(e.target.value)}
-                  placeholder="Editorial context or story shown beneath photo"
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Gallery Form */}
-        {type === 'gallery' && (
-          <div className={styles.panel}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="add-gallery-title">
-                Gallery Title <span className={styles.requiredMark}>*</span>
-              </label>
-              <input
-                ref={(el) => { initialFocusRef.current = el; }}
-                id="add-gallery-title"
-                type="text"
-                className={styles.input}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Photo & Activity Evidence Gallery"
-                required
-              />
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="add-gallery-drive">
-                Google Drive Folder URL (Optional)
-              </label>
-              <input
-                id="add-gallery-drive"
-                type="text"
-                className={styles.input}
-                value={driveUrl}
-                onChange={(e) => setDriveUrl(e.target.value)}
-                placeholder="https://drive.google.com/drive/folders/..."
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Chart Form */}
-        {type === 'chart' && (
-          <div className={styles.panel}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="add-chart-title">
-                Chart Title <span className={styles.requiredMark}>*</span>
-              </label>
-              <input
-                ref={(el) => { initialFocusRef.current = el; }}
-                id="add-chart-title"
-                type="text"
-                className={styles.input}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Learner Mastery by Learning Area"
-                required
-              />
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="add-chart-subtitle">
-                Subtitle / Description (Optional)
-              </label>
-              <input
-                id="add-chart-subtitle"
-                type="text"
-                className={styles.input}
-                value={subtitle}
-                onChange={(e) => setSubtitle(e.target.value)}
-                placeholder="Quarterly performance against benchmark standard"
-              />
-            </div>
-          </div>
-        )}
+        <CanvasElementFields
+          elementType={type}
+          value={draft}
+          onChange={setDraft}
+          initialFocusRef={initialFocusRef}
+          requirePhotoAlt
+        />
 
         {/* Action Controls */}
         <div className={styles.actions}>
@@ -460,9 +195,10 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
             Cancel
           </Button>
           <Button
-            type="submit"
+            type="button"
             variant="primary"
             disabled={!canSubmit}
+            onClick={handleSubmit}
           >
             {submitLabel}
           </Button>

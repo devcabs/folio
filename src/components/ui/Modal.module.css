@@ -59,70 +59,53 @@
 }
 
 .closeButton {
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill);
-  color: var(--text-muted);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  outline: none;
-  transition: all var(--duration-fast) var(--ease-out);
   flex-shrink: 0;
-}
-
-.closeButton:hover {
-  background-color: var(--bg-surface-muted);
-  color: var(--text-primary);
-  border-color: var(--border-subtle);
-}
-
-.closeButton:focus-visible {
-  outline: none;
-  border-color: var(--border-subtle);
-  background-color: var(--bg-surface-muted);
 }
 
 .absoluteCloseButton {
   position: absolute;
   top: var(--space-4);
   right: var(--space-4);
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill);
-  color: var(--text-muted);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  outline: none;
-  transition: all var(--duration-fast) var(--ease-out);
   z-index: 1;
 }
 
-.absoluteCloseButton:hover {
-  background-color: var(--bg-surface-muted);
-  color: var(--text-primary);
-  border-color: var(--border-subtle);
+.footer {
+  margin-top: var(--space-5);
 }
 
-.absoluteCloseButton:focus-visible {
-  outline: none;
-  border-color: var(--border-subtle);
-  background-color: var(--bg-surface-muted);
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.actionsBetween {
+  justify-content: space-between;
+}
+
+.actionsStart {
+  justify-content: flex-start;
+}
+
+.actionsLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.actionsRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -133,6 +116,7 @@
     opacity: 0;
     transform: scale(0.97) translateY(6px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);

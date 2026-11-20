@@ -17,8 +17,11 @@ import type {
   ChartElement,
   PdfElement,
   DocumentsElement,
+  PageLinkElement,
   SubsectionElement,
   SectionElement,
+  CanvasElement,
+  LegacySectionElement,
   NodeCanvasDocument,
 } from '../types/canvas';
 
@@ -143,7 +146,18 @@ export function createDefaultDocuments(nodeId: string): DocumentsElement {
 }
 
 /**
- * Generate a default mid-level Subsection container.
+ * Generate a default Page Link card referencing a dynamic subpage.
+ */
+export function createDefaultPageLink(targetPageId: string): PageLinkElement {
+  return {
+    id: generateCanvasId('page-link'),
+    type: 'page-link',
+    targetPageId,
+  };
+}
+
+/**
+ * Generate a default mid-level Subsection heading block.
  */
 export function createDefaultSubsection(nodeId?: string): SubsectionElement {
   const id = generateCanvasId('subsection');
@@ -154,12 +168,11 @@ export function createDefaultSubsection(nodeId?: string): SubsectionElement {
     titlePointId: nodeId ? `node.${nodeId}.subsection.${id}.title` : undefined,
     subtitle: 'Subsection details and documentation',
     subtitlePointId: nodeId ? `node.${nodeId}.subsection.${id}.subtitle` : undefined,
-    elements: [],
   };
 }
 
 /**
- * Generate a default top-level Section container with auto-assigned numbering.
+ * Generate a default top-level Section heading block with auto-assigned numbering.
  */
 export function createDefaultSection(index: number, nodeId?: string): SectionElement {
   const id = generateCanvasId('section');
@@ -172,7 +185,6 @@ export function createDefaultSection(index: number, nodeId?: string): SectionEle
     titlePointId: nodeId ? `node.${nodeId}.section.${id}.title` : undefined,
     subtitle: 'Milestone initiatives and summary of progress',
     subtitlePointId: nodeId ? `node.${nodeId}.section.${id}.subtitle` : undefined,
-    elements: [],
   };
 }
 
@@ -182,8 +194,81 @@ export function createDefaultSection(index: number, nodeId?: string): SectionEle
 export function createDefaultCanvasDocument(nodeId: string): NodeCanvasDocument {
   return {
     nodeId,
-    version: 2,
-    sections: [],
+    version: 3,
+    elements: [],
     updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Normalizes a v2 (nested `sections`) or v3 (flat `elements`) canvas document
+ * into the canonical v3 flat `NodeCanvasDocument` shape.
+ */
+export function normalizeCanvasDocument(
+  raw: unknown,
+  fallbackNodeId = ''
+): NodeCanvasDocument {
+  if (!raw || typeof raw !== 'object') {
+    return createDefaultCanvasDocument(fallbackNodeId);
+  }
+
+  const candidate = raw as Record<string, unknown>;
+  const nodeId = typeof candidate.nodeId === 'string' ? candidate.nodeId : fallbackNodeId;
+  const updatedAt =
+    typeof candidate.updatedAt === 'string'
+      ? candidate.updatedAt
+      : new Date().toISOString();
+
+  if (Array.isArray(candidate.elements)) {
+    const validElements = candidate.elements.filter(
+      (el): el is CanvasElement => Boolean(el && typeof el === 'object' && 'id' in el && 'type' in el)
+    );
+    return {
+      nodeId,
+      version: Math.max(typeof candidate.version === 'number' ? candidate.version : 3, 3),
+      elements: validElements,
+      updatedAt,
+    };
+  }
+
+  const flattened: CanvasElement[] = [];
+  if (Array.isArray(candidate.sections)) {
+    for (const rawSec of candidate.sections as LegacySectionElement[]) {
+      if (!rawSec || typeof rawSec !== 'object' || !rawSec.id) continue;
+      const { elements: secChildren, ...secHeading } = rawSec;
+      flattened.push({
+        ...secHeading,
+        type: 'section',
+      });
+
+      if (Array.isArray(secChildren)) {
+        for (const child of secChildren) {
+          if (!child || typeof child !== 'object' || !child.id || !child.type) continue;
+          if (child.type === 'subsection') {
+            const { elements: subChildren, ...subHeading } = child;
+            flattened.push({
+              ...subHeading,
+              type: 'subsection',
+            });
+            if (Array.isArray(subChildren)) {
+              for (const leaf of subChildren) {
+                if (leaf && typeof leaf === 'object' && leaf.id && leaf.type) {
+                  flattened.push(leaf);
+                }
+              }
+            }
+          } else {
+            flattened.push(child);
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    nodeId,
+    version: 3,
+    elements: flattened,
+    updatedAt,
   };
 }

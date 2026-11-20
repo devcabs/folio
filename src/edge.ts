@@ -32,4 +32,9 @@ export {
   handleDriveMediaRoute,
   parseRequestedWidth,
 } from './edge/handlers/mediaHandler';
+export {
+  serializeManifestForHtmlScript,
+  injectManifestIntoHtml,
+  maybeInjectManifestResponse,
+} from './edge/handlers/htmlManifestInjector';
 

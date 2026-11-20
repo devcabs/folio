@@ -5,6 +5,7 @@ import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { HistoryHubModal } from '../history/HistoryHubModal';
 import { DevPublishModal } from './DevPublishModal';
 import { Toast } from '../feedback/Toast';
+import { Button } from '../ui/Button';
 import { DevHelpTooltip } from '../ui/DevHelpTooltip';
 import styles from './DevModeBadge.module.css';
 
@@ -211,8 +212,9 @@ export const DevModeBadge: React.FC = () => {
 
         {/* Pending Content Migrations Warning Pill */}
         {hasPendingMigrations && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="xs"
             className={styles.migrationWarningPill}
             onClick={(e) => {
               e.preventDefault();
@@ -226,12 +228,13 @@ export const DevModeBadge: React.FC = () => {
             <span>
               {pendingMigrationsCount} Pending Migration{pendingMigrationsCount === 1 ? '' : 's'}
             </span>
-          </button>
+          </Button>
         )}
 
         {/* Undo Button */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           className={`${styles.actionButton} ${!canUndo ? styles.buttonDisabled : ''}`}
           onClick={(e) => {
             e.preventDefault();
@@ -244,11 +247,12 @@ export const DevModeBadge: React.FC = () => {
         >
           <UndoIcon className={styles.actionIcon} />
           <span className={styles.actionLabel}>Undo</span>
-        </button>
+        </Button>
 
         {/* Redo Button */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           className={`${styles.actionButton} ${!canRedo ? styles.buttonDisabled : ''}`}
           onClick={(e) => {
             e.preventDefault();
@@ -261,11 +265,12 @@ export const DevModeBadge: React.FC = () => {
         >
           <RedoIcon className={styles.actionIcon} />
           <span className={styles.actionLabel}>Redo</span>
-        </button>
+        </Button>
 
         {/* History Button */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           className={styles.actionButton}
           onClick={(e) => {
             e.preventDefault();
@@ -277,11 +282,12 @@ export const DevModeBadge: React.FC = () => {
         >
           <HistoryIcon className={styles.actionIcon} />
           <span className={styles.actionLabel}>History</span>
-        </button>
+        </Button>
 
         {/* Publish Button (Placed immediately after History) */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           className={styles.actionButton}
           onClick={(e) => {
             e.preventDefault();
@@ -293,11 +299,12 @@ export const DevModeBadge: React.FC = () => {
         >
           <PublishIcon className={styles.actionIcon} />
           <span className={styles.actionLabel}>Publish</span>
-        </button>
+        </Button>
 
         {/* Exit Button */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           className={styles.actionButton}
           onClick={(e) => {
             e.preventDefault();
@@ -308,7 +315,7 @@ export const DevModeBadge: React.FC = () => {
         >
           <ExitIcon className={styles.actionIcon} />
           <span className={styles.actionLabel}>Exit</span>
-        </button>
+        </Button>
       </div>
 
       <HistoryHubModal

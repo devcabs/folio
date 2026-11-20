@@ -151,7 +151,7 @@ describe('Subtask 7.4: Live Cloudflare KV Draft Workspace (draft:workspace) SSOT
 
     it('POST /api/draft/init clones published baseline from portal:manifest and versioned node keys', async () => {
       const accessCanvas = createDefaultCanvasDocument('access');
-      accessCanvas.sections = [{ id: 'sec-1', type: 'section', title: 'Published Section', elements: [] }];
+      accessCanvas.elements = [{ id: 'sec-1', type: 'section', title: 'Published Section' }];
 
       const manifest: PublicPortalManifestPayload = {
         activeSnapshotId: 'snap-100',
@@ -193,7 +193,7 @@ describe('Subtask 7.4: Live Cloudflare KV Draft Workspace (draft:workspace) SSOT
       expect(data.baseSnapshotId).toBe('snap-100');
       expect(data.dirty).toBe(false);
       expect(data.revision).toBe(1);
-      expect(data.canvases.access.sections[0].title).toBe('Published Section');
+      expect((data.canvases.access.elements[0] as any).title).toBe('Published Section');
       expect(data.contentOverrides).toEqual({ 'hero.title': 'Live Portal Title' });
     });
 
@@ -247,47 +247,43 @@ describe('Subtask 7.4: Live Cloudflare KV Draft Workspace (draft:workspace) SSOT
       };
 
       const liveCanvas = createDefaultCanvasDocument('access');
-      liveCanvas.sections = [
+      liveCanvas.elements = [
         {
           id: 'sec-live-100',
           type: 'section',
           title: 'Live Published Section',
-          elements: [
-            {
-              id: 'chart-1',
-              type: 'chart',
-              chartId: 'c-1',
-              title: 'Live Chart',
-              config: {
-                chartId: 'c-1',
-                nodeId: 'access',
-                sheetUrl: 'https://docs.google.com/spreadsheets/d/live-sheet/edit',
-                defaultType: 'bar',
-              },
-            },
-          ],
+        },
+        {
+          id: 'chart-1',
+          type: 'chart',
+          chartId: 'c-1',
+          title: 'Live Chart',
+          config: {
+            chartId: 'c-1',
+            nodeId: 'access',
+            sheetUrl: 'https://docs.google.com/spreadsheets/d/live-sheet/edit',
+            defaultType: 'bar',
+          },
         },
       ];
 
       const prebakedCanvas = createDefaultCanvasDocument('access');
-      prebakedCanvas.sections = [
+      prebakedCanvas.elements = [
         {
           id: 'sec-live-100',
           type: 'section',
           title: 'Live Published Section',
-          elements: [
-            {
-              id: 'chart-1',
-              type: 'chart',
-              chartId: 'c-1',
-              title: 'Live Chart',
-              config: {
-                chartId: 'c-1',
-                nodeId: 'access',
-                defaultType: 'bar',
-              },
-            },
-          ],
+        },
+        {
+          id: 'chart-1',
+          type: 'chart',
+          chartId: 'c-1',
+          title: 'Live Chart',
+          config: {
+            chartId: 'c-1',
+            nodeId: 'access',
+            defaultType: 'bar',
+          },
         },
       ];
 
@@ -340,8 +336,8 @@ describe('Subtask 7.4: Live Cloudflare KV Draft Workspace (draft:workspace) SSOT
       expect(data.dirty).toBe(false);
       expect(data.revision).toBe(1);
       expect(data.contentOverrides['hero.title']).toBe('Live Published Title');
-      expect(data.canvases.access.sections[0].title).toBe('Live Published Section');
-      const restoredChart = data.canvases.access.sections[0].elements[0] as any;
+      expect((data.canvases.access.elements[0] as any).title).toBe('Live Published Section');
+      const restoredChart = data.canvases.access.elements[1] as any;
       expect(restoredChart.config.sheetUrl).toBe('https://docs.google.com/spreadsheets/d/live-sheet/edit');
     });
 
@@ -459,10 +455,10 @@ describe('Subtask 7.4: Live Cloudflare KV Draft Workspace (draft:workspace) SSOT
 
     it('DELETE /api/draft discards draft:workspace and re-clones from live portal:manifest', async () => {
       const liveAccess = createDefaultCanvasDocument('access');
-      liveAccess.sections = [{ id: 's-live', type: 'section', title: 'Live Baseline', elements: [] }];
+      liveAccess.elements = [{ id: 's-live', type: 'section', title: 'Live Baseline' }];
 
       const dirtyAccess = createDefaultCanvasDocument('access');
-      dirtyAccess.sections = [{ id: 's-dirty', type: 'section', title: 'Dirty Draft', elements: [] }];
+      dirtyAccess.elements = [{ id: 's-dirty', type: 'section', title: 'Dirty Draft' }];
 
       const kv = createMockKV({
         'portal:manifest': {
@@ -504,7 +500,7 @@ describe('Subtask 7.4: Live Cloudflare KV Draft Workspace (draft:workspace) SSOT
       const data = (await res.json()) as DraftWorkspacePayload;
       expect(data.dirty).toBe(false);
       expect(data.revision).toBe(1);
-      expect(data.canvases.access.sections[0].title).toBe('Live Baseline');
+      expect((data.canvases.access.elements[0] as any).title).toBe('Live Baseline');
       expect(data.contentOverrides).toEqual({ 'hero.title': 'Live' });
     });
   });

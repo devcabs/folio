@@ -9,7 +9,7 @@
  * - POST /api/history/restore
  */
 
-import type { DraftWorkspacePayload, KVNamespace } from '../../types/edge';
+import type { DraftWorkspacePayload, KVNamespace, PageNode } from '../../types/edge';
 import { VALID_NODES } from '../../types/edge';
 import type { HistoryIndex, PublishedSnapshot } from '../../types/history';
 import type { NodeCanvasDocument } from '../../types/canvas';
@@ -80,6 +80,7 @@ export async function handleHistoryRoute(
             isActive: entry.id === index.activeSnapshotId,
             canvases: {},
             contentOverrides: {},
+            pages: {},
             summary: entry.summary,
           });
         }
@@ -134,11 +135,18 @@ export async function handleHistoryRoute(
       let restoredWorkspace: DraftWorkspacePayload;
 
       if (snapshotId === SYSTEM_BASELINE_SNAPSHOT_ID) {
+        const existingRootNodeIds =
+          existingDraft?.canvases
+            ? Object.keys(existingDraft.canvases).filter(
+              (id) => !id.startsWith('page-') && !existingDraft.pages?.[id]
+            )
+            : [];
+
         const targetNodeIds =
           Array.isArray(body.nodeIds) && body.nodeIds.length > 0
             ? body.nodeIds
-            : existingDraft?.canvases && Object.keys(existingDraft.canvases).length > 0
-              ? Object.keys(existingDraft.canvases)
+            : existingRootNodeIds.length > 0
+              ? existingRootNodeIds
               : [...VALID_NODES];
 
         const canvases: Record<string, NodeCanvasDocument> = {};
@@ -154,6 +162,7 @@ export async function handleHistoryRoute(
           authorSessionId,
           canvases,
           contentOverrides: {},
+          pages: {},
         };
       } else {
         const snapshot = await kv.get<PublishedSnapshot>(
@@ -170,6 +179,9 @@ export async function handleHistoryRoute(
         const clonedOverrides: Record<string, string> = {
           ...(snapshot.contentOverrides || {}),
         };
+        const clonedPages: Record<string, PageNode> = JSON.parse(
+          JSON.stringify(snapshot.pages || {})
+        );
 
         restoredWorkspace = {
           baseSnapshotId: existingDraft?.baseSnapshotId || historyIndex?.activeSnapshotId || snapshot.id,
@@ -179,6 +191,7 @@ export async function handleHistoryRoute(
           authorSessionId,
           canvases: clonedCanvases,
           contentOverrides: clonedOverrides,
+          pages: clonedPages,
         };
       }
 

@@ -1,0 +1,53 @@
+/**
+ * Canonical FormField Primitive — Folio Engine
+ * Pure design-token vertical rhythm, label typography, hint, and alert error states.
+ */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-flow-tight);
+  width: 100%;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: var(--leading-snug);
+}
+
+.labelAction {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.required {
+  color: var(--color-danger);
+}
+
+.hint {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
+.error {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  color: var(--color-danger);
+  line-height: var(--leading-snug);
+}

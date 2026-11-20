@@ -1,6 +1,7 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import type { NavItem } from '../../types/navigation';
 import { useScrollspy } from '../../hooks/use-scrollspy';
+import { Button } from '../ui/Button';
 import styles from './EditorialSidebar.module.css';
 
 export interface EditorialSidebarProps {
@@ -19,6 +20,8 @@ export interface EditorialSidebarProps {
   /** Breadcrumb properties for sticky sidebar integration */
   nodeNumber?: number;
   nodeTitle?: string;
+  /** Label for the sticky top back button (defaults to "Roadmap") */
+  backLabel?: string;
   onBack?: () => void;
 }
 
@@ -43,6 +46,7 @@ export const EditorialSidebar: React.FC<EditorialSidebarProps> = ({
   className,
   nodeNumber: _nodeNumber,
   nodeTitle: _nodeTitle,
+  backLabel = 'Roadmap',
   onBack,
 }) => {
   // Extract element IDs (including nested subsections) in document order for scrollspy monitoring
@@ -137,18 +141,19 @@ export const EditorialSidebar: React.FC<EditorialSidebarProps> = ({
       aria-label={`${title} navigation`}
       style={{ '--sidebar-accent': accentColor } as React.CSSProperties}
     >
-      {/* 1. Nearest Location Breadcrumb on Top of Sticky Sidebar (< Roadmap) */}
+      {/* 1. Nearest Location Breadcrumb on Top of Sticky Sidebar (< Roadmap / < Parent) */}
       {onBack && (
         <div
           className={`${styles.sidebarBreadcrumb} ${isSticky ? styles.sidebarBreadcrumbSticky : ''}`}
           aria-hidden={!isSticky}
         >
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="xs"
             className={styles.breadcrumbBackBtn}
             onClick={onBack}
-            aria-label="Return to Roadmap"
-            title="Return to Roadmap"
+            aria-label={`Return to ${backLabel}`}
+            title={`Return to ${backLabel}`}
             tabIndex={isSticky ? 0 : -1}
           >
             <svg
@@ -163,8 +168,8 @@ export const EditorialSidebar: React.FC<EditorialSidebarProps> = ({
             >
               <path d="M10 13L5 8l5-5" />
             </svg>
-            <span>Roadmap</span>
-          </button>
+            <span className={styles.backLabelText}>{backLabel}</span>
+          </Button>
         </div>
       )}
 

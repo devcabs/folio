@@ -374,6 +374,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
   padding: var(--space-8);
   margin: var(--space-4) 0;
   border: 1px dashed var(--border-strong);
@@ -622,16 +624,4 @@
   justify-content: flex-end;
   gap: var(--space-2);
   margin-top: var(--space-2);
-}
-
-.modalDeleteButton {
-  background-color: var(--folio-primary) !important;
-  color: var(--text-inverse) !important;
-  border-color: var(--folio-primary) !important;
-  outline: none;
-}
-
-.modalDeleteButton:hover {
-  background-color: var(--brand-primary-dark) !important;
-  outline: none;
 }

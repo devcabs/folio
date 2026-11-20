@@ -102,3 +102,18 @@ content-type: application/json; charset=utf-8
 etag: "..."
 cache-control: public, max-age=60, s-maxage=300, stale-while-revalidate=86400
 ```
+
+
+---
+
+## Dynamic Nested Subpages & Zero-Wait Edge HTML Injection
+
+Folio Engine supports unlimited-depth nested subpages without extra client waterfalls on cold load:
+
+1. **Multi-Segment SPA Fallback & HTML Manifest Injection (`htmlManifestInjector.ts`)**:
+   - When `handleFolioEdgeRequest` serves any non-API `text/html` route (such as `/node/access/research/interviews/2026-notes/`) via `env.ASSETS.fetch`, `maybeInjectManifestResponse` reads `portal:manifest` from KV and injects `<script>window.__FOLIO_MANIFEST__ = ...;</script>` into `<head>` (with XSS-safe `<` escaping).
+   - `PortalChromeContext` and `useHashRoute` read `window.__FOLIO_MANIFEST__` synchronously via `readInjectedPortalManifest()`, resolving deep-link routes at `0ms` with zero 404 flash and zero redundant `/api/public/manifest` fetch.
+2. **Subpage Staging (`node:${snapshotId}:${pageId}`)**:
+   - During `POST /api/publish`, `publishHandler.ts` compiles and stages every active `PageNode` canvas under `node:${snapshotId}:${pageId}` alongside root chapters, strips any private `sheetUrl` values, and persists `pages` inside `portal:manifest`.
+3. **Atomic Subtree Purge (`deletedPageIds`)**:
+   - `PUT /api/draft` accepts `deletedPageIds?: string[]` to atomically delete `draft.pages[id]` and `draft.canvases[id]` in a single KV transaction when a subpage branch is deleted.

@@ -143,42 +143,40 @@ describe('Canvas Default Factories for PDF & Documents', () => {
 describe('Edge Zod Schema & Pre-Bake Pipeline for PDF & Documents', () => {
   const canvasDoc: NodeCanvasDocument = {
     nodeId: 'access',
-    version: 2,
+    version: 3,
     updatedAt: '2026-11-18T00:00:00.000Z',
-    sections: [
+    elements: [
       {
         id: 'sec-1',
         type: 'section',
         title: 'Governance',
-        elements: [
+      },
+      {
+        id: 'pdf-1',
+        type: 'pdf',
+        pointId: 'node.access.pdf.pdf-1',
+        src: `https://drive.google.com/file/d/${SAMPLE_FILE_ID}/preview`,
+        driveFileId: SAMPLE_FILE_ID,
+        driveUrl: `https://drive.google.com/file/d/${SAMPLE_FILE_ID}/view`,
+        title: 'Strategic Plan',
+        caption: 'Approved 2026',
+        showCaption: true,
+      },
+      {
+        id: 'documents-1',
+        type: 'documents',
+        pointId: 'node.access.documents.documents-1',
+        title: 'Supporting Resolutions',
+        driveUrl: 'https://drive.google.com/drive/folders/1ABCdefGHIjklMNOpqrSTU',
+        syncedDocuments: [
           {
-            id: 'pdf-1',
-            type: 'pdf',
-            pointId: 'node.access.pdf.pdf-1',
-            src: `https://drive.google.com/file/d/${SAMPLE_FILE_ID}/preview`,
+            id: 'doc-1',
             driveFileId: SAMPLE_FILE_ID,
-            driveUrl: `https://drive.google.com/file/d/${SAMPLE_FILE_ID}/view`,
-            title: 'Strategic Plan',
-            caption: 'Approved 2026',
-            showCaption: true,
-          },
-          {
-            id: 'documents-1',
-            type: 'documents',
-            pointId: 'node.access.documents.documents-1',
-            title: 'Supporting Resolutions',
-            driveUrl: 'https://drive.google.com/drive/folders/1ABCdefGHIjklMNOpqrSTU',
-            syncedDocuments: [
-              {
-                id: 'doc-1',
-                driveFileId: SAMPLE_FILE_ID,
-                originalFileName: 'resolution-01.pdf',
-                title: 'Resolution 01',
-                previewUrl: `https://drive.google.com/file/d/${SAMPLE_FILE_ID}/preview`,
-                viewUrl: `https://drive.google.com/file/d/${SAMPLE_FILE_ID}/view`,
-                orderIndex: 0,
-              },
-            ],
+            originalFileName: 'resolution-01.pdf',
+            title: 'Resolution 01',
+            previewUrl: `https://drive.google.com/file/d/${SAMPLE_FILE_ID}/preview`,
+            viewUrl: `https://drive.google.com/file/d/${SAMPLE_FILE_ID}/view`,
+            orderIndex: 0,
           },
         ],
       },
@@ -189,12 +187,12 @@ describe('Edge Zod Schema & Pre-Bake Pipeline for PDF & Documents', () => {
     const parsed = PublicNodePayloadSchema.parse({
       nodeId: 'access',
       snapshotId: 'snap-1',
-      version: 2,
+      version: 3,
       updatedAt: '2026-11-18T00:00:00.000Z',
       canvas: canvasDoc,
     });
 
-    expect(parsed.canvas.sections[0].elements).toHaveLength(2);
+    expect(parsed.canvas.elements).toHaveLength(3);
   });
 
   it('compilePublicNodePayload preserves PdfElement.src without rewriting to /api/media/drive/', () => {
@@ -216,8 +214,8 @@ describe('Edge Zod Schema & Pre-Bake Pipeline for PDF & Documents', () => {
     expect(snapshot.summary.totalDocumentElements).toBe(1);
 
     const payload = compilePublicNodePayload('access', snapshot);
-    const compiledPdf = payload.canvas.sections[0].elements[0] as PdfElement;
-    const compiledDocs = payload.canvas.sections[0].elements[1] as DocumentsElement;
+    const compiledPdf = payload.canvas.elements[1] as PdfElement;
+    const compiledDocs = payload.canvas.elements[2] as DocumentsElement;
 
     expect(compiledPdf.src).toBe(`https://drive.google.com/file/d/${SAMPLE_FILE_ID}/preview`);
     expect(compiledPdf.src).not.toContain('/api/media/drive/');

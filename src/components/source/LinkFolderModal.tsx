@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Modal } from '../ui/Modal';
+import { Modal, ModalActions } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { FormField } from '../ui/FormField';
+import { Input } from '../ui/Input';
+import { InlineAlert } from '../ui/InlineAlert';
 import { isValidDriveFolderUrl } from '../../utils/source';
 import {
   verifyDriveFolderUrl,
@@ -151,7 +154,7 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
       if (currentResult.status !== 'valid') {
         setErrorMessage(
           currentResult.message ||
-            'Folder could not be verified. Set Google Drive folder permissions to "Anyone with the link can view" and ensure the API key is configured.'
+          'Folder could not be verified. Set Google Drive folder permissions to "Anyone with the link can view" and ensure the API key is configured.'
         );
         setIsProcessing(false);
         setProcessingStage('idle');
@@ -221,32 +224,25 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
         {/* Form Body */}
         <div className={styles.body}>
           {/* Folder Title Field */}
-          <div className={styles.fieldGroup}>
-            <label htmlFor="folder-title-input" className={styles.label}>
-              Folder Label
-            </label>
-            <input
+          <FormField id="folder-title-input" label="Folder Label">
+            <Input
               ref={titleInputRef}
               id="folder-title-input"
               type="text"
-              className={styles.input}
               value={folderTitle}
               onChange={(e) => setFolderTitle(e.target.value)}
               placeholder="e.g. Media & Documentation Folder"
               disabled={isProcessing}
             />
-          </div>
+          </FormField>
 
           {/* Folder URL Field */}
-          <div className={styles.fieldGroup}>
-            <label htmlFor="folder-url-input" className={styles.label}>
-              Google Drive Folder URL
-            </label>
+          <FormField id="folder-url-input" label="Google Drive Folder URL">
             <div className={styles.urlInputRow}>
-              <input
+              <Input
                 id="folder-url-input"
                 type="url"
-                className={`${styles.input} ${isInvalidUrl ? styles.inputInvalid : ''}`}
+                invalid={isInvalidUrl}
                 value={folderUrl}
                 onChange={(e) => {
                   setFolderUrl(e.target.value);
@@ -284,19 +280,20 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
                 Please enter a valid Google Drive folder link.
               </div>
             )}
-          </div>
+          </FormField>
 
           {/* Inline Error Alert */}
           {errorMessage && (
-            <div className={styles.errorAlert} role="alert">
+            <InlineAlert variant="error">
               {errorMessage}
-            </div>
+            </InlineAlert>
           )}
 
           {/* Actions Footer */}
-          <div className={styles.actions}>
-            <div className={styles.actionAuxiliary}>
-              {isValidUrl && (
+          <ModalActions
+            className={styles.actions}
+            left={
+              isValidUrl ? (
                 <a
                   href={trimmedUrl}
                   target="_blank"
@@ -306,34 +303,32 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
                 >
                   Test Link ↗
                 </a>
-              )}
-            </div>
-
-            <div className={styles.actionPrimary}>
-              <Button
-                variant="secondary"
-                size="sm"
-                type="button"
-                onClick={onClose}
-                disabled={isProcessing}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                type="button"
-                onClick={() => handleSave()}
-                disabled={!canSave}
-              >
-                {processingStage === 'verifying'
-                  ? 'Verifying...'
-                  : processingStage === 'saving'
+              ) : undefined
+            }
+          >
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              onClick={onClose}
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="button"
+              onClick={() => handleSave()}
+              disabled={!canSave}
+            >
+              {processingStage === 'verifying'
+                ? 'Verifying...'
+                : processingStage === 'saving'
                   ? 'Saving...'
                   : 'Save'}
-              </Button>
-            </div>
-          </div>
+            </Button>
+          </ModalActions>
         </div>
       </Modal>
       {toastMarkup}

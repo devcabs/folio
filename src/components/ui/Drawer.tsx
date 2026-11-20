@@ -9,6 +9,7 @@ import {
   findPositiveActionElement,
   triggerPositiveAction,
 } from '../../utils/modalActions';
+import { IconButton } from './IconButton';
 import styles from './Drawer.module.css';
 
 export interface DrawerTabItem {
@@ -194,9 +195,8 @@ export const Drawer: React.FC<DrawerProps> = ({
     >
       {companionContent && (
         <div
-          className={`${styles.companionViewport} ${
-            position === 'left' ? styles.companionRight : styles.companionLeft
-          }`}
+          className={`${styles.companionViewport} ${position === 'left' ? styles.companionRight : styles.companionLeft
+            }`}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
@@ -205,9 +205,8 @@ export const Drawer: React.FC<DrawerProps> = ({
       )}
       <aside
         ref={drawerRef}
-        className={`${styles.drawer} ${positionClass} ${sizeClass} ${
-          isOpen ? styles.drawerOpen : ''
-        } ${className || ''}`}
+        className={`${styles.drawer} ${positionClass} ${sizeClass} ${isOpen ? styles.drawerOpen : ''
+          } ${className || ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
@@ -229,14 +228,15 @@ export const Drawer: React.FC<DrawerProps> = ({
             <div className={styles.headerControls}>
               {headerActions}
               {showCloseButton && (
-                <button
-                  type="button"
+                <IconButton
+                  variant="ghost"
+                  size="sm"
                   className={styles.closeButton}
                   onClick={onClose}
                   aria-label="Close drawer"
                 >
                   ✕
-                </button>
+                </IconButton>
               )}
             </div>
           </div>
@@ -258,9 +258,8 @@ export const Drawer: React.FC<DrawerProps> = ({
                     id={`drawer-tab-${tab.id}`}
                     aria-selected={isActive}
                     aria-controls={`drawer-panel-${tab.id}`}
-                    className={`${styles.tabButton} ${isActive ? styles.tabActive : ''} ${
-                      tab.completed ? styles.tabCompleted : ''
-                    }`}
+                    className={`${styles.tabButton} ${isActive ? styles.tabActive : ''} ${tab.completed ? styles.tabCompleted : ''
+                      }`}
                     onClick={() => {
                       if (!tab.disabled && onTabChange) {
                         onTabChange(tab.id);

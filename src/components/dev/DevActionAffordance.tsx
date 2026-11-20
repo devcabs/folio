@@ -69,7 +69,7 @@ export const DevActionAffordance: React.FC<DevActionAffordanceProps> = ({
     e.stopPropagation();
     if (onEditText) {
       onEditText();
-    } else if (pointId) {
+    } else if (pointId || onSave) {
       setIsEditModalOpen(true);
     }
   };
@@ -312,7 +312,7 @@ export const DevActionAffordance: React.FC<DevActionAffordanceProps> = ({
         >
           ✎ Edit
         </Button>
-        {pointId && (
+        {(pointId || onSave) && (
           <UniversalEditModal
             isOpen={isEditModalOpen}
             pointId={pointId}
@@ -324,7 +324,7 @@ export const DevActionAffordance: React.FC<DevActionAffordanceProps> = ({
             defaultNumbered={defaultNumbered}
             onNumberedChange={onNumberedChange}
             onSave={handleSaveModal}
-            onReset={handleResetModal}
+            onReset={pointId || onReset ? handleResetModal : undefined}
             onClose={() => setIsEditModalOpen(false)}
           />
         )}
@@ -360,7 +360,7 @@ export const DevActionAffordance: React.FC<DevActionAffordanceProps> = ({
           children
         )}
       </div>
-      {pointId && (
+      {(pointId || onSave) && (
         <UniversalEditModal
           isOpen={isEditModalOpen}
           pointId={pointId}
@@ -372,7 +372,7 @@ export const DevActionAffordance: React.FC<DevActionAffordanceProps> = ({
           defaultNumbered={defaultNumbered}
           onNumberedChange={onNumberedChange}
           onSave={handleSaveModal}
-          onReset={handleResetModal}
+          onReset={pointId || onReset ? handleResetModal : undefined}
           onClose={() => setIsEditModalOpen(false)}
         />
       )}

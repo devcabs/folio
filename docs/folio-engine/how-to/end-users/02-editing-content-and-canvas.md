@@ -64,3 +64,15 @@ Hover your cursor over any Section, Subsection, Text block, Photo, or Chart in D
 
 - Learn how to upload photos and sync Drive folders in [How-To: Manage Photos & Drive Galleries](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/end-users/03-photos-and-drive-galleries.md).
 - Learn how to publish your draft live in [How-To: Use History, Undo & Publish Changes](file:///Users/francisdave/Documents/folio/docs/folio-engine/how-to/end-users/05-history-undo-and-publishing.md).
+
+
+---
+
+## Working with Nested Subpages
+
+1. **Adding a Subpage**: Open the **Add** bar inside any section or subsection and choose **Add Page**. Enter a title (auto-generates a unique URL slug) and an optional 1-line summary. A `CanvasPageLink` card is added to the current page and links 1:1 to the new nested subpage.
+2. **Editing Title, Slug, or Summary**:
+   - Click the inline `<PageTitle>` at the top of any subpage to rename it everywhere at once (card, header dropdown, and breadcrumb).
+   - Or click **Edit** on a `CanvasPageLink` card to update the title, customize the URL slug (with live folder URL preview), or edit the summary.
+3. **Reordering Subpages**: Reordering `CanvasPageLink` cards on a chapter canvas automatically updates the Level 2 dropdown order in the top navigation bar.
+4. **Guarded Branch Deletion**: Deleting a subpage with nested child pages opens a guarded confirmation modal showing the exact descendant count and requiring you to type `DELETE ALL SUBPAGES` before confirming. Press `Cmd+Z` (`Ctrl+Z`) immediately to restore the entire deleted branch if needed.

@@ -167,17 +167,18 @@ describe('9.4 Floating Toolbar & Side Edit Modal Unification', () => {
 
   const baseDoc: NodeCanvasDocument = {
     nodeId: 'access',
-    version: 1,
+    version: 3,
     updatedAt: '2026-11-18T00:00:00.000Z',
-    sections: [
+    elements: [
       {
         id: 'sec-1',
         type: 'section',
         title: 'Evidence & Data',
         number: '01',
         isNumbered: true,
-        elements: [galleryLeaf, chartLeaf],
       },
+      galleryLeaf,
+      chartLeaf,
     ],
   };
 
@@ -350,14 +351,12 @@ describe('9.4 Floating Toolbar & Side Edit Modal Unification', () => {
 
     await vi.waitFor(() => {
       expect(addElementSpy).toHaveBeenCalledWith(
-        'sec-1',
         expect.objectContaining({
           type: 'gallery',
           driveUrl: 'https://drive.google.com/drive/folders/1AddedFolder1234567890',
           title: 'New Verified Folder',
         }),
-        0,
-        undefined
+        1
       );
     });
   });

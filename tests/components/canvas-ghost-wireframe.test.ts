@@ -55,28 +55,26 @@ describe('Subtask 2.8: Cold Boot Skeleton Wireframe (Zero Flash-of-Baseline)', (
   describe('DocumentCanvas & NodeCanvas Zero-Flash Cold Boot Integration', () => {
     const emptyDocument: NodeCanvasDocument = {
       nodeId: 'access',
-      version: 2,
-      sections: [],
+      version: 3,
+      elements: [],
       updatedAt: '2026-11-13T00:00:00.000Z',
     };
 
     const populatedDocument: NodeCanvasDocument = {
       nodeId: 'access',
-      version: 2,
-      sections: [
+      version: 3,
+      elements: [
         {
           id: 'sec-1',
           type: 'section',
           title: 'Hydrated Operational Roadmap',
           number: '01',
-          elements: [
-            {
-              id: 'text-1',
-              type: 'text',
-              pointId: 'node.access.text-1',
-              content: 'Real edge content loaded successfully.',
-            },
-          ],
+        },
+        {
+          id: 'text-1',
+          type: 'text',
+          pointId: 'node.access.text-1',
+          content: 'Real edge content loaded successfully.',
         },
       ],
       updatedAt: '2026-11-13T00:00:01.000Z',
@@ -161,8 +159,8 @@ describe('Subtask 2.8: Cold Boot Skeleton Wireframe (Zero Flash-of-Baseline)', (
       );
 
       expect(html).not.toContain('data-testid="canvas-ghost-wireframe"');
-      // In dev authoring mode with 0 sections, the starter add bar is rendered
-      expect(html).toContain('Click to add the first Section');
+      // In dev authoring mode with 0 elements, the standard Add Element bar is rendered
+      expect(html).toContain('Add Element');
     });
 
     it('renders real content once hydration completes (isHydrating = false)', () => {

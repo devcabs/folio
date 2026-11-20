@@ -10,7 +10,9 @@
  */
 
 import { getStorageNamespace } from '../config/engine.config';
+import type { NodeCanvasDocument } from '../types/canvas';
 import type { PublicPortalManifestPayload } from '../types/edge';
+import type { PageRegistry } from '../types/page';
 
 export const getLiveContentStorageKey = (ns?: string) => (ns || getStorageNamespace()) + '_live_content_overrides';
 export const STORAGE_KEY_LIVE_CONTENT = getLiveContentStorageKey();
@@ -33,6 +35,8 @@ export interface DraftContentMutationResult {
 
 export interface DraftWorkspaceResponse {
   contentOverrides?: Record<string, string>;
+  pages?: PageRegistry;
+  canvases?: Record<string, NodeCanvasDocument>;
   updatedAt?: string;
   [key: string]: unknown;
 }
@@ -130,10 +134,38 @@ function assertJsonContentType(res: Response, label: string): void {
 }
 
 /**
- * Fetches Public Mode contentOverrides directly from Cloudflare KV portal:manifest.
+ * Reads the Edge-injected `window.__FOLIO_MANIFEST__` synchronously for 0ms Public Mode hydration.
+ * Returns null in SSR or when the manifest is absent/malformed.
+ */
+export function readInjectedPortalManifest(): PublicPortalManifestPayload | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const raw = window.__FOLIO_MANIFEST__;
+  if (
+    !raw ||
+    typeof raw !== 'object' ||
+    typeof raw.activeSnapshotId !== 'string' ||
+    !Array.isArray(raw.nodeIds)
+  ) {
+    return null;
+  }
+  return {
+    ...raw,
+    nodeIds: [...raw.nodeIds],
+    contentOverrides: raw.contentOverrides ? { ...raw.contentOverrides } : undefined,
+    pages: raw.pages ? { ...raw.pages } : undefined,
+  };
+}
+
+/**
+ * Fetches Public Mode chrome (contentOverrides + pages) directly from Cloudflare KV portal:manifest.
  * Fails stop (throws) on non-2xx HTTP status or network error.
  */
-export async function fetchPublicManifestOverrides(): Promise<Record<string, string>> {
+export async function fetchPublicManifestChrome(): Promise<{
+  contentOverrides: Record<string, string>;
+  pages: PageRegistry;
+}> {
   if (typeof fetch !== 'function') {
     throw new Error('Fetch API is unavailable to read portal:manifest.');
   }
@@ -143,16 +175,33 @@ export async function fetchPublicManifestOverrides(): Promise<Record<string, str
   }
   assertJsonContentType(res, 'Manifest KV read failed');
   const manifest = (await res.json()) as PublicPortalManifestPayload;
-  return manifest.contentOverrides ? { ...manifest.contentOverrides } : {};
+  return {
+    contentOverrides: manifest.contentOverrides ? { ...manifest.contentOverrides } : {},
+    pages: manifest.pages ? { ...manifest.pages } : {},
+  };
 }
 
 /**
- * Fetches Dev Mode contentOverrides directly from Cloudflare KV draft:workspace.
+ * Fetches Public Mode contentOverrides directly from Cloudflare KV portal:manifest.
  * Fails stop (throws) on non-2xx HTTP status or network error.
  */
-export async function fetchDraftWorkspaceOverrides(
+export async function fetchPublicManifestOverrides(): Promise<Record<string, string>> {
+  const { contentOverrides } = await fetchPublicManifestChrome();
+  return contentOverrides;
+}
+
+/**
+ * Fetches Dev Mode chrome (contentOverrides + pages + canvases + updatedAt) directly from Cloudflare KV draft:workspace.
+ * Fails stop (throws) on non-2xx HTTP status or network error.
+ */
+export async function fetchDraftWorkspaceChrome(
   lockToken?: string | null
-): Promise<DraftContentMutationResult> {
+): Promise<{
+  contentOverrides: Record<string, string>;
+  pages: PageRegistry;
+  canvases: Record<string, NodeCanvasDocument>;
+  updatedAt: string | null;
+}> {
   if (typeof fetch !== 'function') {
     throw new Error('Fetch API is unavailable to read draft:workspace.');
   }
@@ -169,8 +218,21 @@ export async function fetchDraftWorkspaceOverrides(
   const draft = (await res.json()) as DraftWorkspaceResponse;
   return {
     contentOverrides: draft.contentOverrides ? { ...draft.contentOverrides } : {},
+    pages: draft.pages ? { ...draft.pages } : {},
+    canvases: draft.canvases ? { ...draft.canvases } : {},
     updatedAt: typeof draft.updatedAt === 'string' ? draft.updatedAt : null,
   };
+}
+
+/**
+ * Fetches Dev Mode contentOverrides directly from Cloudflare KV draft:workspace.
+ * Fails stop (throws) on non-2xx HTTP status or network error.
+ */
+export async function fetchDraftWorkspaceOverrides(
+  lockToken?: string | null
+): Promise<DraftContentMutationResult> {
+  const { contentOverrides, updatedAt } = await fetchDraftWorkspaceChrome(lockToken);
+  return { contentOverrides, updatedAt };
 }
 
 /**

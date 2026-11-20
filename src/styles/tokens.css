@@ -30,6 +30,12 @@
    /* Deep vignette overlay on photographic media */
    --overlay-overflow: rgba(15, 23, 42, 0.62);
    --overlay-overflow-hover: rgba(15, 23, 42, 0.5);
+   --overlay-inverse-subtle: rgba(255, 255, 255, 0.15);
+   --overlay-inverse-muted: rgba(255, 255, 255, 0.2);
+   --overlay-inverse-hover: rgba(255, 255, 255, 0.25);
+   --overlay-inverse-active: rgba(255, 255, 255, 0.35);
+   --border-inverse-subtle: rgba(255, 255, 255, 0.4);
+   --border-inverse-strong: rgba(255, 255, 255, 0.7);
    --text-shadow-contrast: 0 2px 10px rgba(0, 0, 0, 0.6);
    --lightbox-scrim: rgba(28, 25, 23, 0.92);
    /* Full-screen accessible lightbox dark scrim */
@@ -377,6 +383,8 @@
    /* Floating navbar, cards */
    --elevation-modal: 0 20px 48px -10px rgba(59, 7, 18, 0.16);
    /* Takeover drawers, expanded pages */
+   --elevation-toast: 0 8px 24px -4px rgba(42, 8, 18, 0.10), 0 2px 8px -2px rgba(42, 8, 18, 0.05);
+   /* Floating toast status cards */
    --elevation-glow-accent: 0 0 24px rgba(245, 158, 11, 0.25);
    /* Golden sunburst accent glow */
    --shadow-hero-card: 0 4px 28px -4px rgba(136, 19, 55, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.95);
@@ -494,5 +502,45 @@
    --brand-primary-hover: #9f1239;
    --brand-primary-subtle: #fff1f2;
    --brand-primary-muted: rgba(136, 19, 55, 0.2);
+
+   /* ==========================================================================
+     16. Dynamic Nested Pages & 2-Level Navigation Tokens (Epic 13)
+     ========================================================================== */
+   /* Page Link Editorial Row (CanvasPageLink) */
+   --page-link-bg: var(--bg-surface);
+   --page-link-hover-bg: var(--bg-surface-subtle);
+   --page-link-active-bg: var(--bg-surface-muted);
+   --page-link-border: var(--border-subtle);
+   --page-link-hover-border: var(--border-default);
+   --page-link-shadow: var(--elevation-flat);
+   --page-link-hover-shadow: var(--elevation-raised-hover);
+   --page-link-radius: var(--radius-lg);
+   --page-link-padding-y: var(--space-4);
+   --page-link-padding-x: var(--space-5);
+   --page-link-disabled-opacity: 0.5;
+   --page-link-icon-color: var(--text-muted);
+   --page-link-arrow-color: var(--text-muted);
+
+   /* Solid-Surface AppHeader Level 2 Dropdown (Zero Glass-on-Glass Stacking) */
+   --nav-dropdown-bg: var(--folio-bg-surface);
+   --nav-dropdown-border: var(--border-subtle);
+   --nav-dropdown-shadow: var(--shadow-md);
+   --nav-dropdown-radius: var(--radius-lg);
+   --nav-dropdown-item-hover-bg: var(--bg-surface-muted);
+   --nav-dropdown-item-active-bg: var(--bg-surface-hover);
+   --nav-dropdown-min-width: 220px;
+   --nav-dropdown-max-width: 300px;
+
+   /* Deep Breadcrumb Ellipsis & Mono URL Preview */
+   --breadcrumb-ellipsis-color: var(--text-muted);
+   --url-preview-bg: var(--bg-surface-muted);
+   --url-preview-border: var(--border-subtle);
+   --url-preview-text: var(--text-secondary);
+
+   /* Danger / Destructive Confirmation Surface */
+   --color-danger-dark: #be123c;
+   --color-danger-tint: #fff1f2;
+   --color-danger-border: rgba(225, 29, 72, 0.25);
+   --color-success: var(--color-node-4);
 
 }

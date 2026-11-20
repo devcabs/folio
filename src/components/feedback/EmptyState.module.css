@@ -26,7 +26,7 @@
   border-style: solid;
   border-color: var(--border-default);
   background-color: var(--bg-surface);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--elevation-flat);
 }
 
 .title {
@@ -52,50 +52,4 @@
 
 .description:last-child {
   margin-bottom: 0;
-}
-
-.actionButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1-5);
-  height: 32px;
-  padding: 0 var(--space-4);
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--folio-primary, var(--text-primary));
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  text-decoration: none;
-  transition: all var(--duration-fast) var(--ease-out);
-  outline: none;
-  box-sizing: border-box;
-}
-
-.actionButton:hover:not(:disabled) {
-  background-color: var(--brand-primary-tint, var(--bg-surface-hover));
-  border-color: var(--border-strong, var(--border-default));
-  color: var(--folio-primary, var(--text-primary));
-  transform: translateY(-1px);
-  outline: none;
-}
-
-.actionButton:active:not(:disabled) {
-  transform: translateY(1px);
-  outline: none;
-}
-
-.actionButton:focus,
-.actionButton:focus-visible {
-  outline: none;
-}
-
-.actionButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-  outline: none;
 }

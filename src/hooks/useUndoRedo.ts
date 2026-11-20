@@ -22,6 +22,7 @@ export function useUndoRedo(): UndoRedoContextType {
       undo: () => {},
       redo: () => {},
       clearHistory: () => {},
+      clearScope: () => {},
     };
   }
   return context;

@@ -14,8 +14,10 @@ import type {
   PublishSnapshotResult,
   HistoryIndexEntry,
 } from '../types/history';
-import type { NodeCanvasDocument, SubsectionElement } from '../types/canvas';
+import type { NodeCanvasDocument } from '../types/canvas';
+import { normalizeCanvasDocument } from '../utils/canvasDefaults';
 import type { DraftWorkspacePayload } from '../types/edge';
+import type { PageRegistry } from '../types/page';
 import {
   dispatchAggregateCanvasChange,
   type NodeId,
@@ -35,7 +37,8 @@ export const HISTORY_SCHEMA_VERSION = 1;
  */
 export function computeMetricsSummary(
   canvases: Record<string, NodeCanvasDocument>,
-  _legacyContentOverrides?: Record<string, string>
+  _legacyContentOverrides?: Record<string, string>,
+  pages?: PageRegistry
 ): UnifiedPortalSnapshot['summary'] {
   let totalSections = 0;
   let totalSubsections = 0;
@@ -45,38 +48,26 @@ export function computeMetricsSummary(
   let totalChartElements = 0;
   let totalPdfElements = 0;
   let totalDocumentElements = 0;
+  let totalPageLinkElements = 0;
 
   for (const nodeId of Object.keys(canvases || {})) {
-    const doc = canvases[nodeId];
-    if (!doc || !Array.isArray(doc.sections)) continue;
+    const rawDoc = canvases[nodeId];
+    if (!rawDoc) continue;
+    const doc = normalizeCanvasDocument(rawDoc, nodeId);
 
-    totalSections += doc.sections.length;
-
-    for (const sec of doc.sections) {
-      if (!Array.isArray(sec.elements)) continue;
-
-      for (const el of sec.elements) {
-        if (el.type === 'subsection') {
-          totalSubsections += 1;
-          const sub = el as SubsectionElement;
-          if (Array.isArray(sub.elements)) {
-            totalLeafElements += sub.elements.length;
-            for (const leaf of sub.elements) {
-              if (leaf.type === 'text') totalTextElements += 1;
-              else if (leaf.type === 'photo') totalPhotoElements += 1;
-              else if (leaf.type === 'chart') totalChartElements += 1;
-              else if (leaf.type === 'pdf') totalPdfElements += 1;
-              else if (leaf.type === 'documents') totalDocumentElements += 1;
-            }
-          }
-        } else {
-          totalLeafElements += 1;
-          if (el.type === 'text') totalTextElements += 1;
-          else if (el.type === 'photo') totalPhotoElements += 1;
-          else if (el.type === 'chart') totalChartElements += 1;
-          else if (el.type === 'pdf') totalPdfElements += 1;
-          else if (el.type === 'documents') totalDocumentElements += 1;
-        }
+    for (const el of doc.elements) {
+      if (el.type === 'section') {
+        totalSections += 1;
+      } else if (el.type === 'subsection') {
+        totalSubsections += 1;
+      } else {
+        totalLeafElements += 1;
+        if (el.type === 'text') totalTextElements += 1;
+        else if (el.type === 'photo') totalPhotoElements += 1;
+        else if (el.type === 'chart') totalChartElements += 1;
+        else if (el.type === 'pdf') totalPdfElements += 1;
+        else if (el.type === 'documents') totalDocumentElements += 1;
+        else if (el.type === 'page-link') totalPageLinkElements += 1;
       }
     }
   }
@@ -91,6 +82,8 @@ export function computeMetricsSummary(
     totalChartElements,
     totalPdfElements,
     totalDocumentElements,
+    totalSubpages: pages ? Object.keys(pages).length : 0,
+    totalPageLinkElements,
   };
 }
 
@@ -239,11 +232,13 @@ export async function publishNewSnapshot(
 
   let canvases: Record<string, NodeCanvasDocument> = {};
   let contentOverrides: Record<string, string> = {};
+  let pages: PageRegistry = {};
 
   try {
     const draftWorkspace = await getDraftWorkspace(lockToken);
     canvases = draftWorkspace.canvases || {};
     contentOverrides = draftWorkspace.contentOverrides || {};
+    pages = draftWorkspace.pages || {};
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unable to read draft workspace from KV';
     return {
@@ -254,7 +249,7 @@ export async function publishNewSnapshot(
     };
   }
 
-  const summary = computeMetricsSummary(canvases, contentOverrides);
+  const summary = computeMetricsSummary(canvases, contentOverrides, pages);
   const id = `pub-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const cleanTitle = title.trim() || 'Published Revision';
   const createdAt = new Date().toISOString();
@@ -269,6 +264,7 @@ export async function publishNewSnapshot(
     isActive: true,
     canvases,
     contentOverrides,
+    pages,
     summary,
   };
 

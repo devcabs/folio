@@ -9,7 +9,8 @@
  */
 
 import type { HistoryIndex, HistoryIndexEntry, PublishedSnapshot } from '../../types/history';
-import type { DraftWorkspacePayload, KVNamespace } from '../../types/edge';
+import { PageRegistrySchema, type DraftWorkspacePayload, type KVNamespace } from '../../types/edge';
+import { createDefaultCanvasDocument } from '../../utils/canvasDefaults';
 import {
   compilePublicNodePayload,
   compilePortalManifest,
@@ -117,20 +118,52 @@ export async function handlePublishRoute(
       );
     }
 
+    if (snapshot.pages !== undefined) {
+      const parsedPages = PageRegistrySchema.safeParse(snapshot.pages);
+      if (!parsedPages.success) {
+        const issueMsg = parsedPages.error.issues
+          .map((i) => `${i.path.join('.')}: ${i.message}`)
+          .join('; ');
+        return jsonResponse(
+          {
+            success: false,
+            error: `Malformed snapshot.pages payload: ${issueMsg}`,
+          },
+          400
+        );
+      }
+    }
+
     try {
-      const targetNodes = Object.keys(snapshot.canvases);
+      const targetNodes = Array.from(
+        new Set([...Object.keys(snapshot.canvases), ...Object.keys(snapshot.pages || {})])
+      );
+      const normalizedCanvases = { ...snapshot.canvases };
+      for (const nodeId of targetNodes) {
+        if (!normalizedCanvases[nodeId]) {
+          normalizedCanvases[nodeId] = createDefaultCanvasDocument(nodeId);
+        }
+      }
+      const normalizedSnapshot: PublishedSnapshot = {
+        ...snapshot,
+        canvases: normalizedCanvases,
+        pages: snapshot.pages ? JSON.parse(JSON.stringify(snapshot.pages)) : {},
+      };
 
       // ───────────────────────────────────────────────────────────────────────
       // Phase A: Stage Immutable Payloads First
       // ───────────────────────────────────────────────────────────────────────
       // 1. Write full self-contained snapshot (preserves ChartElement.config.sheetUrl for rollbacks)
-      await kv.put(`${KV_HISTORY_SNAPSHOT_PREFIX}${snapshot.id}`, JSON.stringify(snapshot));
+      await kv.put(
+        `${KV_HISTORY_SNAPSHOT_PREFIX}${normalizedSnapshot.id}`,
+        JSON.stringify(normalizedSnapshot)
+      );
 
       // 2. Compile & stage versioned immutable node payloads + active node keys
       for (const nodeId of targetNodes) {
-        const compiled = compilePublicNodePayload(nodeId, snapshot);
+        const compiled = compilePublicNodePayload(nodeId, normalizedSnapshot);
         const serialized = JSON.stringify(compiled);
-        await kv.put(`node:${snapshot.id}:${nodeId}`, serialized);
+        await kv.put(`node:${normalizedSnapshot.id}:${nodeId}`, serialized);
         await kv.put(`node:${nodeId}`, serialized);
       }
 
@@ -140,25 +173,25 @@ export async function handlePublishRoute(
       const nowIso = new Date().toISOString();
 
       // 3. Flip portal:manifest
-      const manifestPayload = compilePortalManifest(snapshot, targetNodes);
+      const manifestPayload = compilePortalManifest(normalizedSnapshot, targetNodes);
       await kv.put(KV_PORTAL_MANIFEST_KEY, JSON.stringify(manifestPayload));
 
       // 4. Update history:index
       const existingIndex = await kv.get<HistoryIndex>(KV_HISTORY_INDEX_KEY, 'json');
       const entry: HistoryIndexEntry = {
-        id: snapshot.id,
-        schemaVersion: snapshot.schemaVersion || 1,
-        title: snapshot.title,
-        description: snapshot.description,
-        createdAt: snapshot.createdAt,
-        authorSessionId: snapshot.authorSessionId,
-        summary: snapshot.summary,
+        id: normalizedSnapshot.id,
+        schemaVersion: normalizedSnapshot.schemaVersion || 1,
+        title: normalizedSnapshot.title,
+        description: normalizedSnapshot.description,
+        createdAt: normalizedSnapshot.createdAt,
+        authorSessionId: normalizedSnapshot.authorSessionId,
+        summary: normalizedSnapshot.summary,
       };
       const prevEntries = Array.isArray(existingIndex?.entries)
-        ? existingIndex.entries.filter((e) => e.id !== snapshot.id)
+        ? existingIndex.entries.filter((e) => e.id !== normalizedSnapshot.id)
         : [];
       const nextIndex: HistoryIndex = {
-        activeSnapshotId: snapshot.id,
+        activeSnapshotId: normalizedSnapshot.id,
         updatedAt: nowIso,
         entries: [entry, ...prevEntries],
       };
@@ -167,13 +200,14 @@ export async function handlePublishRoute(
       // 5. Reset draft:workspace to clean state anchored at this published snapshot
       const existingDraft = await kv.get<DraftWorkspacePayload>(KV_DRAFT_WORKSPACE_KEY, 'json');
       const nextDraft: DraftWorkspacePayload = {
-        baseSnapshotId: snapshot.id,
+        baseSnapshotId: normalizedSnapshot.id,
         dirty: false,
         revision: (existingDraft?.revision ?? 0) + 1,
         updatedAt: nowIso,
-        authorSessionId: snapshot.authorSessionId,
-        canvases: JSON.parse(JSON.stringify(snapshot.canvases)),
-        contentOverrides: { ...(snapshot.contentOverrides || {}) },
+        authorSessionId: normalizedSnapshot.authorSessionId,
+        canvases: JSON.parse(JSON.stringify(normalizedSnapshot.canvases)),
+        contentOverrides: { ...(normalizedSnapshot.contentOverrides || {}) },
+        pages: JSON.parse(JSON.stringify(normalizedSnapshot.pages || {})),
       };
       await kv.put(KV_DRAFT_WORKSPACE_KEY, JSON.stringify(nextDraft));
 

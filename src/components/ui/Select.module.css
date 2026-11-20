@@ -1,0 +1,77 @@
+/**
+ * Canonical Select Primitive — Folio Engine
+ * Pure design-token styling, consistent chevron, 4-state matrix, and Zero Outline Policy.
+ */
+
+.wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+}
+
+.select {
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-8) var(--space-2) var(--space-3);
+  box-shadow: var(--elevation-flat);
+  cursor: pointer;
+  outline: none;
+  outline: 0;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.select:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background-color: var(--bg-surface-subtle);
+}
+
+.select:active:not(:disabled) {
+  border-color: var(--border-focus);
+}
+
+.select:focus,
+.select:focus-visible {
+  outline: none;
+  outline: 0;
+  border-color: var(--border-focus);
+  background-color: var(--bg-surface-subtle);
+}
+
+.select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--bg-surface-muted);
+}
+
+.invalid {
+  border-color: var(--color-danger);
+}
+
+.invalid:hover:not(:disabled),
+.invalid:active:not(:disabled),
+.invalid:focus,
+.invalid:focus-visible {
+  outline: none;
+  outline: 0;
+  border-color: var(--color-danger-dark);
+}
+
+.chevron {
+  position: absolute;
+  right: var(--space-3);
+  pointer-events: none;
+  color: var(--text-muted);
+}

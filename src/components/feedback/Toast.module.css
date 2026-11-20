@@ -34,7 +34,7 @@
   border: 1px solid var(--border-subtle);
   border-left: 3.5px solid var(--border-default);
   border-radius: var(--radius-lg, 12px);
-  box-shadow: 0 8px 24px -4px rgba(42, 8, 18, 0.10), 0 2px 8px -2px rgba(42, 8, 18, 0.05);
+  box-shadow: var(--elevation-toast);
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -56,6 +56,7 @@
     opacity: 0;
     transform: translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -107,7 +108,7 @@
   outline: none;
   margin-left: auto;
   transition: color var(--duration-fast) var(--ease-out),
-              background-color var(--duration-fast) var(--ease-out);
+    background-color var(--duration-fast) var(--ease-out);
 }
 
 .dismissButton:hover {
@@ -130,7 +131,7 @@
   flex-shrink: 0;
   padding: 5px 14px;
   background: var(--folio-primary);
-  color: var(--text-inverse, #ffffff);
+  color: var(--text-inverse);
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 600;
@@ -138,11 +139,12 @@
   border: none;
   border-radius: var(--radius-full);
   cursor: pointer;
-  outline: none; /* Universal Zero Outline Policy */
+  outline: none;
+  /* Universal Zero Outline Policy */
   box-shadow: var(--elevation-flat);
   margin-left: var(--space-1);
   transition: opacity var(--duration-fast) var(--ease-out),
-              transform var(--duration-fast) var(--ease-out);
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .actionButton:hover {
@@ -181,13 +183,14 @@
   color: var(--text-secondary);
   box-shadow: var(--elevation-flat);
   cursor: pointer;
-  outline: none; /* Universal Zero Outline Policy */
+  outline: none;
+  /* Universal Zero Outline Policy */
   pointer-events: auto;
   transition: background-color var(--duration-fast) var(--ease-out),
-              color var(--duration-fast) var(--ease-out),
-              border-color var(--duration-fast) var(--ease-out),
-              box-shadow var(--duration-fast) var(--ease-out),
-              transform var(--duration-fast) var(--ease-out);
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
   display: inline-flex;
   align-items: center;
   gap: 4px;

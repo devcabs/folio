@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { EditableText } from './EditableText';
+import { DevActionAffordance } from '../dev/DevActionAffordance';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import styles from './PageTitle.module.css';
 
@@ -8,6 +9,10 @@ export interface PageTitleProps {
   title: string;
   /** Content DB pointId for live editing */
   titlePointId?: string;
+  /** Direct save handler for title when backed by an external SSOT record (e.g. PageNode) instead of ContentDB */
+  onSaveTitle?: (newTitle: string) => void | Promise<void>;
+  /** Optional intercept callback to open a unified metadata modal (e.g. PageNode edit modal) on ✎ Edit */
+  onEditTitle?: () => void;
   /** Optional institutional eyebrow/kicker above the title */
   kicker?: string;
   /** Content DB pointId for kicker */
@@ -16,6 +21,10 @@ export interface PageTitleProps {
   subtitle?: string;
   /** Content DB pointId for subtitle */
   subtitlePointId?: string;
+  /** Direct save handler for subtitle/summary when backed by an external SSOT record */
+  onSaveSubtitle?: (newSubtitle: string) => void | Promise<void>;
+  /** Optional intercept callback for subtitle ✎ Edit */
+  onEditSubtitle?: () => void;
   /** Optional institutional accent color (defaults to var(--folio-primary)) */
   accentColor?: string;
   /** Optional custom CSS class */
@@ -37,15 +46,21 @@ export interface PageTitleProps {
 export const PageTitle: React.FC<PageTitleProps> = memo(({
   title,
   titlePointId,
+  onSaveTitle,
+  onEditTitle,
   kicker,
   kickerPointId,
   subtitle,
   subtitlePointId,
+  onSaveSubtitle,
+  onEditSubtitle,
   accentColor,
   className,
   children,
 }) => {
   const { isDevMode, isDesktop } = useDeveloperMode();
+  const canEditDirectTitle = isDevMode && isDesktop && Boolean(onEditTitle || onSaveTitle);
+  const canEditDirectSubtitle = isDevMode && isDesktop && Boolean(onEditSubtitle || onSaveSubtitle);
 
   return (
     <header
@@ -72,11 +87,21 @@ export const PageTitle: React.FC<PageTitleProps> = memo(({
           as="h1"
           className={styles.title}
         />
+      ) : canEditDirectTitle ? (
+        <DevActionAffordance
+          type="text"
+          currentValue={title}
+          defaultValue={title}
+          onEditText={onEditTitle}
+          onSave={onSaveTitle ? (val) => { void onSaveTitle(val); } : undefined}
+        >
+          <h1 className={styles.title}>{title}</h1>
+        </DevActionAffordance>
       ) : (
         <h1 className={styles.title}>{title}</h1>
       )}
 
-      {(subtitle || (isDevMode && isDesktop && subtitlePointId)) ? (
+      {(subtitle || (isDevMode && isDesktop && subtitlePointId) || canEditDirectSubtitle) ? (
         subtitlePointId ? (
           <EditableText
             pointId={subtitlePointId}
@@ -84,6 +109,16 @@ export const PageTitle: React.FC<PageTitleProps> = memo(({
             as="p"
             className={styles.subtitle}
           />
+        ) : canEditDirectSubtitle ? (
+          <DevActionAffordance
+            type="text"
+            currentValue={subtitle || ''}
+            defaultValue={subtitle || ''}
+            onEditText={onEditSubtitle}
+            onSave={onSaveSubtitle ? (val) => { void onSaveSubtitle(val); } : undefined}
+          >
+            {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : ''}
+          </DevActionAffordance>
         ) : (
           <p className={styles.subtitle}>{subtitle}</p>
         )

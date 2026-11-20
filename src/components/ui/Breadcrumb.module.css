@@ -56,12 +56,32 @@
   flex-shrink: 2;
 }
 
+.itemEllipsis {
+  flex-shrink: 0;
+}
+
 .separator {
   color: var(--text-muted);
   opacity: 0.6;
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   user-select: none;
+  padding: 0 var(--space-1);
+  flex-shrink: 0;
+}
+
+.ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  color: var(--breadcrumb-ellipsis-color);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+  cursor: default;
   padding: 0 var(--space-1);
   flex-shrink: 0;
 }

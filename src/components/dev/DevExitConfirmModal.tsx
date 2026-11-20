@@ -1,7 +1,7 @@
 import React, { memo, useState, useCallback } from 'react';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
-import { Modal } from '../ui/Modal';
+import { Modal, ModalActions } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { DevPublishModal } from './DevPublishModal';
 import styles from './DevExitConfirmModal.module.css';
@@ -67,18 +67,8 @@ export const DevExitConfirmModal: React.FC = memo(() => {
           role="alertdialog"
           ariaLabelledBy="dev-exit-title"
           ariaDescribedBy="dev-exit-desc"
-        >
-          <div className={styles.content}>
-            <div className={styles.header}>
-              <h2 id="dev-exit-title" className={styles.title}>
-                {exitTitle}
-              </h2>
-              <p id="dev-exit-desc" className={styles.subtitle}>
-                {exitSubtitle}
-              </p>
-            </div>
-
-            <div className={styles.actions}>
+          footer={
+            <ModalActions className={styles.actions}>
               {hasUnpublishedChanges ? (
                 <>
                   <Button
@@ -127,6 +117,17 @@ export const DevExitConfirmModal: React.FC = memo(() => {
                   </Button>
                 </>
               )}
+            </ModalActions>
+          }
+        >
+          <div className={styles.content}>
+            <div className={styles.header}>
+              <h2 id="dev-exit-title" className={styles.title}>
+                {exitTitle}
+              </h2>
+              <p id="dev-exit-desc" className={styles.subtitle}>
+                {exitSubtitle}
+              </p>
             </div>
           </div>
         </Modal>

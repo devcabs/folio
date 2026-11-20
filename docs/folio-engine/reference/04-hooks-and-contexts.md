@@ -54,14 +54,26 @@ function useScrollspy(options?: {
 ---
 
 ### `useHashRoute()`
-Synchronizes browser window `#hash` with active sequence waypoints without triggering disruptive full page reloads.
+Synchronizes browser URL pathname (`/node/{chapter}/{subpage}.../`) and legacy `#hash` routes with active root chapters and nested `PageNode`s.
 
 ```typescript
-function useHashRoute(): {
-  currentHash: string;
-  navigateToNode: (nodeId: string) => void;
+function useHashRoute(options?: {
+  pages?: PageRegistry;
+  isManifestHydrated?: boolean;
+}): {
+  route: RouteState;
+  activePageId: string | null;
+  rootNodeId: string | null;
+  pageNode: PageNode | null;
+  ancestors: PageAncestorItem[];
+  isHydrating: boolean;
+  isNotFound: boolean;
+  navigateToOverview: () => void;
+  navigateToNode: (nodeId: string, pageId?: string) => void;
 };
 ```
+- Returns `'hydrating'` (renders `<CanvasGhostWireframe />` instead of 404) while cold-boot manifest hydration is pending.
+- Includes the **Draft Refresh Guard**: in Dev Mode, `pages` from `draft:workspace` takes precedence over `portal:manifest` so newly created subpages never flash 404 on reload.
 
 ---
 
@@ -95,6 +107,12 @@ function useDeveloperMode(): {
 ```
 
 ---
+
+### `PortalChromeContext` (`src/context/PortalChromeContext.tsx`)
+Hydrates `contentOverrides`, `pages: PageRegistry`, and `publishedPages: PageRegistry` synchronously from `window.__FOLIO_MANIFEST__` (Public Mode) or asynchronously from `GET /api/draft` (Dev Mode). Exposes `commitWorkspaceMutation(...)` for atomic cross-page `pages`, `canvases`, and `deletedPageIds` updates.
+
+### `UndoRedoContext` (`src/context/UndoRedoContext.tsx`)
+Connects `Cmd+Z` / `Cmd+Shift+Z` to `undoRedoService.popUndoAsync()` / `popRedoAsync()`, executing workspace-addressed `createWorkspaceUndoAction` snapshots across any mounted page and dispatching `EVENT_WORKSPACE_UNDO_RECONCILE` for automatic parent route redirection when an active subpage is undone.
 
 ### `useUndoRedo()`
 Connects to the in-memory immutable state stack, providing undo/redo actions for canvas and copy edits.

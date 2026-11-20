@@ -1,0 +1,41 @@
+/**
+ * SourceFolderActionBar.module.css
+ * Shared Developer Mode side action bar for SourceGallery & SourceDocuments.
+ */
+
+.sideEditWrapper {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: center;
+  gap: var(--space-1-5);
+}
+
+.sideEditBtn,
+.sideSyncBtn {
+  min-width: 68px;
+  justify-content: center;
+  white-space: nowrap;
+  outline: none;
+}
+
+.syncIcon {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 1;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

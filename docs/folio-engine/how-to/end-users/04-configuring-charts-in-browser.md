@@ -36,18 +36,18 @@ On Tab **1 (`Source & Range`)**:
 
 ---
 
-## Step 3: Pick Chart Type, Data Columns & Style (`Chart Setup`)
+## Step 3: Pick Chart Type, Shape Data & Style (`Chart Setup`)
 
 On Tab **2 (`Chart Setup`)**, the live chart preview updates immediately as you adjust settings:
 
-1. **Choose Chart Type**: Select **Bar Chart**, **Line Chart**, **Donut Chart**, **Scatter Plot**, or **Histogram**.
-2. **Configure the `Data` sub-tab**:
-   - **Table Orientation**: Expand **Table Orientation** and check **Transpose data: Swap rows and columns** if your headers are in the first column instead of the first row.
-   - **Columns & Series**: Pick the category/label column and toggle which data series to show (for **Scatter Plot**, map X, Y, Label, and optional Group columns; for **Histogram**, adjust bin strategy or bucket count).
-   - **Sorting**: Choose how bars or categories are sorted (as-is, alphabetical, or by value).
-3. **Configure the `Appearance` sub-tab**:
-   - Customize the chart title, subtitle, and X/Y axis labels.
-   - Toggle value labels and chart-specific display options (such as horizontal/stacked bars, area fill, smooth curves, donut style, or starting axes at zero).
+1. **Choose Chart Type**: Use the segmented **Chart Type** switcher to pick **Bar**, **Line**, **Donut**, **Scatter**, or **Histogram**.
+2. **Shape the Data**:
+   - **Table Orientation**: Expand **Shape the Data** and toggle **Transpose data** if your headers are in the first column instead of the first row.
+   - **Columns, Series & Sorting**: Pick the category/label column, toggle which data series to display, and choose sorting order (as-is, alphabetical, or by value). For **Scatter**, map X, Y, Label, and optional Group columns; for **Histogram**, pick the numeric column and binning strategy.
+3. **Encode the Visual**:
+   - Configure chart-specific visual encodings: **Auto | Zero** axis baseline toggle, horizontal/stacked bars, area fill or smooth curves, donut style, and Scatter regression/scale controls.
+4. **Polish & Label**:
+   - Customize the chart title, subtitle, X/Y axis labels, units, and value label visibility.
 
 ---
 

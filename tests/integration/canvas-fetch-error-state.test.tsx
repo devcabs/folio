@@ -59,8 +59,8 @@ describe('DocumentCanvas Edge Fetch Error Isolation Gate', () => {
         nodeId: 'access',
         canvas: {
           nodeId: 'access',
-          version: 2,
-          sections: [],
+          version: 3,
+          elements: [],
           updatedAt: '2026-11-16T09:00:00Z',
         },
       }),

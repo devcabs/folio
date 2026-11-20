@@ -1,0 +1,77 @@
+/**
+ * Canonical SegmentedControl Primitive — Folio Engine
+ * Pure design-token radiogroup styling, 4-state interactive matrix, and Zero Outline Policy.
+ */
+
+.group {
+  display: inline-flex;
+  align-items: stretch;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background-color: var(--bg-surface-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.segment {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  outline: 0;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.sizeMd .segment {
+  font-size: var(--text-caption);
+  padding: var(--space-1-5) var(--space-3);
+}
+
+.sizeSm .segment {
+  font-size: var(--text-caption-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.segment:hover:not(:disabled):not(.segmentActive) {
+  color: var(--text-primary);
+  background-color: var(--bg-surface-subtle);
+}
+
+.segment:active:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.segment:focus,
+.segment:focus-visible {
+  outline: none;
+  outline: 0;
+  border-color: var(--border-focus);
+}
+
+.segmentActive {
+  color: var(--text-primary);
+  font-weight: 600;
+  background-color: var(--bg-surface);
+  border-color: var(--border-subtle);
+  box-shadow: var(--elevation-flat);
+}
+
+.segment:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

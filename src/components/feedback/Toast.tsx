@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { IconButton } from '../ui/IconButton';
 import styles from './Toast.module.css';
 
 export interface ToastProps {
@@ -281,14 +282,15 @@ export const Toast: React.FC<ToastProps> = ({
             {actionLabel}
           </button>
         )}
-        <button
-          type="button"
+        <IconButton
+          variant="ghost"
+          size="xs"
           className={styles.dismissButton}
           onClick={() => onDismissRef.current()}
           aria-label="Dismiss notification"
         >
           ✕
-        </button>
+        </IconButton>
       </div>
 
       {showCloseAll && (

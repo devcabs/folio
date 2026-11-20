@@ -20,7 +20,7 @@ graph TD
     B --> B2["Discrete Waypoint Navigation"]
     
     C --> C1["Block AST Tree (Section / Subsection / Leaf)"]
-    C --> C2["Embedded Chart & Gallery Payloads"]
+    C --> C2["Embedded Charts, Galleries & PDFs"]
     
     D --> D1["D3-Scale SVG Renderers (Bar, Line, Donut, Scatter, Histogram)"]
     D --> D2["Live Google Sheets / CSV Sync Drawer"]

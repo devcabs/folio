@@ -120,23 +120,24 @@ describe('Subtask 7.3: Self-Contained Document AST, Section Numbering & Undo SSO
 
       const doc: NodeCanvasDocument = {
         nodeId: 'access',
-        version: 2,
+        version: 3,
         updatedAt: '2026-01-01T00:00:00.000Z',
-        sections: [
+        elements: [
           {
             id: 'sec-1',
             type: 'section',
             title: 'Overview',
             isNumbered: true,
             number: '01',
-            elements: [chartEl, galleryEl],
           },
+          chartEl,
+          galleryEl,
         ],
       };
 
       const parsedDoc = NodeCanvasDocumentSchema.parse(doc);
-      const parsedChart = parsedDoc.sections[0].elements[0] as ChartElement;
-      const parsedGallery = parsedDoc.sections[0].elements[1] as GalleryElement;
+      const parsedChart = parsedDoc.elements[1] as ChartElement;
+      const parsedGallery = parsedDoc.elements[2] as GalleryElement;
 
       expect(parsedChart.config?.defaultType).toBe('bar');
       expect(parsedChart.dataset?.categories).toEqual(['2024', '2025']);
@@ -159,9 +160,9 @@ describe('Subtask 7.3: Self-Contained Document AST, Section Numbering & Undo SSO
   describe('2. Pure AST Section Numbering & SectionTitle (Zero ContentDB)', () => {
     it('useDynamicCanvasSectionNumbers computes numbers purely from SectionElement.isNumbered', () => {
       const sections: SectionElement[] = [
-        { id: 's1', type: 'section', title: 'First', isNumbered: true, elements: [] },
-        { id: 's2', type: 'section', title: 'Unnumbered', isNumbered: false, elements: [] },
-        { id: 's3', type: 'section', title: 'Second', isNumbered: true, elements: [] },
+        { id: 's1', type: 'section', title: 'First', isNumbered: true },
+        { id: 's2', type: 'section', title: 'Unnumbered', isNumbered: false },
+        { id: 's3', type: 'section', title: 'Second', isNumbered: true },
       ];
 
       const { result } = renderHook(() => useDynamicCanvasSectionNumbers('access', sections));
@@ -249,16 +250,15 @@ describe('Subtask 7.3: Self-Contained Document AST, Section Numbering & Undo SSO
 
       const initialDoc: NodeCanvasDocument = {
         nodeId: 'access',
-        version: 2,
+        version: 3,
         updatedAt: '2026-01-01T00:00:00.000Z',
-        sections: [
+        elements: [
           {
             id: 'sec-existing',
             type: 'section',
             title: 'Existing KV Section',
             isNumbered: true,
             number: '01',
-            elements: [],
           },
         ],
       };
@@ -285,8 +285,8 @@ describe('Subtask 7.3: Self-Contained Document AST, Section Numbering & Undo SSO
       const { result } = renderHook(() => useDocumentCanvas('access'));
 
       await vi.waitFor(() => {
-        expect(result.current.document.sections).toHaveLength(1);
-        expect(result.current.document.sections[0].title).toBe('Existing KV Section');
+        expect(result.current.document.elements).toHaveLength(1);
+        expect((result.current.document.elements[0] as SectionElement).title).toBe('Existing KV Section');
       });
 
       act(() => {
@@ -296,7 +296,7 @@ describe('Subtask 7.3: Self-Contained Document AST, Section Numbering & Undo SSO
       await vi.waitFor(() => {
         expect(result.current.saveError).toContain('500');
         // Fail-stop: reverted to last persisted KV state
-        expect(result.current.document.sections).toHaveLength(1);
+        expect(result.current.document.elements).toHaveLength(1);
       });
 
       expect(fetchMock).toHaveBeenCalledWith(
@@ -319,16 +319,15 @@ describe('Subtask 7.3: Self-Contained Document AST, Section Numbering & Undo SSO
 
       const initialDoc: NodeCanvasDocument = {
         nodeId: 'access',
-        version: 2,
+        version: 3,
         updatedAt: '2026-01-01T00:00:00.000Z',
-        sections: [
+        elements: [
           {
             id: 'sec-1',
             type: 'section',
             title: 'Deletable Section',
             isNumbered: true,
             number: '01',
-            elements: [],
           },
         ],
       };

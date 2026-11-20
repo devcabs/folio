@@ -4,6 +4,7 @@ import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { buildDrivePreviewUrl, buildDriveViewUrl } from '../../utils/mediaUrl';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { StatusPill } from '../ui/StatusPill';
 import styles from './PdfPreviewModal.module.css';
 
 export interface PdfPreviewModalProps {
@@ -105,12 +106,14 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
         <div className={styles.toolbar}>
           <div className={styles.metaGroup}>
             {hasMultiple && (
-              <span className={styles.counterBadge} aria-live="polite">
-                {safeIndex + 1} / {items.length}
-              </span>
+              <StatusPill
+                label={`${safeIndex + 1} / ${items.length}`}
+                variant="neutral"
+                size="sm"
+              />
             )}
             {displayDate && (
-              <span className={styles.dateBadge}>{displayDate}</span>
+              <StatusPill label={displayDate} variant="mono" size="sm" />
             )}
           </div>
 
@@ -152,15 +155,17 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
               </Button>
             )}
 
-            <a
+            <Button
+              as="a"
+              variant="secondary"
+              size="xs"
               href={viewUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className={styles.openTabLink}
               aria-label={`Open ${currentItem.title} in new tab`}
             >
               Open in New Tab ↗
-            </a>
+            </Button>
           </div>
         </div>
 

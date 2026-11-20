@@ -93,16 +93,15 @@ describe('11.3 Single PDF Authoring & Modal Wiring', () => {
 
   const baseDoc: NodeCanvasDocument = {
     nodeId: 'access',
-    version: 1,
+    version: 3,
     updatedAt: '2026-11-19T00:00:00.000Z',
-    sections: [
+    elements: [
       {
         id: 'sec-1',
         type: 'section',
         title: 'Documents & Reports',
         number: '01',
         isNumbered: true,
-        elements: [],
       },
     ],
   };
@@ -121,12 +120,7 @@ describe('11.3 Single PDF Authoring & Modal Wiring', () => {
 
   const docWithPdf: NodeCanvasDocument = {
     ...baseDoc,
-    sections: [
-      {
-        ...baseDoc.sections[0],
-        elements: [existingPdfLeaf],
-      },
-    ],
+    elements: [...baseDoc.elements, existingPdfLeaf],
   };
 
   it('opens UniversalEditModal ("Add PDF") when clicking + Add Element -> Document and inserts a resolved PdfElement on submit', () => {
@@ -167,8 +161,8 @@ describe('11.3 Single PDF Authoring & Modal Wiring', () => {
     fireEvent.click(submitBtn);
 
     expect(addElementMock).toHaveBeenCalledTimes(1);
-    const [targetSecId, insertedLeaf] = addElementMock.mock.calls[0];
-    expect(targetSecId).toBe('sec-1');
+    const [insertedLeaf, targetIdx] = addElementMock.mock.calls[0];
+    expect(targetIdx).toBe(1);
     expect(insertedLeaf).toMatchObject({
       type: 'pdf',
       title: 'Q1 Financial Report',
@@ -285,6 +279,6 @@ describe('11.3 Single PDF Authoring & Modal Wiring', () => {
     // Confirm delete (inside modal)
     const confirmDeleteBtns = screen.getAllByRole('button', { name: 'Delete' });
     fireEvent.click(confirmDeleteBtns[confirmDeleteBtns.length - 1]);
-    expect(removeItemMock).toHaveBeenCalledWith('pdf-existing-1', 'sec-1');
+    expect(removeItemMock).toHaveBeenCalledWith('pdf-existing-1', 'access');
   });
 });

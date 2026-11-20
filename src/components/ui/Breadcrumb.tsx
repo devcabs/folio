@@ -13,10 +13,36 @@ export interface BreadcrumbItem {
 
 export interface BreadcrumbProps {
   items: BreadcrumbItem[];
+  maxItems?: number;
   separator?: React.ReactNode;
   className?: string;
   ariaLabel?: string;
   endSlot?: React.ReactNode;
+}
+
+type CollapsedBreadcrumbEntry =
+  | (BreadcrumbItem & { isEllipsis?: false })
+  | { id: string; isEllipsis: true };
+
+/**
+ * Pure helper that collapses middle ancestor segments when `items.length > maxItems`,
+ * preserving the first two segments, a single non-interactive ellipsis, and the last two segments.
+ */
+export function collapseBreadcrumbItems(
+  items: BreadcrumbItem[],
+  maxItems = 4
+): CollapsedBreadcrumbEntry[] {
+  if (!items || items.length <= maxItems || maxItems < 4) {
+    return items;
+  }
+
+  return [
+    items[0],
+    items[1],
+    { id: '__breadcrumb-ellipsis__', isEllipsis: true },
+    items[items.length - 2],
+    items[items.length - 1],
+  ];
 }
 
 /**
@@ -40,6 +66,7 @@ const DefaultSeparator: React.FC = () => (
  */
 export const Breadcrumb: React.FC<BreadcrumbProps> = memo(({
   items,
+  maxItems = 4,
   separator = <DefaultSeparator />,
   className,
   ariaLabel = 'Breadcrumb navigation',
@@ -49,6 +76,8 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = memo(({
     return null;
   }
 
+  const visibleEntries = collapseBreadcrumbItems(items, maxItems);
+
   return (
     <nav
       className={`${styles.breadcrumbNav} ${className || ''}`}
@@ -56,8 +85,20 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = memo(({
     >
       <div className={styles.breadcrumbInner}>
         <ol className={styles.list}>
-          {items.map((item, index) => {
-            const isLast = index === items.length - 1;
+          {visibleEntries.map((entry, index) => {
+            if ('isEllipsis' in entry && entry.isEllipsis) {
+              return (
+                <li key={entry.id} className={`${styles.item} ${styles.itemEllipsis}`}>
+                  {index > 0 && separator}
+                  <span className={styles.ellipsis} aria-hidden="true">
+                    …
+                  </span>
+                </li>
+              );
+            }
+
+            const item = entry;
+            const isLast = index === visibleEntries.length - 1;
             const isCurrent = item.isCurrent ?? isLast;
             const itemKey = item.id || (typeof item.label === 'string' ? `${item.label}-${index}` : `crumb-${index}`);
             const titleAttr = typeof item.label === 'string' ? item.label : undefined;

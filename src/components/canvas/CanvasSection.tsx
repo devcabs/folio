@@ -11,7 +11,6 @@ export interface CanvasSectionProps {
   isDevMode?: boolean;
   className?: string;
   computedNumber?: string | null;
-  children?: React.ReactNode;
   onEdit?: () => void;
 }
 
@@ -35,7 +34,6 @@ export const CanvasSection: React.FC<CanvasSectionProps> = memo(({
   isDevMode: _isDevMode,
   className,
   computedNumber,
-  children,
   onEdit,
 }) => {
   const domId = section.id.startsWith('sec-') ? section.id : `sec-${section.id}`;
@@ -72,9 +70,6 @@ export const CanvasSection: React.FC<CanvasSectionProps> = memo(({
         editTriggerId={section.id}
         onEdit={onEdit}
       />
-      <div className={styles.sectionBody}>
-        {children}
-      </div>
     </section>
   );
 });

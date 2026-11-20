@@ -1,0 +1,52 @@
+/**
+ * Canonical InlineAlert Primitive — Folio Engine
+ * Token-driven inline status and alert banner for modals, drawers, and forms.
+ */
+
+.alert {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.title {
+  font-weight: 600;
+  font-size: var(--text-caption);
+  line-height: var(--leading-snug);
+}
+
+.body {
+  font-weight: 400;
+}
+
+.variantError {
+  background-color: var(--color-danger-tint);
+  color: var(--color-danger-dark);
+  border-color: var(--color-danger-border);
+}
+
+.variantWarning {
+  background-color: var(--color-warning-surface);
+  color: var(--color-warning-text);
+  border-color: var(--color-warning-border);
+}
+
+.variantInfo {
+  background-color: var(--color-node-1-tint);
+  color: var(--color-node-1);
+  border-color: var(--color-node-1-border);
+}
+
+.variantSuccess {
+  background-color: var(--color-node-4-tint);
+  color: var(--color-node-4);
+  border-color: var(--color-node-4-border);
+}

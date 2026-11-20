@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ChartType } from '../../../../types/chart';
+import { FormField, Select } from '../../../ui';
 import { ChartSortingControls } from '../../ChartSortingControls';
 import { indexToColLetter } from '../../../../utils/chartSanitizer';
 import styles from '../../ChartConfigDrawer.module.css';
@@ -30,14 +31,10 @@ export const SortingAndOrderControls: React.FC<SortingAndOrderControlsProps> = (
   const content = (() => {
     if (chartType === 'donut') {
       return (
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="cfg-donut-sort">
-            <span>Slice Order</span>
-          </label>
+        <FormField id="cfg-donut-sort" label="Slice Order">
           <div className={styles.twoColRow}>
-            <select
+            <Select
               id="cfg-donut-sort"
-              className={styles.select}
               value={sortBy === 'none' ? 'sheet' : 'value'}
               onChange={(e) => {
                 const val = e.target.value;
@@ -52,10 +49,9 @@ export const SortingAndOrderControls: React.FC<SortingAndOrderControlsProps> = (
             >
               <option value="value">Largest Slices First (Clockwise)</option>
               <option value="sheet">Original Sheet Order</option>
-            </select>
-            <select
+            </Select>
+            <Select
               id="cfg-donut-sort-dir"
-              className={styles.select}
               value={sortDirection}
               onChange={(e) => {
                 const val = e.target.value as 'asc' | 'desc';
@@ -68,22 +64,18 @@ export const SortingAndOrderControls: React.FC<SortingAndOrderControlsProps> = (
             >
               <option value="desc">Highest to Lowest</option>
               <option value="asc">Lowest to Highest</option>
-            </select>
+            </Select>
           </div>
-        </div>
+        </FormField>
       );
     }
 
     if (chartType === 'scatter') {
       return (
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="cfg-scatter-sort">
-            <span>Sort Points By</span>
-          </label>
+        <FormField id="cfg-scatter-sort" label="Sort Points By">
           <div className={styles.twoColRow}>
-            <select
+            <Select
               id="cfg-scatter-sort"
-              className={styles.select}
               value={sortField}
               onChange={(e) => {
                 const val = e.target.value;
@@ -98,10 +90,9 @@ export const SortingAndOrderControls: React.FC<SortingAndOrderControlsProps> = (
               <option value="sheet">Original Sheet Order</option>
               <option value="x">Horizontal Axis (X)</option>
               <option value="y">Vertical Axis (Y)</option>
-            </select>
-            <select
+            </Select>
+            <Select
               id="cfg-scatter-sort-dir"
-              className={styles.select}
               value={sortDirection}
               onChange={(e) => {
                 const val = e.target.value as 'asc' | 'desc';
@@ -114,9 +105,9 @@ export const SortingAndOrderControls: React.FC<SortingAndOrderControlsProps> = (
             >
               <option value="asc">Lowest to Highest</option>
               <option value="desc">Highest to Lowest</option>
-            </select>
+            </Select>
           </div>
-        </div>
+        </FormField>
       );
     }
 

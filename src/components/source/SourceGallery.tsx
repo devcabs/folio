@@ -4,10 +4,10 @@ import type { SyncedSourceItem } from '../../types/source';
 import type { GalleryElementUpdates } from '../canvas/CanvasGallery';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useDrivePhotoSync } from '../../hooks/useDrivePhotoSync';
-import { Toast } from '../feedback/Toast';
+import { formatDriveSyncError } from '../../utils/driveErrors';
 import { EmptyState } from '../feedback/EmptyState';
-import { Button } from '../ui/Button';
 import { SourceCard } from './SourceCard';
+import { SourceFolderActionBar } from './SourceFolderActionBar';
 import { SourceGallerySkeleton } from './SourceGallerySkeleton';
 import { SourceLightbox } from './SourceLightbox';
 import { SourceFolderAttachment } from './SourceFolderAttachment';
@@ -77,11 +77,9 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
   const [activeLightboxIndex, setActiveLightboxIndex] = useState(0);
   const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<SourceItem | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [toastType, setToastType] = useState<'success' | 'info' | 'error'>('success');
   const [isGalleryEditHovered, setIsGalleryEditHovered] = useState(false);
 
-  const { isDevMode, isDesktop } = useDeveloperMode();
+  const { isDevMode, isDesktop, showToast } = useDeveloperMode();
   const isDevActive = isDevMode && isDesktop;
 
   // Automatically close modals if developer mode is exited
@@ -153,25 +151,20 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
       const stats = await syncPhotos();
       if (stats) {
         if (stats.total === 0) {
-          setToastMessage('Sync completed: 0 photos found in the Google Drive folder.');
-          setToastType('info');
+          showToast('Sync completed: 0 photos found in the Google Drive folder.', 'info');
         } else if (stats.hasChanged) {
-          setToastMessage(`Synced ${stats.total} photos (+${stats.added} added, -${stats.removed} removed).`);
-          setToastType('success');
+          showToast(`Synced ${stats.total} photos (+${stats.added} added, -${stats.removed} removed).`, 'success');
         } else {
-          setToastMessage(`Gallery is up to date (${stats.total} photos verified).`);
-          setToastType('info');
+          showToast(`Gallery is up to date (${stats.total} photos verified).`, 'info');
         }
       } else {
-        setToastMessage(syncError || 'Sync completed with no changes.');
-        setToastType(syncError ? 'error' : 'info');
+        showToast(syncError || 'Sync completed with no changes.', syncError ? 'error' : 'info');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to sync photos from Google Drive.';
-      setToastMessage(msg);
-      setToastType('error');
+      showToast(msg, 'error');
     }
-  }, [syncPhotos, syncError]);
+  }, [syncPhotos, syncError, showToast]);
 
   // Coordinator custom photo title and editorial narrative mutation handler
   const handleSavePhotoTitle = useCallback(
@@ -247,10 +240,9 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
         throw new Error(persistResult.error || 'Failed to save photo title to draft KV.');
       }
 
-      setToastMessage(`Updated photo: "${trimmedTitle}".`);
-      setToastType('success');
+      showToast(`Updated photo: "${trimmedTitle}".`, 'success');
     },
-    [syncedPhotos, displayItems, effectivePointId, onUpdateGallery]
+    [syncedPhotos, displayItems, effectivePointId, onUpdateGallery, showToast]
   );
 
   // Stable event callbacks for lightbox orchestration
@@ -399,15 +391,7 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
             <EmptyState
               variant="card"
               title="Photo Sync Unavailable"
-              description={
-                effectiveError?.includes('API Key')
-                  ? 'Public Google Drive photo synchronization requires an API key or pre-baked snapshot. You can open and view the verified folder directly in Google Drive.'
-                  : effectiveError?.includes('403')
-                  ? 'Access to this Google Drive folder is restricted. Ensure folder General Access is set to "Anyone with the link can view", or view directly in Google Drive.'
-                  : effectiveError?.includes('404')
-                  ? 'The linked Google Drive folder could not be found. Check if the folder was moved or deleted.'
-                  : effectiveError || 'Photo synchronization failed for this gallery. Check Google Drive folder permissions or connectivity.'
-              }
+              description={formatDriveSyncError(effectiveError, 'photo')}
               actionLabel={currentFolderUrl ? 'Open Google Drive Folder ↗' : undefined}
               onAction={
                 currentFolderUrl
@@ -451,38 +435,15 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
         </div>
 
         {isDevActive && (
-          <div className={styles.sideEditWrapper}>
-            <Button
-              type="button"
-              variant="admin"
-              size="xs"
-              data-dev-edit-trigger="true"
-              data-canvas-edit-trigger={editTriggerId}
-              onClick={() => (onEdit ? onEdit() : setIsSourceModalOpen(true))}
-              onMouseEnter={() => setIsGalleryEditHovered(true)}
-              onMouseLeave={() => setIsGalleryEditHovered(false)}
-              className={styles.sideEditBtn}
-              title="Edit source photo repository"
-              aria-label="Edit source photo repository"
-            >
-              ✎ Edit
-            </Button>
-            <Button
-              type="button"
-              variant="admin"
-              size="xs"
-              onClick={handleManualSync}
-              onMouseEnter={() => setIsGalleryEditHovered(true)}
-              onMouseLeave={() => setIsGalleryEditHovered(false)}
-              disabled={isSyncing}
-              className={styles.sideSyncBtn}
-              title="Sync photos from Google Drive"
-              aria-label="Sync photos from Google Drive"
-            >
-              <span className={`${styles.syncIcon} ${isSyncing ? styles.spinning : ''}`} aria-hidden="true">↻</span>
-              <span>{isSyncing ? 'Syncing…' : 'Sync'}</span>
-            </Button>
-          </div>
+          <SourceFolderActionBar
+            onEdit={() => (onEdit ? onEdit() : setIsSourceModalOpen(true))}
+            onSync={handleManualSync}
+            isSyncing={isSyncing}
+            editTriggerId={editTriggerId}
+            editTitle="Edit source photo repository"
+            syncTitle="Sync photos from Google Drive"
+            onHighlightChange={setIsGalleryEditHovered}
+          />
         )}
       </div>
 
@@ -543,15 +504,6 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
           photoItem={editingPhoto}
           onClose={() => setEditingPhoto(null)}
           onSave={handleSavePhotoTitle}
-        />
-      )}
-
-      {/* Floating Toast for status & feedback */}
-      {toastMessage && (
-        <Toast
-          message={toastMessage}
-          type={toastType}
-          onDismiss={() => setToastMessage(null)}
         />
       )}
     </div>

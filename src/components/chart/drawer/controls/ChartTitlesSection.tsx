@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ChartType } from '../../../../types/chart';
+import { FormField, Input } from '../../../ui';
 import styles from '../../ChartConfigDrawer.module.css';
 
 interface ChartTitlesSectionProps {
@@ -29,63 +30,47 @@ export const ChartTitlesSection: React.FC<ChartTitlesSectionProps> = ({
 
   return (
     <div className={styles.titlesSection}>
-      <div className={styles.formGroup}>
-        <label className={styles.label} htmlFor="cfg-title">
-          <span>Chart Title</span>
-        </label>
-        <input
+      <FormField id="cfg-title" label="Chart Title">
+        <Input
           id="cfg-title"
           type="text"
-          className={styles.input}
           placeholder="Leave blank to use default sheet title"
           value={titleOverride}
           onChange={(e) => setTitleOverride(e.target.value)}
         />
-      </div>
+      </FormField>
 
-      <div className={styles.formGroup}>
-        <label className={styles.label} htmlFor="cfg-subtitle">
-          <span>Subtitle / Description</span>
-        </label>
-        <input
+      <FormField id="cfg-subtitle" label="Subtitle / Description">
+        <Input
           id="cfg-subtitle"
           type="text"
-          className={styles.input}
           placeholder="Summary of metrics, timeline, or scope"
           value={subtitleOverride}
           onChange={(e) => setSubtitleOverride(e.target.value)}
         />
-      </div>
+      </FormField>
 
       {showAxes && setXLabel && setYLabel && (
         <div className={styles.twoColRow}>
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="cfg-xlabel">
-              <span>X-Axis Label (Horizontal)</span>
-            </label>
-            <input
+          <FormField id="cfg-xlabel" label="X-Axis Label (Horizontal)">
+            <Input
               id="cfg-xlabel"
               type="text"
-              className={styles.input}
               placeholder="e.g. Period, Category"
               value={xLabel}
               onChange={(e) => setXLabel(e.target.value)}
             />
-          </div>
+          </FormField>
 
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="cfg-ylabel">
-              <span>Y-Axis Label (Vertical)</span>
-            </label>
-            <input
+          <FormField id="cfg-ylabel" label="Y-Axis Label (Vertical)">
+            <Input
               id="cfg-ylabel"
               type="text"
-              className={styles.input}
               placeholder="e.g. Enrolled Learners, %"
               value={yLabel}
               onChange={(e) => setYLabel(e.target.value)}
             />
-          </div>
+          </FormField>
         </div>
       )}
     </div>

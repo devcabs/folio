@@ -255,17 +255,18 @@ describe('Epic 7 SSOT Invariants Verification Suite (All 10 Domains)', () => {
 
       const customDoc: NodeCanvasDocument = {
         nodeId: 'custom-alpha',
-        version: 2,
+        version: 3,
         updatedAt: '2026-01-01T00:00:00.000Z',
-        sections: [
+        elements: [
           {
             id: 'sec-1',
             type: 'section',
             title: 'Overview',
             isNumbered: true,
             number: '01',
-            elements: [embeddedChart, embeddedGallery],
           },
+          embeddedChart,
+          embeddedGallery,
         ],
       };
 
@@ -336,9 +337,8 @@ describe('Epic 7 SSOT Invariants Verification Suite (All 10 Domains)', () => {
       );
       expect(publicNodeRes.status).toBe(200);
       const publicPayload = (await publicNodeRes.json()) as PublicNodePayload;
-      const publishedSection = publicPayload.canvas.sections[0];
-      const publishedChart = publishedSection.elements[0] as ChartElement;
-      const publishedGallery = publishedSection.elements[1] as GalleryElement;
+      const publishedChart = publicPayload.canvas.elements[1] as ChartElement;
+      const publishedGallery = publicPayload.canvas.elements[2] as GalleryElement;
 
       expect(publishedChart.dataset?.series?.[0]?.data).toEqual([1200, 1500]);
       expect(publishedChart.config?.titleOverride).toBe('Enrollment Growth');
@@ -376,8 +376,7 @@ describe('Epic 7 SSOT Invariants Verification Suite (All 10 Domains)', () => {
       expect(restoredDraft.contentOverrides['node.custom-alpha.summary']).toBe(
         'Custom Alpha Summary'
       );
-      const restoredChart = restoredDraft.canvases['custom-alpha'].sections[0]
-        .elements[0] as ChartElement;
+      const restoredChart = restoredDraft.canvases['custom-alpha'].elements[1] as ChartElement;
       expect(restoredChart.dataset?.series?.[0]?.data).toEqual([1200, 1500]);
     });
   });

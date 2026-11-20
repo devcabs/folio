@@ -1,4 +1,5 @@
 import React from 'react';
+import { FormField, Select } from '../ui';
 import styles from './ChartSortingControls.module.css';
 
 export interface ChartSortingSeriesOption {
@@ -27,44 +28,32 @@ export const ChartSortingControls: React.FC<ChartSortingControlsProps> = ({
 }) => {
   return (
     <div className={`${styles.sortingGrid} ${className}`.trim()}>
-      <div className={styles.formGroup}>
-        <label htmlFor="cfg-sort-field" className={styles.label}>
-          Sort By
-        </label>
-        <div className={styles.selectWrapper}>
-          <select
-            id="cfg-sort-field"
-            className={styles.select}
-            value={sortField}
-            onChange={(e) => onSortFieldChange(e.target.value)}
-          >
-            <option value="sheet">Original Sheet Order</option>
-            <option value="category">{categoryLabel}</option>
-            {seriesOptions.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <FormField id="cfg-sort-field" label="Sort By">
+        <Select
+          id="cfg-sort-field"
+          value={sortField}
+          onChange={(e) => onSortFieldChange(e.target.value)}
+        >
+          <option value="sheet">Original Sheet Order</option>
+          <option value="category">{categoryLabel}</option>
+          {seriesOptions.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </Select>
+      </FormField>
 
-      <div className={styles.formGroup}>
-        <label htmlFor="cfg-sort-dir" className={styles.label}>
-          Sort Order
-        </label>
-        <div className={styles.selectWrapper}>
-          <select
-            id="cfg-sort-dir"
-            className={styles.select}
-            value={sortDirection}
-            onChange={(e) => onSortDirectionChange(e.target.value as 'asc' | 'desc')}
-          >
-            <option value="asc">Lowest to Highest</option>
-            <option value="desc">Highest to Lowest</option>
-          </select>
-        </div>
-      </div>
+      <FormField id="cfg-sort-dir" label="Sort Order">
+        <Select
+          id="cfg-sort-dir"
+          value={sortDirection}
+          onChange={(e) => onSortDirectionChange(e.target.value as 'asc' | 'desc')}
+        >
+          <option value="asc">Lowest to Highest</option>
+          <option value="desc">Highest to Lowest</option>
+        </Select>
+      </FormField>
     </div>
   );
 };

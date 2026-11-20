@@ -6,6 +6,7 @@ import './styles/reset.css';
 
 // Core Data Contracts
 export * from './types/node';
+export * from './types/page';
 export * from './types/canvas';
 export * from './types/chart';
 export * from './types/developer';
@@ -65,6 +66,7 @@ export * from "./hooks/useDocumentCanvas";
 export * from "./hooks/useNodeCanvas";
 export * from "./hooks/useLightboxHistory";
 export * from "./services/canvasLayoutService";
+export * from "./services/pageTreeService";
 export * from "./utils/canvasDefaults";
 
 // Layout Shell & Parametric Geometric Mark

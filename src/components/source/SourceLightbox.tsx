@@ -5,6 +5,7 @@ import { useLightboxHistory } from '../../hooks/useLightboxHistory';
 import { useSwipeGesture } from '../../hooks/useSwipeGesture';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { SourceImage } from './SourceImage';
 import { LightboxPhotoStrip } from './LightboxPhotoStrip';
 import { buildEdgeMediaUrl, extractDriveFileId } from '../../utils/mediaUrl';
@@ -280,15 +281,16 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
           <div />
         )}
 
-        <button
+        <IconButton
           ref={closeButtonRef}
-          type="button"
+          variant="ghost"
+          size="md"
           className={styles.closeButton}
           onClick={onClose}
           aria-label="Close photo lightbox"
         >
           <span className={styles.closeIcon} aria-hidden="true">✕</span>
-        </button>
+        </IconButton>
       </header>
 
       {/* Main Photographic Stage */}
@@ -298,8 +300,9 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
       >
         {/* Navigation Chevrons */}
         {safeIndex > 0 && (
-          <button
-            type="button"
+          <IconButton
+            variant="ghost"
+            size="md"
             className={`${styles.navButton} ${styles.navPrev} ${!isChromeVisible ? styles.chromeHidden : ''}`}
             onClick={(e) => {
               e.stopPropagation();
@@ -308,12 +311,13 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
             aria-label="Previous photograph"
           >
             <span className={styles.navIcon} aria-hidden="true">‹</span>
-          </button>
+          </IconButton>
         )}
 
         {safeIndex < items.length - 1 && (
-          <button
-            type="button"
+          <IconButton
+            variant="ghost"
+            size="md"
             className={`${styles.navButton} ${styles.navNext} ${!isChromeVisible ? styles.chromeHidden : ''}`}
             onClick={(e) => {
               e.stopPropagation();
@@ -322,7 +326,7 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
             aria-label="Next photograph"
           >
             <span className={styles.navIcon} aria-hidden="true">›</span>
-          </button>
+          </IconButton>
         )}
 
         <div className={`${styles.imageFrame} ${isZoomed ? styles.imageFrameZoomed : ''}`}>

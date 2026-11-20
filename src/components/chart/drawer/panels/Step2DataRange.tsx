@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '../../../ui';
+import { Button, Checkbox, FormField, Input } from '../../../ui';
 import { RangePreviewMatrix } from '../../RangePreviewMatrix';
 import styles from './Step2DataRange.module.css';
 
@@ -31,21 +31,21 @@ export const Step2DataRange: React.FC<Step2DataRangeProps> = ({
   return (
     <div className={styles.stepPanel}>
       <div className={styles.formGroup}>
-        <label className={styles.label} htmlFor="cfg-range">
-          <span>Cell Range</span>
-          <span className={styles.labelHint}>e.g. A1:D6, A1:D, or A:D</span>
-        </label>
-        <input
+        <FormField
           id="cfg-range"
-          type="text"
-          className={`${styles.input} ${!isRangeValid && range ? styles.inputError : ''}`}
-          placeholder="A1:D6 or A1:D"
-          value={range}
-          onChange={(e) => setRange(e.target.value)}
-        />
-        {!isRangeValid && range && (
-          <p className={styles.errorText}>Invalid range notation: use A1:D6, A1:D, or A:D</p>
-        )}
+          label="Cell Range"
+          hint="e.g. A1:D6, A1:D, or A:D"
+          error={!isRangeValid && range ? 'Invalid range notation: use A1:D6, A1:D, or A:D' : undefined}
+        >
+          <Input
+            id="cfg-range"
+            type="text"
+            invalid={Boolean(!isRangeValid && range)}
+            placeholder="A1:D6 or A1:D"
+            value={range}
+            onChange={(e) => setRange(e.target.value)}
+          />
+        </FormField>
         <div className={styles.rangeActions}>
           <Button
             type="button"
@@ -66,29 +66,17 @@ export const Step2DataRange: React.FC<Step2DataRangeProps> = ({
         </div>
       </div>
 
-      <div className={styles.formGroup}>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            className={styles.checkbox}
-            checked={excludeSummaryRows}
-            onChange={(e) => setExcludeSummaryRows(e.target.checked)}
-          />
-          <span>Auto-exclude summary rows: Total, Grand Total, Average</span>
-        </label>
-      </div>
+      <Checkbox
+        checked={excludeSummaryRows}
+        onChange={setExcludeSummaryRows}
+        label="Auto-exclude summary rows: Total, Grand Total, Average"
+      />
 
-      <div className={styles.formGroup}>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            className={styles.checkbox}
-            checked={transpose}
-            onChange={(e) => setTranspose(e.target.checked)}
-          />
-          <span>Transpose data: Swap rows and columns</span>
-        </label>
-      </div>
+      <Checkbox
+        checked={transpose}
+        onChange={setTranspose}
+        label="Transpose data: Swap rows and columns"
+      />
 
       <div className={styles.formGroup}>
         <RangePreviewMatrix

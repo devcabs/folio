@@ -13,12 +13,16 @@ export interface NavItem {
   href: string;
   /** Unique element ID targeted by in-page anchors without the '#' prefix */
   id?: string;
+  /** Target root node ID or PageNode.id for client-side navigateToPage */
+  pageId?: string;
   /** Optional sequence or stage number prefix (e.g. '01', '02') rendered in JetBrains Mono */
   number?: string;
   /** Explicit active state flag when controlled externally */
   isActive?: boolean;
-  /** Optional hierarchy level for nested Table of Contents rendering */
-  level?: 'section' | 'subsection';
-  /** Optional nested child navigation items (e.g. subsections under a section) */
+  /** Optional hierarchy level for nested Table of Contents or 2-level chapter/subpage rendering */
+  level?: 'section' | 'subsection' | 'chapter' | 'subpage';
+  /** Optional tooltip/description metadata */
+  summary?: string;
+  /** Optional nested child navigation items (e.g. subsections under a section, or subpages under a chapter) */
   children?: NavItem[];
 }

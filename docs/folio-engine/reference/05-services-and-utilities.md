@@ -16,9 +16,21 @@ Manages tree traversal, block insertion, reordering, and deletion for `NodeCanva
 
 ---
 
+### `pageTreeService.ts`
+Pure, stateless `PageNode` tree, path, navigation, and fuzzy recovery utilities:
+- `generatePageId()`, `sanitizeSlug(raw)`, `ensureUniqueSiblingSlug(pages, parentId, slug, excludeId?)`, `validateSlug(slug)`
+- `createPageNode(...)`, `updatePageNodeMetadata(...)`, `getDescendantPageIds(pages, pageId)`, `countDescendantPages(pages, pageId)`, `cascadeDeleteSubtree(pages, pageId)`
+- `deriveSubpageOrderFromCanvas(canvas, pages, parentId)` — keeps `PageNode.order` synchronized with parent canvas `page-link` card order
+- `buildPagePath(pageId, rootNodes, pages)`, `resolvePathToPage(segments, rootNodes, pages)`, `getAncestorChain(pageId, rootNodes, pages)`
+- `buildTwoLevelNavTree(rootNodes, pages, activePageId?)` — builds strictly 2-level `AppHeader` navigation items
+- `findSimilarPages(attemptedSegments, rootNodes, pages, options?)` — Levenshtein-ranked Smart 404 candidates
+
+---
+
 ### `draftService.ts`
 Coordinates Cloudflare KV draft workspace persistence (`draft:workspace` via `/api/draft` and `/api/draft/init`) with optimistic concurrency (`expectedRevision` / `expectedUpdatedAt`) and `Authorization: Bearer <lockToken>`.
 - `initDraftSession(options?)`: Initializes or resumes `draft:workspace` from Cloudflare KV (with cold-boot bootstrap when `portal:manifest === null && history:index === null`).
+- `commitDraftWorkspaceTransaction(payload, options)`: Atomically commits `canvases`, `pages`, `contentOverrides`, and `deletedPageIds` via `PUT /api/draft`.
 - `saveDraftWorkspace(...)`: Persists draft `canvases` and `contentOverrides` directly to `PUT /api/draft`.
 - `discardDraftSession()`: Discards active draft changes via `DELETE /api/draft`.
 
@@ -59,11 +71,8 @@ Synchronizes `application/pdf` files from public Google Drive folders (including
 ---
 
 ### `undoRedoService.ts`
-Maintains an in-memory transactional snapshot stack for undo/redo state management.
-- `pushSnapshot(state: unknown): void`
-- `undo(): unknown | null`
-- `redo(): unknown | null`
-- `clearStack(): void`
+Maintains an in-memory transactional snapshot stack for undo/redo state management, including `createWorkspaceUndoAction(params)` for cross-page KV-backed undo/redo (`pages`, `canvases`, `deletedPageIds`) and `dispatchWorkspaceUndoReconcile` route reconciliation.
+- `push(action)` / `popUndoAsync()` / `popRedoAsync()` / `clear()`
 
 ---
 
@@ -96,6 +105,7 @@ Strips HTML injection and converts malformed cell strings into safe numbers or `
 
 ### `contentDb.ts`
 Key-value text override store hydrated from Cloudflare KV (`portal:manifest.contentOverrides` in Public Mode, `draft:workspace.contentOverrides` in Dev Mode) with zero browser storage.
+- `readInjectedPortalManifest()`: Synchronously reads `window.__FOLIO_MANIFEST__` injected by the Cloudflare Edge HTML middleware for zero-wait boot.
 - `getContent(key: string, fallback?: string): string`
 - `setContent(key: string, value: string): void`
 - `getAllOverrides(): Record<string, string>`

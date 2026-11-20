@@ -73,8 +73,9 @@ Flags and variants:
 # Run tests in watch mode
 npm run test -- --watch
 
-# Run a specific component test
+# Run a specific component or service test
 npx vitest run tests/components/vector-chart-studio.test.ts
+npx vitest run tests/components/canvas-pdf.test.tsx tests/components/source-documents.test.tsx
 
 # Generate test coverage report
 npx vitest run --coverage
@@ -163,6 +164,14 @@ npm run doctor
 The diagnostic routine uses monorepo-safe resolution (`src/diagnostics/packageResolver.ts`) to locate the consumer's installed `@devcabs/folio-engine` package, consumer `package.json`, and local setup/content files (`sample-nodes.json`, `src/engine-setup.ts`, `engine-setup.ts`, `src/folio/engine-setup.ts`), compares versions against `FOLIO_MIGRATION_LEDGER`, and prints an actionable **Agent Prompt Block** when migrations are pending.
 
 For consumer AI workflows, copy or import `.agents/rules/folio-engine-migration.md` into your consumer application so AI assistants automatically run `npx folio-engine doctor` after every `@devcabs/folio-engine` upgrade.
+
+### Consumer App Migration Checklist (0.2.5 → 0.2.6)
+
+1. **Custom AST Traversal / Switch Compatibility (0.2.6)**:
+   - `CanvasElementType` and `CanvasLeafElement` now include `'pdf'` (`PdfElement`) and `'documents'` (`DocumentsElement`).
+   - Consumers with exhaustive `switch (leaf.type)` statements should handle `'pdf'` and `'documents'` (or delegate rendering to `<DocumentCanvas>`).
+2. **EngineConfig Watermark Sync (0.2.6)**:
+   - Set `contentVersion: '0.2.6'` in `EngineConfig` (`src/engine-setup.ts` or `src/App.tsx`) to clear doctor and Dev Mode migration notices.
 
 ### Consumer App Migration Checklist (0.1.12 → 0.1.13)
 

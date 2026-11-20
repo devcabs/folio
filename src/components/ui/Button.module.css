@@ -290,6 +290,32 @@
   border-color: var(--admin-pill-hover-border);
 }
 
+/* --------------------------------------------------------------------------
+   Variant: Danger (Destructive Confirmation Action)
+   -------------------------------------------------------------------------- */
+.variantDanger {
+  background: var(--color-danger);
+  color: var(--text-inverse);
+  box-shadow: var(--elevation-raised);
+}
+
+.variantDanger:hover {
+  background: var(--color-danger-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-raised-hover);
+}
+
+.variantDanger:active {
+  transform: translateY(1px);
+}
+
+.variantDanger:focus,
+.variantDanger:focus-visible {
+  outline: none;
+  outline: 0;
+  background: var(--color-danger-dark);
+}
+
 
 /* --------------------------------------------------------------------------
    Accessibility Focus & Disabled States

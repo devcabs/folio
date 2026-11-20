@@ -10,7 +10,7 @@ import { ChartTitlesSection } from '../controls/ChartTitlesSection';
 import { ScatterDataControls } from '../controls/ScatterDataControls';
 import { StandardDataControls } from '../controls/StandardDataControls';
 import { SortingAndOrderControls } from '../controls/SortingAndOrderControls';
-import { ValueLabelToggle, AccordionSection } from '../../../ui';
+import { Checkbox, ValueLabelToggle, AccordionSection } from '../../../ui';
 import styles from './Step3ChartSetup.module.css';
 
 export type ChartSetupSubTab = 'style' | 'data' | 'sorting';
@@ -185,17 +185,17 @@ export const Step3ChartSetup: React.FC<Step3ChartSetupProps> = ({
     typeof scatterXColIndex === 'number'
       ? scatterXColIndex
       : detectedColumns.length > 1
-      ? 1
-      : 0;
+        ? 1
+        : 0;
 
   const effectiveScatterY =
     typeof scatterYColIndex === 'number'
       ? scatterYColIndex
       : detectedColumns.length > 2
-      ? 2
-      : detectedColumns.length > 1
-      ? 1
-      : 0;
+        ? 2
+        : detectedColumns.length > 1
+          ? 1
+          : 0;
 
   const effectiveScatterLabel =
     typeof scatterLabelColIndex === 'number' ? scatterLabelColIndex : 0;
@@ -227,19 +227,19 @@ export const Step3ChartSetup: React.FC<Step3ChartSetupProps> = ({
     chartType === 'donut'
       ? 'Slice Order & Direction'
       : chartType === 'scatter'
-      ? 'Point Order'
-      : 'Order & Direction';
+        ? 'Point Order'
+        : 'Order & Direction';
 
   const visualSectionTitle =
     chartType === 'bar'
       ? 'Visual Style & Layout'
       : chartType === 'line'
-      ? 'Visual Style & Scale'
-      : chartType === 'donut'
-      ? 'Visual Style'
-      : chartType === 'histogram'
-      ? 'Visual Style & Statistics'
-      : 'Trendline & Analytics';
+        ? 'Visual Style & Scale'
+        : chartType === 'donut'
+          ? 'Visual Style'
+          : chartType === 'histogram'
+            ? 'Visual Style & Statistics'
+            : 'Trendline & Analytics';
 
   const titlesSectionTitle =
     chartType === 'donut' ? 'Titles & Subtitle' : 'Titles & Axis Labels';
@@ -375,17 +375,11 @@ export const Step3ChartSetup: React.FC<Step3ChartSetupProps> = ({
         </AccordionSection>
 
         <AccordionSection title="Table Orientation" defaultOpen={false}>
-          <div className={styles.formGroup}>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                className={styles.checkbox}
-                checked={transpose}
-                onChange={(e) => setTranspose(e.target.checked)}
-              />
-              <span>Transpose data: Swap rows and columns</span>
-            </label>
-          </div>
+          <Checkbox
+            checked={transpose}
+            onChange={setTranspose}
+            label="Transpose data: Swap rows and columns"
+          />
         </AccordionSection>
       </div>
 

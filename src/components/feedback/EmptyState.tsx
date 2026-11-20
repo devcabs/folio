@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '../ui/Button';
 import styles from './EmptyState.module.css';
 
 export interface EmptyStateProps {
@@ -40,13 +41,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       {title && <h3 className={styles.title}>{title}</h3>}
       {description && <p className={styles.description}>{description}</p>}
       {resolvedActionLabel && onAction && (
-        <button
+        <Button
           type="button"
-          className={styles.actionButton}
+          variant="secondary"
+          size="sm"
           onClick={onAction}
         >
           {resolvedActionLabel}
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -66,7 +66,7 @@ node -e "console.log(require('crypto').createHash('sha256').update('my_portal_sa
 DEV_SECURITY_SALT=my_portal_salt_2026
 DEV_PIN_HASH=<64-char-hex-digest>
 
-# Optional: Google Drive photo verification & folder sync
+# Optional: Google Drive photo & PDF folder verification/sync
 VITE_GOOGLE_DRIVE_API_KEY=your-google-api-key
 ```
 

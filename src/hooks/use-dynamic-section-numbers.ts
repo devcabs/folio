@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useContent } from './useContent';
-import type { SectionElement } from '../types/canvas';
+import type { CanvasElement, SectionElement } from '../types/canvas';
 
 export interface DynamicSectionItem {
   id: string;
@@ -72,9 +72,10 @@ export function useNodeSectionNumbers(nodeId: string): UseNodeSectionNumbersRetu
  */
 export function useDynamicCanvasSectionNumbers(
   _nodeId: string,
-  sections: SectionElement[]
+  elements: CanvasElement[]
 ): Record<string, string | null> {
   return useMemo(() => {
+    const sections = elements.filter((el): el is SectionElement => el.type === 'section');
     const items: DynamicSectionItem[] = sections.map((sec) => {
       const isNumbered = sec.isNumbered !== undefined
         ? sec.isNumbered
@@ -87,7 +88,7 @@ export function useDynamicCanvasSectionNumbers(
     });
 
     return computeDynamicSectionNumbers(items);
-  }, [sections]);
+  }, [elements]);
 }
 
 export default useNodeSectionNumbers;

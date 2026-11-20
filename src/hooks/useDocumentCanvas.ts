@@ -17,8 +17,11 @@ import type {
   NodeCanvasDocument,
 } from '../types/canvas';
 import type { PublicNodePayload } from '../types/edge';
+import type { PageRegistry } from '../types/page';
+import type { UndoActionType } from '../types/history';
 import {
-  renumberSections,
+  renumberCanvasElements,
+  insertCanvasElement,
   insertSection,
   insertSubsection,
   insertLeafElement,
@@ -35,7 +38,18 @@ import {
   createDefaultSection,
   createDefaultSubsection,
   createDefaultCanvasDocument,
+  normalizeCanvasDocument,
 } from '../utils/canvasDefaults';
+import {
+  EVENT_DRAFT_UPDATED_AT_SYNC,
+  dispatchDraftPagesSync,
+  dispatchDraftUpdatedAtSync,
+  enqueueDraftMutation,
+  getLastKnownDraftUpdatedAt,
+} from '../services/draftService';
+import { deriveSubpageOrderFromCanvas } from '../services/pageTreeService';
+import { createWorkspaceUndoAction, undoRedoService } from '../services/undoRedoService';
+import { usePortalChrome } from '../context/PortalChromeContext';
 import { useUndoRedo } from './useUndoRedo';
 import { useDeveloperMode } from './useDeveloperMode';
 
@@ -46,16 +60,20 @@ export interface UseNodeCanvasReturn {
   isPending: boolean;
   /** True when edge KV canvas hydration is in flight */
   isHydrating: boolean;
-  /** Add a new section container with automatic numbering */
-  addSection: (targetIndex?: number) => void;
-  /** Add a new subsection container inside a section */
-  addSubsection: (sectionId: string, targetIndex?: number) => void;
-  /** Add a leaf element (text, photo, chart, gallery) to a section or subsection */
-  addElement: (
-    sectionId: string,
-    element: CanvasLeafElement,
+  /** Add a new section heading block with automatic numbering (records undo/redo history) */
+  addSection: (
     targetIndex?: number,
-    subsectionId?: string
+    customSection?: SectionElement
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /** Add a new subsection heading block (records undo/redo history) */
+  addSubsection: (
+    targetIndex?: number,
+    customSubsection?: SubsectionElement
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /** Add a leaf element (text, photo, chart, gallery) to the flat canvas */
+  addElement: (
+    element: CanvasLeafElement,
+    targetIndex?: number
   ) => Promise<{ ok: boolean; error?: string }>;
   /** Restore or insert an existing section at target index (for undo) */
   restoreSection: (
@@ -63,15 +81,29 @@ export interface UseNodeCanvasReturn {
     targetIndex?: number
   ) => Promise<{ ok: boolean; error?: string }>;
   /** Restore or insert an existing subsection at target index (for undo) */
-  restoreSubsection: (sectionId: string, subsection: SubsectionElement, targetIndex?: number) => void;
+  restoreSubsection: (
+    subsection: SubsectionElement,
+    targetIndex?: number
+  ) => Promise<{ ok: boolean; error?: string }>;
   /** Restore or insert an existing leaf element at target index (for undo) */
-  restoreElement: (sectionId: string, element: CanvasLeafElement, targetIndex?: number, subsectionId?: string) => void;
+  restoreElement: (
+    element: CanvasLeafElement,
+    targetIndex?: number
+  ) => Promise<{ ok: boolean; error?: string }>;
   /** Move an item up or down within its container */
-  moveItem: (itemId: string, direction: 'up' | 'down', parentId?: string) => void;
+  moveItem: (
+    itemId: string,
+    direction: 'up' | 'down',
+    parentId?: string
+  ) => Promise<{ ok: boolean; error?: string }>;
   /** Relocate an item anywhere across the canvas to a target container */
-  relocateItem: (sourceItemId: string, targetContainerId: string, targetIndex?: number) => void;
+  relocateItem: (
+    sourceItemId: string,
+    targetContainerId: string,
+    targetIndex?: number
+  ) => Promise<{ ok: boolean; error?: string }>;
   /** Remove an item and all its nested children */
-  removeItem: (itemId: string, parentId?: string) => void;
+  removeItem: (itemId: string, parentId?: string) => Promise<{ ok: boolean; error?: string }>;
   /** Update attributes of an element by ID */
   updateItem: <T extends CanvasElement>(
     itemId: string,
@@ -93,6 +125,7 @@ export interface UseNodeCanvasReturn {
 
 interface DraftWorkspaceCanvasResponse {
   canvases?: Record<string, NodeCanvasDocument>;
+  pages?: PageRegistry;
   updatedAt?: string;
 }
 
@@ -165,9 +198,10 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
       if (detail.nodeId === '*') {
         retryFetch();
       } else if (detail.nodeId === nodeId && detail.document) {
+        const normalized = normalizeCanvasDocument(detail.document, nodeId);
         const nextDoc: NodeCanvasDocument = {
-          ...detail.document,
-          sections: renumberSections(detail.document.sections || []),
+          ...normalized,
+          elements: renumberCanvasElements(normalized.elements),
         };
         documentRef.current = nextDoc;
         startTransition(() => {
@@ -175,9 +209,21 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
         });
       }
     };
+    const handleUpdatedAtSync = (e: Event) => {
+      const detail = (e as CustomEvent<{ updatedAt?: string }>).detail;
+      if (typeof detail?.updatedAt === 'string' && detail.updatedAt) {
+        draftUpdatedAtRef.current = detail.updatedAt;
+      }
+    };
     window.addEventListener(eventName, handleCanvasEvent);
+    if (isDevMode) {
+      window.addEventListener(EVENT_DRAFT_UPDATED_AT_SYNC, handleUpdatedAtSync);
+    }
     return () => {
       window.removeEventListener(eventName, handleCanvasEvent);
+      if (isDevMode) {
+        window.removeEventListener(EVENT_DRAFT_UPDATED_AT_SYNC, handleUpdatedAtSync);
+      }
     };
   }, [nodeId, isDevMode, retryFetch]);
 
@@ -237,11 +283,19 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
         if (isDevMode) {
           const draft = data as DraftWorkspaceCanvasResponse;
           draftUpdatedAtRef.current = typeof draft.updatedAt === 'string' ? draft.updatedAt : null;
+          if (draftUpdatedAtRef.current) {
+            dispatchDraftUpdatedAtSync(draftUpdatedAtRef.current);
+          }
           const draftCanvas = draft.canvases?.[nodeId];
-          const resolvedDoc: NodeCanvasDocument =
-            draftCanvas && Array.isArray(draftCanvas.sections)
-              ? { ...draftCanvas, sections: renumberSections(draftCanvas.sections) }
-              : createDefaultCanvasDocument(nodeId);
+          const resolvedDoc: NodeCanvasDocument = draftCanvas
+            ? (() => {
+              const normalized = normalizeCanvasDocument(draftCanvas, nodeId);
+              return {
+                ...normalized,
+                elements: renumberCanvasElements(normalized.elements),
+              };
+            })()
+            : createDefaultCanvasDocument(nodeId);
 
           documentRef.current = resolvedDoc;
           startTransition(() => {
@@ -250,10 +304,11 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
         } else {
           const edgeData = data as PublicNodePayload;
           if (edgeData.nodeId !== nodeId) return;
-          if (edgeData.canvas && Array.isArray(edgeData.canvas.sections)) {
+          if (edgeData.canvas) {
+            const normalized = normalizeCanvasDocument(edgeData.canvas, nodeId);
             const resolvedDoc: NodeCanvasDocument = {
-              ...edgeData.canvas,
-              sections: renumberSections(edgeData.canvas.sections),
+              ...normalized,
+              elements: renumberCanvasElements(normalized.elements),
             };
             documentRef.current = resolvedDoc;
             startTransition(() => {
@@ -281,16 +336,32 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
   }, [nodeId, isDevMode, lockToken, fetchTrigger]);
 
   const { pushAction } = useUndoRedo();
+  const portalChrome = usePortalChrome();
+  const pagesRef = useRef<PageRegistry | undefined>(portalChrome?.pages);
+  pagesRef.current = portalChrome?.pages;
+  const canvasScope = `canvas:${nodeId}`;
   const [saveError, setSaveError] = useState<string | null>(null);
+  const lockTokenRef = useRef(lockToken);
+  lockTokenRef.current = lockToken;
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const clearSaveError = useCallback(() => {
     setSaveError(null);
   }, []);
 
-  // Direct KV mutation helper: updates AST state and persists to PUT /api/draft (fail-stop on error)
+  // Direct KV mutation helper: serialized via enqueueDraftMutation to prevent HTTP 409 races
   const mutate = useCallback(
     async (
-      mutator: (prev: NodeCanvasDocument) => NodeCanvasDocument
+      mutator: (prev: NodeCanvasDocument) => NodeCanvasDocument,
+      undoMeta?: { type: UndoActionType; description: string },
+      options?: { syncPageOrder?: boolean }
     ): Promise<{ ok: boolean; error?: string }> => {
       if (!isDevMode) {
         const msg = 'Cannot mutate canvas in Public Mode.';
@@ -298,65 +369,112 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
         return { ok: false, error: msg };
       }
 
-      const prevDoc = documentRef.current;
-      const rawNext = mutator(prevDoc);
-      const nextDoc: NodeCanvasDocument = {
-        ...rawNext,
-        sections: renumberSections(rawNext.sections),
-        updatedAt: new Date().toISOString(),
-      };
+      return enqueueDraftMutation(async () => {
+        const prevDoc = documentRef.current;
+        const rawNext = mutator(prevDoc);
+        const nextDoc: NodeCanvasDocument = {
+          ...rawNext,
+          version: 3,
+          elements: renumberCanvasElements(rawNext.elements),
+          updatedAt: new Date().toISOString(),
+        };
 
-      documentRef.current = nextDoc;
-      startTransition(() => {
-        setDocument(nextDoc);
-      });
+        const prevPages = pagesRef.current;
+        const orderSync =
+          options?.syncPageOrder && prevPages
+            ? deriveSubpageOrderFromCanvas(prevPages, nodeId, nextDoc)
+            : { pages: prevPages, changed: false };
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (lockToken) {
-        headers['Authorization'] = `Bearer ${lockToken}`;
-      }
-
-      const body: Record<string, unknown> = {
-        canvases: { [nodeId]: nextDoc },
-      };
-      if (draftUpdatedAtRef.current) {
-        body.expectedUpdatedAt = draftUpdatedAtRef.current;
-      }
-
-      try {
-        const res = await fetch('/api/draft', {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const detail = await parseKvErrorDetail(res);
-          throw new Error(`Draft canvas KV write failed: ${detail} (HTTP ${res.status})`);
-        }
-        try {
-          const data = (await res.json()) as DraftWorkspaceCanvasResponse;
-          if (typeof data?.updatedAt === 'string') {
-            draftUpdatedAtRef.current = data.updatedAt;
-          }
-        } catch {
-          // Empty 200/204 body
-        }
-        setSaveError(null);
-        return { ok: true };
-      } catch (err: unknown) {
-        // Fail-stop: revert optimistic AST update to last persisted KV state
-        documentRef.current = prevDoc;
+        documentRef.current = nextDoc;
         startTransition(() => {
-          setDocument(prevDoc);
+          setDocument(nextDoc);
         });
-        const msg = err instanceof Error ? err.message : 'Draft canvas KV write failed';
-        setSaveError(msg);
-        return { ok: false, error: msg };
-      }
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (lockTokenRef.current) {
+          headers['Authorization'] = `Bearer ${lockTokenRef.current}`;
+        }
+
+        const expectedUpdatedAt = getLastKnownDraftUpdatedAt() ?? draftUpdatedAtRef.current;
+        const body: Record<string, unknown> = {
+          canvases: { [nodeId]: nextDoc },
+        };
+        if (orderSync.changed && orderSync.pages) {
+          body.pages = orderSync.pages;
+        }
+        if (expectedUpdatedAt) {
+          body.expectedUpdatedAt = expectedUpdatedAt;
+        }
+
+        try {
+          const res = await fetch('/api/draft', {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) {
+            const detail = await parseKvErrorDetail(res);
+            throw new Error(`Draft canvas KV write failed: ${detail} (HTTP ${res.status})`);
+          }
+          let responseData: DraftWorkspaceCanvasResponse | undefined;
+          try {
+            responseData = (await res.json()) as DraftWorkspaceCanvasResponse;
+            if (typeof responseData?.updatedAt === 'string') {
+              draftUpdatedAtRef.current = responseData.updatedAt;
+              dispatchDraftUpdatedAtSync(responseData.updatedAt);
+            }
+          } catch {
+            // Empty 200/204 body
+          }
+          if (orderSync.changed && orderSync.pages) {
+            const authoritativePages = responseData?.pages ?? orderSync.pages;
+            pagesRef.current = authoritativePages;
+            dispatchDraftPagesSync(authoritativePages);
+          }
+          setSaveError(null);
+
+          if (undoMeta && !undoRedoService.isExecuting()) {
+            pushAction(
+              createWorkspaceUndoAction({
+                type: undoMeta.type,
+                description: undoMeta.description,
+                scope: canvasScope,
+                before: {
+                  canvases: { [nodeId]: prevDoc },
+                  ...(orderSync.changed && prevPages ? { pages: prevPages } : {}),
+                },
+                after: {
+                  canvases: { [nodeId]: nextDoc },
+                  ...(orderSync.changed && orderSync.pages ? { pages: orderSync.pages } : {}),
+                },
+                getLockToken: () => lockTokenRef.current ?? null,
+                getExpectedUpdatedAt: () =>
+                  getLastKnownDraftUpdatedAt() ?? draftUpdatedAtRef.current,
+                onError: (msg) => {
+                  if (isMountedRef.current) {
+                    setSaveError(msg);
+                  }
+                },
+              })
+            );
+          }
+
+          return { ok: true };
+        } catch (err: unknown) {
+          // Fail-stop: revert optimistic AST update to last persisted KV state
+          documentRef.current = prevDoc;
+          startTransition(() => {
+            setDocument(prevDoc);
+          });
+          const msg = err instanceof Error ? err.message : 'Draft canvas KV write failed';
+          setSaveError(msg);
+          return { ok: false, error: msg };
+        }
+      });
     },
-    [isDevMode, lockToken, nodeId]
+    [isDevMode, nodeId, pushAction, canvasScope]
   );
 
   const restoreSection = useCallback(
@@ -367,20 +485,15 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
   );
 
   const restoreSubsection = useCallback(
-    (sectionId: string, subsection: SubsectionElement, targetIndex?: number) => {
-      mutate((prev) => insertSubsection(prev, sectionId, subsection, targetIndex));
+    (subsection: SubsectionElement, targetIndex?: number) => {
+      return mutate((prev) => insertSubsection(prev, subsection, targetIndex));
     },
     [mutate]
   );
 
   const restoreElement = useCallback(
-    (
-      sectionId: string,
-      element: CanvasLeafElement,
-      targetIndex?: number,
-      subsectionId?: string
-    ) => {
-      mutate((prev) => insertLeafElement(prev, sectionId, element, targetIndex, subsectionId));
+    (element: CanvasLeafElement, targetIndex?: number) => {
+      return mutate((prev) => insertLeafElement(prev, element, targetIndex));
     },
     [mutate]
   );
@@ -388,156 +501,118 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
   const removeItem = useCallback(
     (itemId: string, parentId?: string) => {
       const loc = findCanvasItemLocation(documentRef.current, itemId);
-      mutate((prev) => removeCanvasItem(prev, itemId, parentId));
-
-      if (loc) {
-        const itemTitle =
-          'title' in loc.item && typeof loc.item.title === 'string' && loc.item.title
+      const undoMeta = loc
+        ? {
+          type: (loc.kind === 'section'
+            ? 'canvas_remove_section'
+            : loc.kind === 'subsection'
+              ? 'canvas_remove_subsection'
+              : 'canvas_remove_leaf') as UndoActionType,
+          description: `Delete ${loc.kind} "${'title' in loc.item && typeof loc.item.title === 'string' && loc.item.title
             ? loc.item.title
-            : loc.kind;
-        pushAction({
-          type:
-            loc.kind === 'section'
-              ? 'canvas_remove_section'
-              : loc.kind === 'subsection'
-                ? 'canvas_remove_subsection'
-                : 'canvas_remove_leaf',
-          description: `Delete ${loc.kind} "${itemTitle}"`,
-          undo: () => {
-            if (loc.kind === 'section') {
-              restoreSection(loc.item as SectionElement, loc.index);
-            } else if (loc.kind === 'subsection') {
-              restoreSubsection(loc.sectionId, loc.item as SubsectionElement, loc.index);
-            } else {
-              restoreElement(loc.sectionId, loc.item as CanvasLeafElement, loc.index, loc.subsectionId);
-            }
-          },
-          redo: () => removeItem(itemId, parentId),
-        });
-      }
+            : loc.kind
+            }"`,
+        }
+        : undefined;
+      return mutate((prev) => removeCanvasItem(prev, itemId, parentId), undoMeta);
     },
-    [mutate, pushAction, restoreSection, restoreSubsection, restoreElement]
+    [mutate]
   );
 
   const addSection = useCallback(
-    (targetIndex?: number) => {
+    (targetIndex?: number, customSection?: SectionElement) => {
       const currentDoc = documentRef.current;
-      const newSec = createDefaultSection(currentDoc.sections.length, currentDoc.nodeId);
-      const resolvedIndex = typeof targetIndex === 'number' ? targetIndex : currentDoc.sections.length;
-      mutate((prev) => insertSection(prev, newSec, resolvedIndex));
-
-      pushAction({
-        type: 'canvas_insert_section',
-        description: `Add section "${newSec.title}"`,
-        undo: () => removeItem(newSec.id),
-        redo: () => restoreSection(newSec, resolvedIndex),
-      });
+      const sectionCount = currentDoc.elements.filter((el) => el.type === 'section').length;
+      const newSec =
+        customSection || createDefaultSection(sectionCount, currentDoc.nodeId);
+      const resolvedIndex =
+        typeof targetIndex === 'number' ? targetIndex : currentDoc.elements.length;
+      return mutate(
+        (prev) => insertSection(prev, newSec, resolvedIndex),
+        {
+          type: 'canvas_insert_section',
+          description: `Add section "${newSec.title}"`,
+        }
+      );
     },
-    [mutate, pushAction, removeItem, restoreSection]
+    [mutate]
   );
 
   const addSubsection = useCallback(
-    (sectionId: string, targetIndex?: number) => {
+    (targetIndex?: number, customSubsection?: SubsectionElement) => {
       const currentDoc = documentRef.current;
-      const parentSection = currentDoc.sections.find((s) => s.id === sectionId);
-      const newSub = createDefaultSubsection(currentDoc.nodeId);
+      const newSub = customSubsection || createDefaultSubsection(currentDoc.nodeId);
       const resolvedIndex =
-        typeof targetIndex === 'number'
-          ? targetIndex
-          : parentSection
-            ? parentSection.elements.length
-            : 0;
-      mutate((prev) => insertSubsection(prev, sectionId, newSub, resolvedIndex));
-
-      pushAction({
-        type: 'canvas_insert_subsection',
-        description: `Add subsection "${newSub.title}"`,
-        undo: () => removeItem(newSub.id, sectionId),
-        redo: () => restoreSubsection(sectionId, newSub, resolvedIndex),
-      });
+        typeof targetIndex === 'number' ? targetIndex : currentDoc.elements.length;
+      return mutate(
+        (prev) => insertSubsection(prev, newSub, resolvedIndex),
+        {
+          type: 'canvas_insert_subsection',
+          description: `Add subsection "${newSub.title}"`,
+        }
+      );
     },
-    [mutate, pushAction, removeItem, restoreSubsection]
+    [mutate]
   );
 
   const addElement = useCallback(
-    (
-      sectionId: string,
-      element: CanvasLeafElement,
-      targetIndex?: number,
-      subsectionId?: string
-    ) => {
-      const promise = mutate((prev) => insertLeafElement(prev, sectionId, element, targetIndex, subsectionId));
-
-      pushAction({
-        type: 'canvas_insert_leaf',
-        description: `Add ${element.type} element`,
-        undo: () => removeItem(element.id, subsectionId || sectionId),
-        redo: () => restoreElement(sectionId, element, targetIndex, subsectionId),
-      });
-
-      return promise;
+    (element: CanvasLeafElement, targetIndex?: number) => {
+      return mutate(
+        (prev) => insertCanvasElement(prev, element, targetIndex),
+        {
+          type: 'canvas_insert_leaf',
+          description: `Add ${element.type} element`,
+        },
+        element.type === 'page-link' ? { syncPageOrder: true } : undefined
+      );
     },
-    [mutate, pushAction, removeItem, restoreElement]
+    [mutate]
   );
 
   const moveItem = useCallback(
     (itemId: string, direction: 'up' | 'down', parentId?: string) => {
-      mutate((prev) => moveCanvasItem(prev, itemId, direction, parentId));
-
-      pushAction({
-        type: 'canvas_move_item',
-        description: `Move item ${direction}`,
-        undo: () => moveItem(itemId, direction === 'up' ? 'down' : 'up', parentId),
-        redo: () => moveItem(itemId, direction, parentId),
-      });
+      return mutate(
+        (prev) => moveCanvasItem(prev, itemId, direction, parentId),
+        {
+          type: 'canvas_move_item',
+          description: `Move item ${direction}`,
+        },
+        { syncPageOrder: true }
+      );
     },
-    [mutate, pushAction]
+    [mutate]
   );
 
   const relocateItem = useCallback(
     (sourceItemId: string, targetContainerId: string, targetIndex?: number) => {
       const loc = findCanvasItemLocation(documentRef.current, sourceItemId);
-      const origContainerId = loc ? loc.subsectionId || loc.sectionId : undefined;
-      const origIndex = loc ? loc.index : undefined;
-
-      mutate((prev) => relocateCanvasItem(prev, sourceItemId, targetContainerId, targetIndex));
-
-      if (loc && origContainerId) {
-        pushAction({
-          type: 'canvas_relocate_item',
+      const undoMeta = loc
+        ? {
+          type: 'canvas_relocate_item' as UndoActionType,
           description: 'Relocate item',
-          undo: () => relocateItem(sourceItemId, origContainerId, origIndex),
-          redo: () => relocateItem(sourceItemId, targetContainerId, targetIndex),
-        });
-      }
+        }
+        : undefined;
+      return mutate(
+        (prev) => relocateCanvasItem(prev, sourceItemId, targetContainerId, targetIndex),
+        undoMeta,
+        { syncPageOrder: true }
+      );
     },
-    [mutate, pushAction]
+    [mutate]
   );
 
   const updateItem = useCallback(
     <T extends CanvasElement>(itemId: string, updates: Partial<T>) => {
       const loc = findCanvasItemLocation(documentRef.current, itemId);
-      const prevAttributes: Record<string, unknown> = {};
-      if (loc) {
-        const itemRecord = loc.item as unknown as Record<string, unknown>;
-        for (const key of Object.keys(updates)) {
-          prevAttributes[key] = itemRecord[key];
-        }
-      }
-
-      const promise = mutate((prev) => updateCanvasItem(prev, itemId, updates));
-
-      if (loc) {
-        pushAction({
-          type: 'canvas_update_item',
+      const undoMeta = loc
+        ? {
+          type: 'canvas_update_item' as UndoActionType,
           description: `Update ${loc.kind} properties`,
-          undo: () => updateItem(itemId, prevAttributes as Partial<T>),
-          redo: () => updateItem(itemId, updates),
-        });
-      }
-      return promise;
+        }
+        : undefined;
+      return mutate((prev) => updateCanvasItem(prev, itemId, updates), undoMeta);
     },
-    [mutate, pushAction]
+    [mutate]
   );
 
   const resetToDefault = useCallback(() => {

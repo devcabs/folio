@@ -4,9 +4,11 @@ import type { DocumentsElementUpdates } from '../canvas/CanvasDocuments';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useDriveDocumentSync } from '../../hooks/useDriveDocumentSync';
 import { buildDriveViewUrl } from '../../utils/mediaUrl';
-import { Toast } from '../feedback/Toast';
+import { formatDriveSyncError } from '../../utils/driveErrors';
 import { EmptyState } from '../feedback/EmptyState';
 import { Button } from '../ui/Button';
+import { DocumentIcon } from '../ui/Icons';
+import { SourceFolderActionBar } from './SourceFolderActionBar';
 import { SourceFolderAttachment } from './SourceFolderAttachment';
 import { LinkFolderModal } from './LinkFolderModal';
 import { PdfPreviewModal } from './PdfPreviewModal';
@@ -30,26 +32,6 @@ export interface SourceDocumentsProps {
   ) => Promise<{ ok: boolean; error?: string } | void> | void;
   onEdit?: () => void;
 }
-
-const DocumentBadgeIcon: React.FC = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-    <line x1="10" y1="9" x2="8" y2="9" />
-  </svg>
-);
 
 /**
  * SourceDocuments Component
@@ -79,11 +61,9 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
   const [activePreviewIndex, setActivePreviewIndex] = useState(0);
   const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
   const [editingDocument, setEditingDocument] = useState<SyncedDocumentItem | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [toastType, setToastType] = useState<'success' | 'info' | 'error'>('success');
   const [isEditHovered, setIsEditHovered] = useState(false);
 
-  const { isDevMode, isDesktop } = useDeveloperMode();
+  const { isDevMode, isDesktop, showToast } = useDeveloperMode();
   const isDevActive = isDevMode && isDesktop;
 
   useEffect(() => {
@@ -136,25 +116,20 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
       const stats = await syncDocuments();
       if (stats) {
         if (stats.total === 0) {
-          setToastMessage('Sync completed: 0 PDF documents found in the Google Drive folder.');
-          setToastType('info');
+          showToast('Sync completed: 0 PDF documents found in the Google Drive folder.', 'info');
         } else if (stats.hasChanged) {
-          setToastMessage(`Synced ${stats.total} PDFs (+${stats.added} added, -${stats.removed} removed).`);
-          setToastType('success');
+          showToast(`Synced ${stats.total} PDFs (+${stats.added} added, -${stats.removed} removed).`, 'success');
         } else {
-          setToastMessage(`Documents are up to date (${stats.total} PDFs verified).`);
-          setToastType('info');
+          showToast(`Documents are up to date (${stats.total} PDFs verified).`, 'info');
         }
       } else {
-        setToastMessage(syncError || 'Sync completed with no changes.');
-        setToastType(syncError ? 'error' : 'info');
+        showToast(syncError || 'Sync completed with no changes.', syncError ? 'error' : 'info');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to sync PDFs from Google Drive.';
-      setToastMessage(msg);
-      setToastType('error');
+      showToast(msg, 'error');
     }
-  }, [syncDocuments, syncError]);
+  }, [syncDocuments, syncError, showToast]);
 
   const handleSaveDocumentDetails = useCallback(
     async (
@@ -190,10 +165,9 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
         throw new Error(persistResult.error || 'Failed to save document details to draft KV.');
       }
 
-      setToastMessage(`Updated document: "${trimmedTitle}".`);
-      setToastType('success');
+      showToast(`Updated document: "${trimmedTitle}".`, 'success');
     },
-    [syncedDocuments, onUpdateDocuments]
+    [syncedDocuments, onUpdateDocuments, showToast]
   );
 
   const handleRowClick = useCallback((index: number) => {
@@ -235,7 +209,7 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
                   >
                     <div className={styles.rowLeft}>
                       <span className={styles.pdfBadge} aria-hidden="true">
-                        <DocumentBadgeIcon />
+                        <DocumentIcon size={18} />
                       </span>
                       <div className={styles.rowMeta}>
                         <span className={styles.rowTitle}>{doc.title}</span>
@@ -263,16 +237,18 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
                           ✎ Edit
                         </Button>
                       )}
-                      <a
+                      <Button
+                        as="a"
+                        variant="secondary"
+                        size="xs"
                         href={viewUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={styles.openLink}
                         onClick={(e) => e.stopPropagation()}
                         aria-label={`Open ${doc.title} in Google Drive`}
                       >
                         Open ↗
-                      </a>
+                      </Button>
                     </div>
                   </div>
                 );
@@ -301,15 +277,7 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
             <EmptyState
               variant="card"
               title="Document Sync Unavailable"
-              description={
-                effectiveError?.includes('API Key')
-                  ? 'Public Google Drive document synchronization requires an API key or pre-baked snapshot. You can open and view the verified folder directly in Google Drive.'
-                  : effectiveError?.includes('403')
-                  ? 'Access to this Google Drive folder is restricted. Ensure folder General Access is set to "Anyone with the link can view", or view directly in Google Drive.'
-                  : effectiveError?.includes('404')
-                  ? 'The linked Google Drive folder could not be found. Check if the folder was moved or deleted.'
-                  : effectiveError || 'Document synchronization failed for this folder. Check Google Drive folder permissions or connectivity.'
-              }
+              description={formatDriveSyncError(effectiveError, 'document')}
               actionLabel={currentFolderUrl ? 'Open Google Drive Folder ↗' : undefined}
               onAction={currentFolderUrl ? openFolderInNewTab : undefined}
             />
@@ -331,43 +299,15 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
         </div>
 
         {isDevActive && (
-          <div className={styles.sideEditWrapper}>
-            <Button
-              type="button"
-              variant="admin"
-              size="xs"
-              data-dev-edit-trigger="true"
-              data-canvas-edit-trigger={editTriggerId}
-              onClick={() => (onEdit ? onEdit() : setIsSourceModalOpen(true))}
-              onMouseEnter={() => setIsEditHovered(true)}
-              onMouseLeave={() => setIsEditHovered(false)}
-              className={styles.sideEditBtn}
-              title="Edit source document repository"
-              aria-label="Edit source document repository"
-            >
-              ✎ Edit
-            </Button>
-            <Button
-              type="button"
-              variant="admin"
-              size="xs"
-              onClick={handleManualSync}
-              onMouseEnter={() => setIsEditHovered(true)}
-              onMouseLeave={() => setIsEditHovered(false)}
-              disabled={isSyncing}
-              className={styles.sideSyncBtn}
-              title="Sync documents from Google Drive"
-              aria-label="Sync documents from Google Drive"
-            >
-              <span
-                className={`${styles.syncIcon} ${isSyncing ? styles.spinning : ''}`.trim()}
-                aria-hidden="true"
-              >
-                ↻
-              </span>
-              <span>{isSyncing ? 'Syncing…' : 'Sync'}</span>
-            </Button>
-          </div>
+          <SourceFolderActionBar
+            onEdit={() => (onEdit ? onEdit() : setIsSourceModalOpen(true))}
+            onSync={handleManualSync}
+            isSyncing={isSyncing}
+            editTriggerId={editTriggerId}
+            editTitle="Edit source document repository"
+            syncTitle="Sync documents from Google Drive"
+            onHighlightChange={setIsEditHovered}
+          />
         )}
       </div>
 
@@ -423,14 +363,6 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
           documentItem={editingDocument}
           onClose={() => setEditingDocument(null)}
           onSave={handleSaveDocumentDetails}
-        />
-      )}
-
-      {toastMessage && (
-        <Toast
-          message={toastMessage}
-          type={toastType}
-          onDismiss={() => setToastMessage(null)}
         />
       )}
     </div>

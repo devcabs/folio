@@ -5,12 +5,14 @@
  */
 
 import type { NodeCanvasDocument } from './canvas';
+import type { PageNode } from './page';
 
 export interface CloudDraftData {
   id: string; // 'active_draft'
   baseSnapshotId: string;
   canvases: Record<string, NodeCanvasDocument>;
   contentOverrides: Record<string, string>;
+  pages?: Record<string, PageNode>;
   updatedAt: string;
   updatedBySession?: string;
   lockedBySession?: string;

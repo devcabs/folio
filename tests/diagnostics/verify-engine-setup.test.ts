@@ -29,34 +29,32 @@ describe('Folio Engine: Integration Assurance & Diagnostic Verification', () => 
       updatedAt: '2026-11-01T12:00:00Z',
       canvas: {
         nodeId: 'access',
-        version: 1,
+        version: 3,
         updatedAt: '2026-11-01T12:00:00Z',
-        sections: [
+        elements: [
           {
             id: 'sec_1',
             type: 'section',
             title: 'Overview',
-            elements: [
-              {
-                id: 'text_1',
-                type: 'text',
-                pointId: 'point_text_1',
-                content: 'Welcome to this node overview.',
-              },
-              {
-                id: 'chart_1',
-                type: 'chart',
-                chartId: 'kpi_chart_enrollment',
-                title: 'Enrollment Rate',
-                dataset: {
-                  chartId: 'kpi_chart_enrollment',
-                  title: 'Enrollment Rate',
-                  asOfDate: '2026-11-01',
-                  chartType: 'bar',
-                  sanitizedCsvContent: 'Year,Value\n2025,100\n2026,120',
-                },
-              },
-            ],
+          },
+          {
+            id: 'text_1',
+            type: 'text',
+            pointId: 'point_text_1',
+            content: 'Welcome to this node overview.',
+          },
+          {
+            id: 'chart_1',
+            type: 'chart',
+            chartId: 'kpi_chart_enrollment',
+            title: 'Enrollment Rate',
+            dataset: {
+              chartId: 'kpi_chart_enrollment',
+              title: 'Enrollment Rate',
+              asOfDate: '2026-11-01',
+              chartType: 'bar',
+              sanitizedCsvContent: 'Year,Value\n2025,100\n2026,120',
+            },
           },
         ],
       },
@@ -81,7 +79,7 @@ describe('Folio Engine: Integration Assurance & Diagnostic Verification', () => 
 
     it('warns when a chart is referenced in canvas AST without embedded dataset or config', () => {
       const payload = createSamplePayload();
-      delete (payload.canvas.sections[0].elements[1] as { dataset?: unknown }).dataset;
+      delete (payload.canvas.elements[2] as { dataset?: unknown }).dataset;
       const result = validateNodePayload(payload);
       expect(result.ok).toBe(true);
       expect(result.warnings.some((w) => w.includes('kpi_chart_enrollment'))).toBe(true);
@@ -90,7 +88,7 @@ describe('Folio Engine: Integration Assurance & Diagnostic Verification', () => 
     it('flags an error when duplicate element IDs exist within the canvas tree', () => {
       const payload = createSamplePayload();
       // Introduce duplicate ID
-      payload.canvas.sections[0].elements.push({
+      payload.canvas.elements.push({
         id: 'text_1', // Duplicate ID
         type: 'text',
         pointId: 'point_duplicate',

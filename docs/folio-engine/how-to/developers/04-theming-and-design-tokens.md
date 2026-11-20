@@ -163,3 +163,15 @@ Expected output:
 🔍 [Token Gate] Found 254 defined CSS tokens in tokens.css.
 ✅ [Token Gate] 100% token purity and alias verification passed! (257 files scanned)
 ```
+
+
+---
+
+## Nested Subpage, Dropdown & Danger Tokens
+
+Added in `src/styles/tokens.css` for Epic 13 components:
+
+- **Page Link Cards (`CanvasPageLink`)**: `--page-link-bg`, `--page-link-hover-bg`, `--page-link-active-bg`, `--page-link-border`, `--page-link-hover-border`, `--page-link-shadow`, `--page-link-hover-shadow`, `--page-link-radius`, `--page-link-padding-y`, `--page-link-padding-x`, `--page-link-disabled-opacity`, `--page-link-icon-color`, `--page-link-arrow-color`
+- **2-Level Header Dropdowns (`AppHeader`)**: `--nav-dropdown-bg`, `--nav-dropdown-border`, `--nav-dropdown-shadow`, `--nav-dropdown-radius`, `--nav-dropdown-item-hover-bg`, `--nav-dropdown-item-active-bg`, `--nav-dropdown-min-width`, `--nav-dropdown-max-width`
+- **Collapsed Breadcrumb & Slug Preview**: `--breadcrumb-ellipsis-color`, `--url-preview-bg`, `--url-preview-border`, `--url-preview-text`
+- **Guarded Deletion & Danger Surfaces**: `--color-danger`, `--color-danger-dark`, `--color-danger-tint`, `--color-danger-border`

@@ -61,21 +61,20 @@ describe('Subtask 3.4: Dignified Public Empty Canvas State', () => {
   describe('DocumentCanvas Integration with CanvasEmptyNotice', () => {
     const emptyDocument: NodeCanvasDocument = {
       nodeId: 'governance',
-      version: 1,
-      sections: [],
+      version: 3,
+      elements: [],
       updatedAt: '2026-11-13T00:00:00.000Z',
     };
 
     const populatedDocument: NodeCanvasDocument = {
       nodeId: 'governance',
-      version: 1,
-      sections: [
+      version: 3,
+      elements: [
         {
           id: 'sec-1',
           type: 'section',
           title: 'Foundations',
           number: '01',
-          elements: [],
         },
       ],
       updatedAt: '2026-11-13T00:00:00.000Z',
@@ -217,7 +216,7 @@ describe('Subtask 3.4: Dignified Public Empty Canvas State', () => {
       );
 
       expect(html).not.toContain('data-testid="canvas-empty-notice"');
-      expect(html).toContain('Click to add the first Section');
+      expect(html).toContain('Add Element');
     });
 
     it('renders normal document sections when document is populated', () => {

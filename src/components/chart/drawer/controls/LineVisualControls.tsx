@@ -1,4 +1,5 @@
 import React from 'react';
+import { Checkbox, FormField, Select } from '../../../ui';
 import { AxisBaselineToggle } from './AxisBaselineToggle';
 import styles from '../../ChartConfigDrawer.module.css';
 
@@ -28,50 +29,36 @@ export const LineVisualControls: React.FC<LineVisualControlsProps> = ({
   return (
     <>
       <div className={styles.twoColRow}>
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="cfg-line-style">
-            <span>Line Interpolation</span>
-          </label>
-          <select
+        <FormField id="cfg-line-style" label="Line Interpolation">
+          <Select
             id="cfg-line-style"
-            className={styles.select}
             value={curveInterpolation}
             onChange={(e) => setCurveInterpolation(e.target.value as 'smooth' | 'straight')}
           >
             <option value="smooth">Smooth Curve</option>
             <option value="straight">Straight Lines</option>
-          </select>
-        </div>
+          </Select>
+        </FormField>
 
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="cfg-marker-size">
-            <span>Point Marker Size</span>
-          </label>
-          <select
+        <FormField id="cfg-marker-size" label="Point Marker Size">
+          <Select
             id="cfg-marker-size"
-            className={styles.select}
             value={markerSize}
             onChange={(e) => setMarkerSize(e.target.value as 'compact' | 'regular' | 'prominent')}
           >
             <option value="compact">Small</option>
             <option value="regular">Medium</option>
             <option value="prominent">Large</option>
-          </select>
-        </div>
+          </Select>
+        </FormField>
       </div>
 
-      <div className={styles.formGroup}>
-        <label htmlFor="cfg-line-area-fill" className={styles.checkboxLabel}>
-          <input
-            id="cfg-line-area-fill"
-            type="checkbox"
-            className={styles.checkbox}
-            checked={showAreaFill}
-            onChange={(e) => setShowAreaFill(e.target.checked)}
-          />
-          <span>Shade area under line</span>
-        </label>
-      </div>
+      <Checkbox
+        id="cfg-line-area-fill"
+        checked={showAreaFill}
+        onChange={setShowAreaFill}
+        label="Shade area under line"
+      />
 
       <AxisBaselineToggle
         label="Vertical (Y) Axis Baseline"

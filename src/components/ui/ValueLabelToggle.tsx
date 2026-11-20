@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './ValueLabelToggle.module.css';
+import { Checkbox } from './Checkbox';
 
 export interface ValueLabelToggleProps {
   id?: string;
@@ -10,6 +10,9 @@ export interface ValueLabelToggleProps {
   className?: string;
 }
 
+/**
+ * @deprecated Use canonical `Checkbox` from `src/components/ui/Checkbox` instead.
+ */
 export const ValueLabelToggle: React.FC<ValueLabelToggleProps> = ({
   id = 'cfg-show-values',
   checked,
@@ -19,18 +22,13 @@ export const ValueLabelToggle: React.FC<ValueLabelToggleProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`${styles.container} ${className}`.trim()}>
-      <label htmlFor={id} className={styles.label}>
-        <input
-          id={id}
-          type="checkbox"
-          className={styles.checkbox}
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        <span>{label}</span>
-      </label>
-      {hint && <span className={styles.hint}>{hint}</span>}
-    </div>
+    <Checkbox
+      id={id}
+      checked={checked}
+      onChange={onChange}
+      label={label}
+      hint={hint}
+      className={className}
+    />
   );
 };

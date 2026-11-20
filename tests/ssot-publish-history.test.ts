@@ -69,31 +69,29 @@ function createMemoryKV(initial: Record<string, unknown> = {}): {
 
 function makeSnapshot(id = 'pub-100', overrides: Record<string, string> = { 'hero.title': 'Updated Title' }): PublishedSnapshot {
   const accessDoc = createDefaultCanvasDocument('access');
-  accessDoc.sections = [
+  accessDoc.elements = [
     {
       id: 'sec-1',
       type: 'section',
       number: '1',
       title: 'Access Section',
-      elements: [
-        {
-          id: 'chart-1',
-          type: 'chart',
-          chartId: 'chart-enroll',
-          title: 'Enrollment',
-          config: {
-            chartType: 'bar',
-            sheetUrl: 'https://docs.google.com/spreadsheets/d/secret-sheet/edit',
-          },
-        } as never,
-        {
-          id: 'photo-1',
-          type: 'photo',
-          src: 'https://drive.google.com/file/d/driveFile123/view',
-          caption: 'Campus',
-        } as never,
-      ],
     },
+    {
+      id: 'chart-1',
+      type: 'chart',
+      chartId: 'chart-enroll',
+      title: 'Enrollment',
+      config: {
+        chartType: 'bar',
+        sheetUrl: 'https://docs.google.com/spreadsheets/d/secret-sheet/edit',
+      },
+    } as never,
+    {
+      id: 'photo-1',
+      type: 'photo',
+      src: 'https://drive.google.com/file/d/driveFile123/view',
+      caption: 'Campus',
+    } as never,
   ];
 
   return {
@@ -226,7 +224,7 @@ describe('Subtask 7.5: Revision History & Atomic Publish Pipeline SSOT', () => {
 
       // Phase A: history:snapshot:pub-200 preserves private sheetUrl
       const savedSnap = JSON.parse(store.get('history:snapshot:pub-200')!) as PublishedSnapshot;
-      const savedChart = savedSnap.canvases.access.sections[0].elements[0] as unknown as {
+      const savedChart = savedSnap.canvases.access.elements[1] as unknown as {
         config?: { sheetUrl?: string };
       };
       expect(savedChart.config?.sheetUrl).toBe('https://docs.google.com/spreadsheets/d/secret-sheet/edit');
@@ -236,9 +234,9 @@ describe('Subtask 7.5: Revision History & Atomic Publish Pipeline SSOT', () => {
       const activeNode = JSON.parse(store.get('node:access')!);
       expect(versionedNode.snapshotId).toBe('pub-200');
       expect(activeNode.snapshotId).toBe('pub-200');
-      const publicChart = versionedNode.canvas.sections[0].elements[0];
+      const publicChart = versionedNode.canvas.elements[1];
       expect(publicChart.config.sheetUrl).toBeUndefined();
-      const publicPhoto = versionedNode.canvas.sections[0].elements[1];
+      const publicPhoto = versionedNode.canvas.elements[2];
       expect(publicPhoto.src).toContain('/api/media/drive/driveFile123');
 
       // Phase B: portal:manifest, history:index, draft:workspace updated
@@ -399,7 +397,7 @@ describe('Subtask 7.5: Revision History & Atomic Publish Pipeline SSOT', () => {
       expect(restoredDraft.dirty).toBe(true);
       expect(restoredDraft.revision).toBe(6);
       expect(restoredDraft.contentOverrides).toEqual({ 'hero.kicker': 'Restored Kicker' });
-      expect(restoredDraft.canvases.access.sections[0].title).toBe('Access Section');
+      expect((restoredDraft.canvases.access.elements[0] as any).title).toBe('Access Section');
 
       // Restore snap-system-baseline
       const resBaseline = await handleFolioEdgeRequest(
@@ -421,7 +419,7 @@ describe('Subtask 7.5: Revision History & Atomic Publish Pipeline SSOT', () => {
       expect(baselineDraft.revision).toBe(7);
       expect(baselineDraft.baseSnapshotId).toBe('pub-301');
       expect(baselineDraft.contentOverrides).toEqual({});
-      expect(baselineDraft.canvases.access.sections).toEqual([]);
+      expect(baselineDraft.canvases.access.elements).toEqual([]);
       expect(store.has('draft:workspace')).toBe(true);
     });
   });

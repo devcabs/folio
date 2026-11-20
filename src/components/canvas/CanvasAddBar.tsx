@@ -1,6 +1,7 @@
 import React, { memo, useState, useRef, useEffect, useCallback } from 'react';
 import type { CanvasElementType } from '../../types/canvas';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
+import { PageIcon } from '../ui/PageIcon';
 import styles from './CanvasControls.module.css';
 
 export interface CanvasAddBarProps {
@@ -218,6 +219,7 @@ const PALETTE_OPTIONS: readonly PaletteOptionItem[] = [
   { type: 'photo', label: 'Photo', IconComponent: PhotoIcon },
   { type: 'pdf', label: 'Document', IconComponent: DocumentIcon },
   { type: 'chart', label: 'Chart', IconComponent: ChartIcon },
+  { type: 'page-link', label: 'Page', IconComponent: PageIcon },
 ];
 
 /**
@@ -236,10 +238,10 @@ const PALETTE_OPTIONS: readonly PaletteOptionItem[] = [
  */
 export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
   onAddElement,
-  isInitialStarter = false,
+  isInitialStarter: _isInitialStarter = false,
   accentColor: _accentColor,
   className,
-  label = 'Click to add the first Section',
+  label: _label = 'Click to add the first Section',
   barId,
   activeBarId,
   onToggleActive,
@@ -358,7 +360,7 @@ export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
       // Viewport proximity calculation (dropup vs dropdown)
       const rect = buttonRef.current?.getBoundingClientRect();
       const spaceBelow = rect ? window.innerHeight - rect.bottom : 300;
-      setIsDropup(spaceBelow < 240);
+      setIsDropup(spaceBelow < 280);
       setInternalIsOpen(true);
       setIsPhotoSubMenuOpen(false);
       setIsPhotoSubMenuPinned(false);
@@ -412,24 +414,6 @@ export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
   // Invisible to public visitors or non-desktop viewports
   if (!isDevMode || !isDesktop) {
     return null;
-  }
-
-  // Initial starter mode for empty canvas
-  if (isInitialStarter) {
-    return (
-      <div className={`${styles.starterContainer} ${className || ''}`.trim()}>
-        <button
-          type="button"
-          className={styles.starterButton}
-          onClick={() => onAddElement('section')}
-        >
-          <span className={styles.plusIcon}>
-            <PlusIcon />
-          </span>
-          <span>{label}</span>
-        </button>
-      </div>
-    );
   }
 
   return (

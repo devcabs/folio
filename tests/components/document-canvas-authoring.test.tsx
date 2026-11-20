@@ -61,32 +61,31 @@ describe('9.1 Unconditional Post-Header Insertion Bar for Canvas Sections', () =
 
   const populatedDocument: NodeCanvasDocument = {
     nodeId: 'access',
-    version: 1,
+    version: 3,
     updatedAt: '2026-11-18T00:00:00.000Z',
-    sections: [
+    elements: [
       {
         id: 'sec-1',
         type: 'section',
         title: 'Foundations',
         number: '01',
         isNumbered: true,
-        elements: [existingTextLeaf],
       },
+      existingTextLeaf,
     ],
   };
 
   const emptySectionDocument: NodeCanvasDocument = {
     nodeId: 'access',
-    version: 1,
+    version: 3,
     updatedAt: '2026-11-18T00:00:00.000Z',
-    sections: [
+    elements: [
       {
         id: 'sec-empty',
         type: 'section',
         title: 'Empty Section',
         number: '01',
         isNumbered: true,
-        elements: [],
       },
     ],
   };
@@ -202,12 +201,10 @@ describe('9.1 Unconditional Post-Header Insertion Bar for Canvas Sections', () =
 
     expect(addElementSpy).toHaveBeenCalledTimes(1);
     expect(addElementSpy).toHaveBeenCalledWith(
-      'sec-1',
       expect.objectContaining({
         type: 'text',
       }),
-      0,
-      undefined
+      1
     );
   });
 
@@ -291,45 +288,46 @@ describe('9.2 Eliminate Subsection Ghost Hover Zone & Duplicate Insertion Bars',
     id: 'sub-empty',
     type: 'subsection',
     title: 'Empty Subsection',
-    elements: [],
   };
 
   const populatedSub: SubsectionElement = {
     id: 'sub-pop',
     type: 'subsection',
     title: 'Populated Subsection',
-    elements: [leaf0, leaf1],
   };
 
   const docWithEmptySub: NodeCanvasDocument = {
     nodeId: 'access',
-    version: 1,
+    version: 3,
     updatedAt: '2026-11-18T00:00:00.000Z',
-    sections: [
+    elements: [
       {
         id: 'sec-1',
         type: 'section',
         title: 'Foundations',
         number: '01',
         isNumbered: true,
-        elements: [emptySub],
       },
+      emptySub,
     ],
   };
 
   const docWithPopulatedSub: NodeCanvasDocument = {
     nodeId: 'access',
-    version: 1,
+    version: 3,
     updatedAt: '2026-11-18T00:00:00.000Z',
-    sections: [
+    elements: [
       {
         id: 'sec-1',
         type: 'section',
         title: 'Foundations',
         number: '01',
         isNumbered: true,
-        elements: [emptySub, populatedSub],
       },
+      emptySub,
+      populatedSub,
+      leaf0,
+      leaf1,
     ],
   };
 
@@ -400,13 +398,13 @@ describe('9.2 Eliminate Subsection Ghost Hover Zone & Duplicate Insertion Bars',
   });
 
   it('inserts a new subsection at subIdx + 1 in the parent section when triggered from inside a subsection', () => {
-    const restoreSubsectionSpy = vi.fn();
+    const addSubsectionSpy = vi.fn();
     vi.spyOn(developerModeHook, 'useDeveloperMode').mockReturnValue(
       createDevModeStub(true) as any
     );
     vi.spyOn(nodeCanvasHook, 'useDocumentCanvas').mockReturnValue(
       createCanvasHookStub(docWithPopulatedSub, {
-        restoreSubsection: restoreSubsectionSpy,
+        addSubsection: addSubsectionSpy,
       })
     );
 
@@ -439,13 +437,12 @@ describe('9.2 Eliminate Subsection Ghost Hover Zone & Duplicate Insertion Bars',
     });
     fireEvent.click(submitBtn);
 
-    expect(restoreSubsectionSpy).toHaveBeenCalledTimes(1);
-    expect(restoreSubsectionSpy).toHaveBeenCalledWith(
-      'sec-1',
+    expect(addSubsectionSpy).toHaveBeenCalledTimes(1);
+    expect(addSubsectionSpy).toHaveBeenCalledWith(
+      5,
       expect.objectContaining({
         type: 'subsection',
-      }),
-      2 // populatedSub is at index 1 in sec-1.elements -> subIdx + 1 = 2
+      })
     );
   });
 

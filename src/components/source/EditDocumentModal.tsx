@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal } from '../ui/Modal';
+import { Modal, ModalActions } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { FormField } from '../ui/FormField';
+import { Input } from '../ui/Input';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import type { SyncedDocumentItem } from '../../types/source';
-import styles from './EditPhotoModal.module.css';
+import styles from './EditDocumentModal.module.css';
 
 export interface EditDocumentModalProps {
   isOpen: boolean;
@@ -93,7 +95,7 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
     >
       <form onSubmit={handleSubmit} className={styles.modalBody}>
         {documentItem.originalFileName && (
-          <div className={styles.photoPreviewBlock}>
+          <div className={styles.documentPreviewBlock}>
             <div className={styles.previewMeta}>
               <span className={styles.previewLabel}>Google Drive PDF</span>
               <span
@@ -106,57 +108,47 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
           </div>
         )}
 
-        <div className={styles.formGroup}>
-          <label htmlFor="edit-document-title" className={styles.fieldLabel}>
-            Document Title
-          </label>
-          <input
+        <FormField
+          id="edit-document-title"
+          label="Document Title"
+          required
+          hint="Custom titles are preserved across future Google Drive folder syncs."
+        >
+          <Input
             ref={inputRef}
             id="edit-document-title"
             type="text"
-            className={styles.inputField}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g., Annual Accomplishment Report"
             disabled={isSaving}
             required
           />
-          <p className={styles.fieldHint}>
-            Custom titles are preserved across future Google Drive folder syncs.
-          </p>
-        </div>
+        </FormField>
 
-        <div className={styles.formGroup}>
-          <label htmlFor="edit-document-date" className={styles.fieldLabel}>
-            Date Stamp (Optional)
-          </label>
-          <input
+        <FormField id="edit-document-date" label="Date Stamp (Optional)">
+          <Input
             id="edit-document-date"
             type="text"
-            className={styles.inputField}
             value={date}
             onChange={(e) => setDate(e.target.value)}
             placeholder="e.g., 2026-10-09"
             disabled={isSaving}
           />
-        </div>
+        </FormField>
 
-        <div className={styles.formGroup}>
-          <label htmlFor="edit-document-caption" className={styles.fieldLabel}>
-            Caption (Optional)
-          </label>
-          <input
+        <FormField id="edit-document-caption" label="Caption (Optional)">
+          <Input
             id="edit-document-caption"
             type="text"
-            className={styles.inputField}
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             placeholder="Brief editorial note for this document"
             disabled={isSaving}
           />
-        </div>
+        </FormField>
 
-        <div className={styles.actionRow}>
+        <ModalActions className={styles.actionRow}>
           <Button
             variant="secondary"
             size="sm"
@@ -174,7 +166,7 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
           >
             {isSaving ? 'Saving...' : 'Save Details'}
           </Button>
-        </div>
+        </ModalActions>
       </form>
     </Modal>
   );

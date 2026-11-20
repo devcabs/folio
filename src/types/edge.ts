@@ -9,6 +9,15 @@ import type { NodeCanvasDocument } from './canvas';
 import type { ChartDataset } from './chart';
 import type { SyncedSourceItem } from './source';
 import type { NodeCode } from './node';
+import {
+  PageNodeSchema,
+  PageRegistrySchema,
+  type PageNode,
+  type PageRegistry,
+} from './page';
+
+export { PageNodeSchema, PageRegistrySchema };
+export type { PageNode, PageRegistry };
 
 export const VALID_NODES: readonly NodeCode[] = [
   'access',
@@ -95,6 +104,7 @@ export interface PublicPortalManifestPayload {
   nodeIds: string[];
   schemaVersion: number;
   contentOverrides?: Record<string, string>;
+  pages?: Record<string, PageNode>;
 }
 
 /**
@@ -108,6 +118,22 @@ export interface DraftWorkspacePayload {
   authorSessionId: string;
   canvases: Record<string, NodeCanvasDocument>;
   contentOverrides: Record<string, string>;
+  pages?: Record<string, PageNode>;
+}
+
+/**
+ * Route Contract 3b: PUT /api/draft request DTO with optimistic concurrency & page cascade deletion
+ */
+export interface DraftWorkspaceUpdateRequest extends Partial<DraftWorkspacePayload> {
+  expectedRevision?: number;
+  expectedUpdatedAt?: string;
+  deletedPageIds?: string[];
+}
+
+declare global {
+  interface Window {
+    __FOLIO_MANIFEST__?: PublicPortalManifestPayload;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +146,7 @@ export const PublicPortalManifestPayloadSchema = z.object({
   nodeIds: z.array(z.string()).min(1, 'nodeIds cannot be empty'),
   schemaVersion: z.number().int().positive(),
   contentOverrides: z.record(z.string(), z.string()).optional(),
+  pages: PageRegistrySchema.optional(),
 });
 
 export const CachedIndicatorDatasetSchema = z.object({
@@ -183,11 +210,18 @@ export const PdfElementSchema = z.object({
   aspectRatio: z.string().optional(),
 }).passthrough();
 
+export const PageLinkElementSchema = z.object({
+  id: z.string(),
+  type: z.literal('page-link'),
+  targetPageId: z.string().min(1),
+}).passthrough();
+
 export const CanvasLeafElementSchema = z.union([
   ChartElementSchema,
   GalleryElementSchema,
   DocumentsElementSchema,
   PdfElementSchema,
+  PageLinkElementSchema,
   z.object({
     id: z.string(),
     type: z.enum(['text', 'photo']),
@@ -198,7 +232,6 @@ export const SubsectionElementSchema = z.object({
   id: z.string(),
   type: z.literal('subsection'),
   title: z.string(),
-  elements: z.array(CanvasLeafElementSchema),
 }).passthrough();
 
 export const SectionElementSchema = z.object({
@@ -207,13 +240,18 @@ export const SectionElementSchema = z.object({
   title: z.string(),
   isNumbered: z.boolean().optional(),
   number: z.string().optional(),
-  elements: z.array(z.union([SubsectionElementSchema, CanvasLeafElementSchema])),
 }).passthrough();
+
+export const CanvasElementSchema = z.union([
+  SectionElementSchema.extend({ type: z.literal('section') }),
+  SubsectionElementSchema,
+  CanvasLeafElementSchema,
+]);
 
 export const NodeCanvasDocumentSchema = z.object({
   nodeId: z.string(),
   version: z.number(),
-  sections: z.array(SectionElementSchema),
+  elements: z.array(CanvasElementSchema),
   updatedAt: z.string(),
 });
 

@@ -36,6 +36,7 @@
     opacity: 0;
     transform: translateY(-100%);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -73,7 +74,7 @@
   text-transform: uppercase;
   padding: 1px var(--space-1);
   border-radius: var(--radius-xs);
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--overlay-inverse-muted);
   color: var(--color-white);
   font-weight: 600;
   flex-shrink: 0;
@@ -106,8 +107,8 @@
 
 .retryButton {
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--border-inverse-subtle);
+  background: var(--overlay-inverse-subtle);
   color: var(--color-white);
   border-radius: var(--radius-sm);
   padding: 3px var(--space-2);
@@ -117,17 +118,17 @@
   cursor: pointer;
   outline: none;
   transition: background var(--duration-fast) var(--ease-out),
-              border-color var(--duration-fast) var(--ease-out);
+    border-color var(--duration-fast) var(--ease-out);
 }
 
 .retryButton:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.7);
+  background: var(--overlay-inverse-hover);
+  border-color: var(--border-inverse-strong);
   outline: none;
 }
 
 .retryButton:active {
-  background: rgba(255, 255, 255, 0.35);
+  background: var(--overlay-inverse-active);
   outline: none;
 }
 

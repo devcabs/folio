@@ -1,4 +1,5 @@
 import React from 'react';
+import { Checkbox } from '../../../ui';
 import styles from '../../ChartConfigDrawer.module.css';
 
 interface HistogramVisualControlsProps {
@@ -25,57 +26,37 @@ export const HistogramVisualControls: React.FC<HistogramVisualControlsProps> = (
   return (
     <>
       <div className={styles.twoColRow}>
-        <div className={styles.formGroup}>
-          <label htmlFor="cfg-histogram-curve" className={styles.checkboxLabel}>
-            <input
-              id="cfg-histogram-curve"
-              type="checkbox"
-              className={styles.checkbox}
-              checked={curveInterpolation === 'smooth'}
-              onChange={(e) => setCurveInterpolation(e.target.checked ? 'smooth' : 'none')}
-            />
-            <span>Overlay Smooth Distribution Curve</span>
-          </label>
-        </div>
+        <Checkbox
+          id="cfg-histogram-curve"
+          checked={curveInterpolation === 'smooth'}
+          onChange={(checked) => setCurveInterpolation(checked ? 'smooth' : 'none')}
+          label="Overlay Smooth Distribution Curve"
+        />
 
-        <div className={styles.formGroup}>
-          <label htmlFor="cfg-show-reference-guide" className={styles.checkboxLabel}>
-            <input
-              id="cfg-show-reference-guide"
-              type="checkbox"
-              className={styles.checkbox}
-              checked={showReferenceGuide}
-              onChange={(e) => setShowReferenceGuide(e.target.checked)}
-            />
-            <span>Show Mean (Average) Reference Line</span>
-          </label>
-        </div>
+        <Checkbox
+          id="cfg-show-reference-guide"
+          checked={showReferenceGuide}
+          onChange={setShowReferenceGuide}
+          label="Show Mean (Average) Reference Line"
+        />
       </div>
 
       <div className={styles.formGroup}>
-        <label htmlFor="cfg-show-summary-stats" className={styles.checkboxLabel}>
-          <input
-            id="cfg-show-summary-stats"
-            type="checkbox"
-            className={styles.checkbox}
-            checked={showSummaryStats}
-            onChange={(e) => setShowSummaryStats(e.target.checked)}
-          />
-          <span>Show Summary Statistics Card</span>
-        </label>
+        <Checkbox
+          id="cfg-show-summary-stats"
+          checked={showSummaryStats}
+          onChange={setShowSummaryStats}
+          label="Show Summary Statistics Card"
+        />
 
         {showSummaryStats && (
           <div className={styles.nestedControl}>
-            <label htmlFor="cfg-show-median-mode" className={styles.checkboxLabel}>
-              <input
-                id="cfg-show-median-mode"
-                type="checkbox"
-                className={styles.checkbox}
-                checked={showMedianMode}
-                onChange={(e) => setShowMedianMode(e.target.checked)}
-              />
-              <span>Include Median & Mode</span>
-            </label>
+            <Checkbox
+              id="cfg-show-median-mode"
+              checked={showMedianMode}
+              onChange={setShowMedianMode}
+              label="Include Median & Mode"
+            />
           </div>
         )}
       </div>

@@ -13,19 +13,32 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useDeveloperMode } from '../hooks/useDeveloperMode';
 import {
-  fetchPublicManifestOverrides,
-  fetchDraftWorkspaceOverrides,
+  readInjectedPortalManifest,
+  fetchPublicManifestChrome,
+  fetchDraftWorkspaceChrome,
   updateDraftContentOverride,
   removeDraftContentOverride,
   EVENT_DRAFT_CONTENT_CHANGE,
   EVENT_LIVE_CONTENT_CHANGE,
 } from '../utils/contentDb';
+import {
+  EVENT_DRAFT_UPDATED_AT_SYNC,
+  EVENT_DRAFT_PAGES_CHANGE,
+  dispatchDraftUpdatedAtSync,
+  enqueueDraftMutation,
+  commitDraftWorkspaceTransaction,
+} from '../services/draftService';
+import type { NodeCanvasDocument } from '../types/canvas';
+import type { DraftWorkspacePayload, PublicPortalManifestPayload } from '../types/edge';
+import type { PageRegistry } from '../types/page';
 import { TopErrorBanner } from '../components/feedback/TopErrorBanner';
 
 const HYDRATION_BACKOFF_SCHEDULE_MS = [2000, 4000, 8000, 15000] as const;
 
 export interface PortalChromeContextValue {
   contentOverrides: Record<string, string>;
+  pages: PageRegistry;
+  publishedPages: PageRegistry;
   isHydrating: boolean;
   hasHydrated: boolean;
   hydrationError: string | null;
@@ -34,6 +47,12 @@ export interface PortalChromeContextValue {
   retry: () => void;
   updateOverride: (key: string, value: string) => Promise<void>;
   removeOverride: (key: string) => Promise<void>;
+  commitWorkspaceMutation: (mutation: {
+    canvases?: Record<string, NodeCanvasDocument>;
+    pages?: PageRegistry;
+    contentOverrides?: Record<string, string>;
+    deletedPageIds?: string[];
+  }) => Promise<DraftWorkspacePayload>;
 }
 
 export const PortalChromeContext = createContext<PortalChromeContextValue | null>(null);
@@ -55,15 +74,36 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
   const isDevMode = isDevModeOverride ?? contextDevMode;
   const lockToken = lockTokenOverride !== undefined ? lockTokenOverride : (contextLockToken ?? null);
 
-  const [contentOverrides, setContentOverrides] = useState<Record<string, string>>({});
+  const [initialManifest] = useState<PublicPortalManifestPayload | null>(() =>
+    !isDevMode ? readInjectedPortalManifest() : null
+  );
+
+  const [contentOverrides, setContentOverrides] = useState<Record<string, string>>(() =>
+    initialManifest?.contentOverrides ? { ...initialManifest.contentOverrides } : {}
+  );
+  const [pages, setPages] = useState<PageRegistry>(() =>
+    initialManifest?.pages ? { ...initialManifest.pages } : {}
+  );
+  const [publishedPages, setPublishedPages] = useState<PageRegistry>(() =>
+    initialManifest?.pages ? { ...initialManifest.pages } : {}
+  );
   const [isHydrating, setIsHydrating] = useState<boolean>(() => {
     if (typeof window === 'undefined' || typeof fetch !== 'function') {
+      return false;
+    }
+    if (!isDevMode && initialManifest) {
       return false;
     }
     return true;
   });
   const [hasHydrated, setHasHydrated] = useState<boolean>(() => {
-    return typeof window === 'undefined' || typeof fetch !== 'function';
+    if (typeof window === 'undefined' || typeof fetch !== 'function') {
+      return true;
+    }
+    if (!isDevMode && initialManifest) {
+      return true;
+    }
+    return false;
   });
   const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [draftUpdatedAt, setDraftUpdatedAt] = useState<string | null>(null);
@@ -74,6 +114,7 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
   const draftUpdatedAtRef = useRef(draftUpdatedAt);
   draftUpdatedAtRef.current = draftUpdatedAt;
   const backoffAttemptRef = useRef<number>(0);
+  const hasSkippedInitialFetchRef = useRef<boolean>(false);
 
   const retry = useCallback(() => {
     setRetryCount((c) => c + 1);
@@ -106,12 +147,40 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
       return;
     }
     const eventName = isDevMode ? EVENT_DRAFT_CONTENT_CHANGE : EVENT_LIVE_CONTENT_CHANGE;
-    const handleExternalSync = () => {
+    const handleExternalSync = (e: Event) => {
+      if (isDevMode) {
+        const detail = (e as CustomEvent<{ pages?: PageRegistry }>).detail;
+        if (detail?.pages) {
+          setPages(detail.pages);
+          return;
+        }
+      }
       retry();
     };
+    const handlePagesSync = (e: Event) => {
+      const detail = (e as CustomEvent<{ pages?: PageRegistry }>).detail;
+      if (detail?.pages) {
+        setPages(detail.pages);
+      }
+    };
+    const handleUpdatedAtSync = (e: Event) => {
+      const detail = (e as CustomEvent<{ updatedAt?: string }>).detail;
+      if (typeof detail?.updatedAt === 'string' && detail.updatedAt) {
+        draftUpdatedAtRef.current = detail.updatedAt;
+        setDraftUpdatedAt(detail.updatedAt);
+      }
+    };
     window.addEventListener(eventName, handleExternalSync);
+    if (isDevMode) {
+      window.addEventListener(EVENT_DRAFT_PAGES_CHANGE, handlePagesSync);
+      window.addEventListener(EVENT_DRAFT_UPDATED_AT_SYNC, handleUpdatedAtSync);
+    }
     return () => {
       window.removeEventListener(eventName, handleExternalSync);
+      if (isDevMode) {
+        window.removeEventListener(EVENT_DRAFT_PAGES_CHANGE, handlePagesSync);
+        window.removeEventListener(EVENT_DRAFT_UPDATED_AT_SYNC, handleUpdatedAtSync);
+      }
     };
   }, [isDevMode, retry]);
 
@@ -122,6 +191,12 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
       return;
     }
 
+    if (!isDevMode && initialManifest && retryCount === 0 && !hasSkippedInitialFetchRef.current) {
+      hasSkippedInitialFetchRef.current = true;
+      return;
+    }
+    hasSkippedInitialFetchRef.current = true;
+
     let isCancelled = false;
     setIsHydrating(true);
     setHydrationError(null);
@@ -129,14 +204,17 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
     const hydrate = async () => {
       try {
         if (isDevMode) {
-          const result = await fetchDraftWorkspaceOverrides(lockToken);
+          const result = await fetchDraftWorkspaceChrome(lockToken);
           if (isCancelled) return;
           setContentOverrides(result.contentOverrides);
+          setPages(result.pages);
           setDraftUpdatedAt(result.updatedAt);
         } else {
-          const overrides = await fetchPublicManifestOverrides();
+          const chrome = await fetchPublicManifestChrome();
           if (isCancelled) return;
-          setContentOverrides(overrides);
+          setContentOverrides(chrome.contentOverrides);
+          setPages(chrome.pages);
+          setPublishedPages(chrome.pages);
           setDraftUpdatedAt(null);
         }
         backoffAttemptRef.current = 0;
@@ -158,21 +236,26 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [isDevMode, lockToken, retryCount]);
+  }, [isDevMode, lockToken, retryCount, initialManifest]);
 
   const updateOverride = useCallback(
     async (key: string, value: string): Promise<void> => {
       if (!isDevMode) {
         throw new Error('Cannot mutate content overrides in Public Mode.');
       }
-      const result = await updateDraftContentOverride(key, value, overridesRef.current, {
-        lockToken,
-        expectedUpdatedAt: draftUpdatedAtRef.current,
+      await enqueueDraftMutation(async () => {
+        const result = await updateDraftContentOverride(key, value, overridesRef.current, {
+          lockToken,
+          expectedUpdatedAt: draftUpdatedAtRef.current,
+        });
+        overridesRef.current = result.contentOverrides;
+        setContentOverrides(result.contentOverrides);
+        if (result.updatedAt !== null) {
+          draftUpdatedAtRef.current = result.updatedAt;
+          setDraftUpdatedAt(result.updatedAt);
+          dispatchDraftUpdatedAtSync(result.updatedAt);
+        }
       });
-      setContentOverrides(result.contentOverrides);
-      if (result.updatedAt !== null) {
-        setDraftUpdatedAt(result.updatedAt);
-      }
     },
     [isDevMode, lockToken]
   );
@@ -182,20 +265,57 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
       if (!isDevMode) {
         throw new Error('Cannot reset content overrides in Public Mode.');
       }
-      const result = await removeDraftContentOverride(key, overridesRef.current, {
+      await enqueueDraftMutation(async () => {
+        const result = await removeDraftContentOverride(key, overridesRef.current, {
+          lockToken,
+          expectedUpdatedAt: draftUpdatedAtRef.current,
+        });
+        overridesRef.current = result.contentOverrides;
+        setContentOverrides(result.contentOverrides);
+        if (result.updatedAt !== null) {
+          draftUpdatedAtRef.current = result.updatedAt;
+          setDraftUpdatedAt(result.updatedAt);
+          dispatchDraftUpdatedAtSync(result.updatedAt);
+        }
+      });
+    },
+    [isDevMode, lockToken]
+  );
+
+  const commitWorkspaceMutation = useCallback(
+    async (mutation: {
+      canvases?: Record<string, NodeCanvasDocument>;
+      pages?: PageRegistry;
+      contentOverrides?: Record<string, string>;
+      deletedPageIds?: string[];
+    }): Promise<DraftWorkspacePayload> => {
+      if (!isDevMode) {
+        throw new Error('Cannot commit workspace mutations in Public Mode.');
+      }
+      const updated = await commitDraftWorkspaceTransaction(mutation, {
         lockToken,
         expectedUpdatedAt: draftUpdatedAtRef.current,
       });
-      setContentOverrides(result.contentOverrides);
-      if (result.updatedAt !== null) {
-        setDraftUpdatedAt(result.updatedAt);
+      if (updated.pages) {
+        setPages(updated.pages);
       }
+      if (updated.contentOverrides) {
+        overridesRef.current = updated.contentOverrides;
+        setContentOverrides(updated.contentOverrides);
+      }
+      if (updated.updatedAt) {
+        draftUpdatedAtRef.current = updated.updatedAt;
+        setDraftUpdatedAt(updated.updatedAt);
+      }
+      return updated;
     },
     [isDevMode, lockToken]
   );
 
   const value: PortalChromeContextValue = {
     contentOverrides,
+    pages,
+    publishedPages,
     isHydrating,
     hasHydrated,
     hydrationError,
@@ -204,6 +324,7 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
     retry,
     updateOverride,
     removeOverride,
+    commitWorkspaceMutation,
   };
 
   return (

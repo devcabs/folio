@@ -1,5 +1,5 @@
 import React from 'react';
-import { TieredSlider } from '../../../ui';
+import { Checkbox, FormField, Select, TieredSlider } from '../../../ui';
 import { AxisBaselineToggle } from './AxisBaselineToggle';
 import styles from '../../ChartConfigDrawer.module.css';
 
@@ -35,13 +35,9 @@ export const ScatterVisualControls: React.FC<ScatterVisualControlsProps> = ({
   return (
     <>
       <div className={styles.twoColRow}>
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="cfg-scatter-trendline">
-            <span>Trendline (Regression)</span>
-          </label>
-          <select
+        <FormField id="cfg-scatter-trendline" label="Trendline (Regression)">
+          <Select
             id="cfg-scatter-trendline"
-            className={styles.select}
             value={curveInterpolation}
             onChange={(e) =>
               setCurveInterpolation(
@@ -53,16 +49,12 @@ export const ScatterVisualControls: React.FC<ScatterVisualControlsProps> = ({
             <option value="linear">Linear Trendline</option>
             <option value="smooth">Smooth LOESS Curve</option>
             <option value="polynomial">Polynomial Curve</option>
-          </select>
-        </div>
+          </Select>
+        </FormField>
 
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="cfg-scatter-marker-size">
-            <span>Point Marker Size</span>
-          </label>
-          <select
+        <FormField id="cfg-scatter-marker-size" label="Point Marker Size">
+          <Select
             id="cfg-scatter-marker-size"
-            className={styles.select}
             value={markerSize}
             onChange={(e) =>
               setMarkerSize(e.target.value as 'compact' | 'regular' | 'prominent')
@@ -71,8 +63,8 @@ export const ScatterVisualControls: React.FC<ScatterVisualControlsProps> = ({
             <option value="compact">Small</option>
             <option value="regular">Medium</option>
             <option value="prominent">Large</option>
-          </select>
-        </div>
+          </Select>
+        </FormField>
       </div>
 
       {/* Tiered Grab Handle for LOESS Curve Smoothness */}
@@ -99,46 +91,28 @@ export const ScatterVisualControls: React.FC<ScatterVisualControlsProps> = ({
         {(curveInterpolation === 'linear' ||
           curveInterpolation === 'smooth' ||
           curveInterpolation === 'polynomial') && (
-            <div className={styles.formGroup}>
-              <label htmlFor="cfg-scatter-confidence" className={styles.checkboxLabel}>
-                <input
-                  id="cfg-scatter-confidence"
-                  type="checkbox"
-                  className={styles.checkbox}
-                  checked={showAreaFill}
-                  onChange={(e) => setShowAreaFill(e.target.checked)}
-                />
-                <span>Show Confidence Band (Shaded)</span>
-              </label>
-            </div>
+            <Checkbox
+              id="cfg-scatter-confidence"
+              checked={showAreaFill}
+              onChange={setShowAreaFill}
+              label="Show Confidence Band (Shaded)"
+            />
           )}
 
-        <div className={styles.formGroup}>
-          <label htmlFor="cfg-scatter-correlation" className={styles.checkboxLabel}>
-            <input
-              id="cfg-scatter-correlation"
-              type="checkbox"
-              className={styles.checkbox}
-              checked={showCorrelationChip}
-              onChange={(e) => setShowCorrelationChip(e.target.checked)}
-            />
-            <span>Show Correlation (r) Badge</span>
-          </label>
-        </div>
+        <Checkbox
+          id="cfg-scatter-correlation"
+          checked={showCorrelationChip}
+          onChange={setShowCorrelationChip}
+          label="Show Correlation (r) Badge"
+        />
       </div>
 
-      <div className={styles.formGroup}>
-        <label htmlFor="cfg-scatter-crosshairs" className={styles.checkboxLabel}>
-          <input
-            id="cfg-scatter-crosshairs"
-            type="checkbox"
-            className={styles.checkbox}
-            checked={showReferenceGuide}
-            onChange={(e) => setShowReferenceGuide(e.target.checked)}
-          />
-          <span>Show Mean Quadrant Crosshairs</span>
-        </label>
-      </div>
+      <Checkbox
+        id="cfg-scatter-crosshairs"
+        checked={showReferenceGuide}
+        onChange={setShowReferenceGuide}
+        label="Show Mean Quadrant Crosshairs"
+      />
     </>
   );
 };

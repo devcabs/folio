@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatusPill } from './StatusPill';
+import { StatusPill } from '../ui/StatusPill';
 import { Button } from '../ui/Button';
 import { DevActionAffordance } from '../dev/DevActionAffordance';
 import { useContent } from '../../hooks/useContent';

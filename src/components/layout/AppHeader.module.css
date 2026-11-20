@@ -123,7 +123,7 @@
 .navLinks {
   display: none;
   align-items: center;
-  gap: var(--space-gap-wide);
+  gap: var(--space-gap-layout);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -132,13 +132,28 @@
 @media (min-width: 1024px) {
   .navLinks {
     display: flex;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+    gap: var(--space-gap-layout);
     white-space: nowrap;
     z-index: 2;
   }
+}
+
+.navItem {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.navItemGroup {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
 @keyframes navFadeIn {
@@ -153,6 +168,11 @@
 }
 
 .navLink {
+  display: inline-block;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-sans);
   font-size: var(--text-body);
   font-weight: 500;
@@ -161,7 +181,7 @@
   padding: 4px 6px;
   border-radius: var(--radius-full);
   animation: navFadeIn var(--duration-fast) var(--ease-out);
-  transition: color var(--duration-fast) ease;
+  transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -179,6 +199,122 @@
 .navLink:active {
   outline: none;
   color: var(--text-nav-active);
+}
+
+.navLinkActive {
+  color: var(--text-nav-active);
+  font-weight: 600;
+}
+
+.dropdownChevronBtn {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.dropdownChevronBtn:hover,
+.dropdownChevronBtn:focus,
+.dropdownChevronBtn:focus-visible,
+.dropdownChevronBtn:active {
+  outline: none;
+  color: var(--text-nav-active);
+}
+
+.chevronIcon {
+  display: inline-flex;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.chevronIconOpen {
+  transform: rotate(180deg);
+}
+
+.moreTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.moreTrigger:hover,
+.moreTrigger:focus,
+.moreTrigger:focus-visible,
+.moreTrigger:active {
+  outline: none;
+  color: var(--text-nav-active);
+}
+
+/* Solid-Surface Level 2 Desktop Dropdown (Zero Glass-on-Glass Stacking) */
+.desktopDropdown {
+  position: absolute;
+  top: calc(100% + var(--space-3));
+  left: 0;
+  min-width: var(--nav-dropdown-min-width);
+  max-width: var(--nav-dropdown-max-width);
+  background: var(--nav-dropdown-bg);
+  border: 1px solid var(--nav-dropdown-border);
+  border-radius: var(--nav-dropdown-radius);
+  box-shadow: var(--nav-dropdown-shadow);
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  z-index: var(--z-dropdown);
+  animation: dropdownFadeIn var(--duration-fast) var(--ease-out);
+}
+
+.desktopDropdownRight {
+  left: auto;
+  right: 0;
+}
+
+.desktopDropdownItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.desktopDropdownItem:hover {
+  background: var(--nav-dropdown-item-hover-bg);
+  color: var(--text-nav-active);
+}
+
+.desktopDropdownItem:active {
+  outline: none;
+  background: var(--nav-dropdown-item-active-bg);
+  color: var(--text-nav-active);
+}
+
+.desktopDropdownItem:focus,
+.desktopDropdownItem:focus-visible {
+  outline: none;
+  background: var(--nav-dropdown-item-hover-bg);
+  color: var(--text-nav-active);
+}
+
+.desktopDropdownItemActive {
+  color: var(--text-nav-active);
+  font-weight: 600;
+  background: var(--nav-dropdown-item-hover-bg);
+}
+
+.desktopDropdownSubItem {
+  padding-left: var(--space-6);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
 }
 
 /* Right CTA Action */
@@ -248,6 +384,10 @@
   }
 }
 
+.navActionMobileOnly .menuToggle {
+  display: flex;
+}
+
 .menuToggle:hover {
   background: var(--bg-surface-hover);
   border-color: var(--border-subtle);
@@ -305,25 +445,25 @@
 }
 
 /* ==========================================================================
-   Mobile Dropdown Navigation Capsule
-   Floating glass card anchoring beneath the navbar capsule.
+   Mobile Dropdown Navigation Panel (Solid Surface — Option A 2-Level)
    ========================================================================== */
 .mobileDropdown {
   position: absolute;
   top: calc(100% + var(--space-gap-inline));
   right: 0;
-  min-width: 200px;
-  background: var(--bg-surface-glass);
-  backdrop-filter: blur(var(--backdrop-blur));
-  -webkit-backdrop-filter: blur(var(--backdrop-blur));
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  box-shadow: var(--elevation-overlay);
-  padding: var(--space-gap-inline);
+  min-width: var(--nav-dropdown-min-width);
+  max-width: min(calc(100vw - 2 * var(--layout-gutter-mobile)), 340px);
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  background: var(--nav-dropdown-bg);
+  border: 1px solid var(--nav-dropdown-border);
+  border-radius: var(--nav-dropdown-radius);
+  box-shadow: var(--nav-dropdown-shadow);
+  padding: var(--space-2);
   display: flex;
   flex-direction: column;
-  gap: var(--space-gap-tight);
-  z-index: 1050;
+  gap: var(--space-1);
+  z-index: var(--z-dropdown);
   animation: dropdownFadeIn var(--duration-fast) var(--ease-out);
 }
 
@@ -342,6 +482,10 @@
 @media (min-width: 1024px) {
   .mobileDropdown {
     display: none;
+  }
+
+  .mobileDropdownAlways {
+    display: flex;
   }
 }
 
@@ -382,8 +526,61 @@
 .mobileNavLink:focus-visible,
 .mobileNavLink:active {
   outline: none;
-  background: var(--bg-surface-hover);
+  background: var(--nav-dropdown-item-active-bg);
   color: var(--text-nav-active);
+}
+
+.mobileNavLinkActive {
+  color: var(--text-nav-active);
+  font-weight: 600;
+  background: var(--nav-dropdown-item-hover-bg);
+}
+
+.mobileChapterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.mobileSubList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-left: var(--space-4);
+}
+
+.mobileSubNavLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-control);
+  transition: background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.mobileSubNavLink:hover {
+  background: var(--nav-dropdown-item-hover-bg);
+  color: var(--text-nav-active);
+}
+
+.mobileSubNavLink:focus,
+.mobileSubNavLink:focus-visible,
+.mobileSubNavLink:active {
+  outline: none;
+  background: var(--nav-dropdown-item-active-bg);
+  color: var(--text-nav-active);
+}
+
+.mobileSubNavLinkActive {
+  color: var(--text-nav-active);
+  font-weight: 600;
+  background: var(--nav-dropdown-item-hover-bg);
 }
 
 /* Single Unified Mobile Breakpoint (< 1024px) */

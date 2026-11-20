@@ -8,7 +8,8 @@
 
 import { EngineConfigSchema, getEngineConfig, type EngineConfig } from '../config/engine.config';
 import { PublicNodePayloadSchema, type PublicNodePayload } from '../types/edge';
-import type { SectionElement, CanvasLeafElement, SubsectionElement } from '../types/canvas';
+import type { CanvasLeafElement } from '../types/canvas';
+import { normalizeCanvasDocument } from '../utils/canvasDefaults';
 import { validateAccentedText } from '../utils/accentTextParser';
 
 export interface DiagnosticResult {
@@ -58,38 +59,35 @@ export function validateNodePayload(payload: unknown): DiagnosticResult {
     }
   }
 
-  if (nodePayload.canvas && Array.isArray(nodePayload.canvas.sections)) {
-    nodePayload.canvas.sections.forEach((sec: SectionElement, idx: number) => {
-      if (!sec.id) {
-        errors.push(`[AST] Section at index ${idx} is missing an 'id'.`);
-      } else if (seenIds.has(sec.id)) {
-        errors.push(`[AST] Duplicate section id detected: "${sec.id}".`);
+  if (nodePayload.canvas) {
+    const normalized = normalizeCanvasDocument(nodePayload.canvas, nodePayload.nodeId);
+    let currentSectionTitle = 'Unsectioned';
+    normalized.elements.forEach((el, idx) => {
+      if (el.type === 'section') {
+        if (!el.id) {
+          errors.push(`[AST] Section at index ${idx} is missing an 'id'.`);
+        } else if (seenIds.has(el.id)) {
+          errors.push(`[AST] Duplicate section id detected: "${el.id}".`);
+        } else {
+          seenIds.add(el.id);
+        }
+        currentSectionTitle = el.title || el.id || `Section ${idx}`;
+        if (!el.title || el.title.trim().length === 0) {
+          warnings.push(`[AST] Section "${el.id || idx}" has an empty title.`);
+        }
+      } else if (el.type === 'subsection') {
+        if (!el.id) {
+          errors.push(`[AST] Subsection at index ${idx} is missing an 'id'.`);
+        } else if (seenIds.has(el.id)) {
+          errors.push(`[AST] Duplicate subsection id detected: "${el.id}".`);
+        } else {
+          seenIds.add(el.id);
+        }
+        if (!el.title || el.title.trim().length === 0) {
+          warnings.push(`[AST] Subsection "${el.id || idx}" has an empty title.`);
+        }
       } else {
-        seenIds.add(sec.id);
-      }
-
-      if (!sec.title || sec.title.trim().length === 0) {
-        warnings.push(`[AST] Section "${sec.id || idx}" has an empty title.`);
-      }
-
-      if (Array.isArray(sec.elements)) {
-        sec.elements.forEach((child) => {
-          if (child.type === 'subsection') {
-            const sub = child as SubsectionElement;
-            if (!sub.id) {
-              errors.push(`[AST] Subsection in "${sec.title || sec.id}" is missing an 'id'.`);
-            } else if (seenIds.has(sub.id)) {
-              errors.push(`[AST] Duplicate subsection id detected: "${sub.id}".`);
-            } else {
-              seenIds.add(sub.id);
-            }
-            if (Array.isArray(sub.elements)) {
-              sub.elements.forEach((leaf) => inspectElement(leaf, `${sec.title} > ${sub.title}`));
-            }
-          } else {
-            inspectElement(child as CanvasLeafElement, sec.title);
-          }
-        });
+        inspectElement(el as CanvasLeafElement, currentSectionTitle);
       }
     });
   }

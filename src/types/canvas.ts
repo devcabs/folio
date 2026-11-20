@@ -15,7 +15,8 @@ export type CanvasElementType =
   | 'gallery'
   | 'chart'
   | 'pdf'
-  | 'documents';
+  | 'documents'
+  | 'page-link';
 
 export interface CanvasElementBase {
   id: string;
@@ -101,13 +102,20 @@ export interface DocumentsElement extends CanvasElementBase {
   syncedDocuments?: SyncedDocumentItem[];
 }
 
+export interface PageLinkElement extends CanvasElementBase {
+  type: 'page-link';
+  /** Foreign key pointing to PageNode.id in draft.pages / manifest.pages */
+  targetPageId: string;
+}
+
 export type CanvasLeafElement =
   | TextElement
   | PhotoElement
   | GalleryElement
   | ChartElement
   | PdfElement
-  | DocumentsElement;
+  | DocumentsElement
+  | PageLinkElement;
 
 export interface SubsectionElement extends CanvasElementBase {
   type: 'subsection';
@@ -115,11 +123,7 @@ export interface SubsectionElement extends CanvasElementBase {
   titlePointId?: string;
   subtitle?: string;
   subtitlePointId?: string;
-  /** Leaf content items within this subsection */
-  elements: CanvasLeafElement[];
 }
-
-export type CanvasChildElement = SubsectionElement | CanvasLeafElement;
 
 export interface SectionElement extends CanvasElementBase {
   type: 'section';
@@ -131,16 +135,26 @@ export interface SectionElement extends CanvasElementBase {
   titlePointId?: string;
   subtitle?: string;
   subtitlePointId?: string;
-  /** Child elements and subsections contained within this section */
-  elements: CanvasChildElement[];
 }
 
-export type CanvasElement = SectionElement | CanvasChildElement;
+export type CanvasChildElement = SubsectionElement | CanvasLeafElement;
+
+export type CanvasElement = SectionElement | SubsectionElement | CanvasLeafElement;
+
+/** Legacy v2 nested subsection shape supported for automatic migration */
+export interface LegacySubsectionElement extends SubsectionElement {
+  elements?: CanvasLeafElement[];
+}
+
+/** Legacy v2 nested section shape supported for automatic migration */
+export interface LegacySectionElement extends SectionElement {
+  elements?: Array<LegacySubsectionElement | CanvasLeafElement>;
+}
 
 export interface NodeCanvasDocument {
   nodeId: string;
   version: number;
-  sections: SectionElement[];
+  elements: CanvasElement[];
   updatedAt: string;
 }
 
@@ -162,7 +176,8 @@ export function isLeafElement(el: CanvasElement): el is CanvasLeafElement {
     el.type === 'gallery' ||
     el.type === 'chart' ||
     el.type === 'pdf' ||
-    el.type === 'documents'
+    el.type === 'documents' ||
+    el.type === 'page-link'
   );
 }
 
@@ -190,6 +205,10 @@ export function isDocumentsElement(el: CanvasElement): el is DocumentsElement {
   return el.type === 'documents';
 }
 
+export function isPageLinkElement(el: CanvasElement): el is PageLinkElement {
+  return el.type === 'page-link';
+}
+
 /**
  * Unified Canvas Add & Edit Modal Contracts
  * Aligned with docs/tasks/task9_8_unified_canvas_add_edit_modal_drawer.md
@@ -203,7 +222,8 @@ export type CanvasModalElementType =
   | 'photo'
   | 'gallery'
   | 'pdf'
-  | 'documents';
+  | 'documents'
+  | 'page-link';
 
 export interface CanvasElementFormData {
   /** For section, subsection, gallery, pdf, documents, or text title */
@@ -230,4 +250,10 @@ export interface CanvasElementFormData {
   aspectRatio?: string;
   /** For photo, gallery, pdf, or documents Google Drive URL */
   driveUrl?: string;
+  /** Optional cover image URL for page-link add/edit */
+  coverImage?: string;
+  /** URL segment name for page-link add/edit */
+  slug?: string;
+  /** Optional <=15-word 1-line summary for page-link add/edit */
+  summary?: string;
 }

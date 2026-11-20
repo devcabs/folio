@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Modal } from '../ui/Modal';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Modal, ModalActions } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { DevHelpTooltip } from '../ui/DevHelpTooltip';
 import type {
@@ -7,6 +7,7 @@ import type {
   CanvasModalElementType,
   CanvasElementFormData,
 } from '../../types/canvas';
+import type { PageRegistry } from '../../types/page';
 import type {
   DevEditType,
   DevLinkData,
@@ -16,8 +17,16 @@ import type {
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { useUnsavedChangesPrompt } from '../../hooks/useUnsavedChangesPrompt';
-import { getContent, setContent, resetContent } from '../../utils/contentDb';
+import { usePortalChrome } from '../../context/PortalChromeContext';
 import { resolveSingleDrivePhotoUrl, resolveSingleDrivePdfUrl } from '../../utils/mediaUrl';
+import {
+  MAX_PAGE_SUMMARY_WORDS,
+  countSummaryWords,
+  ensureUniqueSiblingSlug,
+  sanitizeSlug,
+  validateSlug,
+} from '../../services/pageTreeService';
+import { CanvasElementFields } from '../canvas/CanvasElementFields';
 import styles from './UniversalEditModal.module.css';
 
 export interface UniversalEditModalProps {
@@ -33,8 +42,14 @@ export interface UniversalEditModalProps {
   targetSectionId?: string;
   targetIndex?: number;
   targetSubsectionId?: string;
-  onSubmit?: (data: CanvasElementFormData) => void;
+  onSubmit?: (data: CanvasElementFormData) => void | Promise<void>;
   onResetToDefault?: () => void;
+
+  // Page Metadata Context Props (Subtask 13.13)
+  parentPagePath?: string;
+  parentPageId?: string;
+  existingPages?: PageRegistry;
+  editingPageId?: string;
 
   // Generic Portal String Props
   pointId?: string;
@@ -191,6 +206,8 @@ function getSubmitNoun(type: CanvasModalElementType | null): string {
       return 'PDF';
     case 'documents':
       return 'Document Folder';
+    case 'page-link':
+      return 'Page';
     default:
       return 'Element';
   }
@@ -211,6 +228,8 @@ function buildInitialCanvasDraft(
       caption: '',
       showCaption: false,
       driveUrl: '',
+      slug: '',
+      summary: '',
     };
   }
 
@@ -244,6 +263,8 @@ function buildInitialCanvasDraft(
       (initialData.caption && initialData.caption.trim().length > 0)
     ),
     driveUrl: resolvedDriveUrl,
+    slug: initialData.slug || '',
+    summary: initialData.summary || '',
   };
 }
 
@@ -262,9 +283,14 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   onClose,
   mode = 'edit',
   elementType = null,
+  nodeId,
   initialData,
   onSubmit,
   onResetToDefault,
+  parentPagePath,
+  parentPageId,
+  existingPages,
+  editingPageId,
   pointId,
   type = 'text',
   currentValue,
@@ -279,15 +305,16 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
 }) => {
   const { isDevMode, isDesktop, setHasUnpublishedChanges, showToast } = useDeveloperMode();
   const { pushAction } = useUndoRedo();
+  const portalChrome = usePortalChrome();
 
   // Determine operational domain: Canvas AST element vs Generic portal string
   const isCanvasDomain = Boolean(elementType || onSubmit);
   const isCanvasElement = Boolean(
     isCanvasDomain ||
-    (elementType && ['section', 'subsection', 'text', 'photo', 'gallery', 'pdf', 'documents'].includes(elementType)) ||
+    (elementType && ['section', 'subsection', 'text', 'photo', 'gallery', 'pdf', 'documents', 'page-link'].includes(elementType)) ||
     (pointId && (
-      /^(node\.[^.]+\.(section|subsection|text|photo|gallery|pdf|documents)|canvas\.)/i.test(pointId) ||
-      /\.(section|subsection|text|photo|gallery|pdf|documents)(\.|$)/i.test(pointId)
+      /^(node\.[^.]+\.(section|subsection|text|photo|gallery|pdf|documents|page-link)|canvas\.)/i.test(pointId) ||
+      /\.(section|subsection|text|photo|gallery|pdf|documents|page-link)(\.|$)/i.test(pointId)
     ))
   );
 
@@ -295,6 +322,8 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   const [canvasDraft, setCanvasDraft] = useState<CanvasElementFormData>(() =>
     buildInitialCanvasDraft(initialData, elementType)
   );
+  const [hasManuallyEditedSlug, setHasManuallyEditedSlug] = useState<boolean>(mode === 'edit');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Generic Portal String Draft State
   const [textDraft, setTextDraft] = useState<string>('');
@@ -331,6 +360,8 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
 
     if (isCanvasDomain) {
       setCanvasDraft(buildInitialCanvasDraft(initialData, elementType));
+      setHasManuallyEditedSlug(mode === 'edit');
+      setIsSubmitting(false);
     } else {
       const parsed = parseGenericValues(currentValue);
       setTextDraft(parsed.text);
@@ -380,6 +411,8 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
         (canvasDraft.caption || '') !== (init.caption || '') ||
         Boolean(canvasDraft.showCaption) !== Boolean(init.showCaption) ||
         (canvasDraft.driveUrl || '') !== (init.driveUrl || '') ||
+        (canvasDraft.slug || '') !== (init.slug || '') ||
+        (canvasDraft.summary || '') !== (init.summary || '') ||
         canvasDraft.isNumbered !== init.isNumbered
       );
     } else {
@@ -411,42 +444,6 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   // Prevent accidental reload or navigation when active modal has unsaved entries
   useUnsavedChangesPrompt(isOpen && isFormDirty, pointId ? `universal-edit-${pointId}` : 'universal-edit-modal');
 
-  // Single-photo URL change handler with automatic Drive resolution
-  const handlePhotoUrlChange = useCallback((val: string) => {
-    const resolved = resolveSingleDrivePhotoUrl(val);
-    if (resolved) {
-      setCanvasDraft((prev) => ({
-        ...prev,
-        src: resolved.displayUrl,
-        driveUrl: resolved.rawUrl,
-      }));
-    } else {
-      setCanvasDraft((prev) => ({
-        ...prev,
-        src: val,
-        driveUrl: '',
-      }));
-    }
-  }, []);
-
-  // Single-PDF URL change handler with automatic Drive /preview resolution
-  const handlePdfUrlChange = useCallback((val: string) => {
-    const resolved = resolveSingleDrivePdfUrl(val);
-    if (resolved) {
-      setCanvasDraft((prev) => ({
-        ...prev,
-        src: resolved.previewUrl,
-        driveUrl: resolved.rawUrl,
-      }));
-    } else {
-      setCanvasDraft((prev) => ({
-        ...prev,
-        src: val,
-        driveUrl: val,
-      }));
-    }
-  }, []);
-
   const pdfUrlFeedback = useMemo(() => {
     if (!isCanvasDomain || elementType !== 'pdf') return null;
     const raw = (canvasDraft.driveUrl || canvasDraft.src || '').trim();
@@ -458,10 +455,106 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
     return 'Paste a valid Google Drive file link (e.g. https://drive.google.com/file/d/.../view).';
   }, [isCanvasDomain, elementType, canvasDraft.driveUrl, canvasDraft.src]);
 
+  // Page-link validation & auto-slug smart defaults (Subtask 13.13)
+  const isPageLinkElement = isCanvasDomain && elementType === 'page-link';
+  const effectivePages = existingPages ?? portalChrome?.pages ?? {};
+  const effectiveParentId = parentPageId ?? nodeId ?? null;
+  const sanitizedSlugPreview = isPageLinkElement ? sanitizeSlug(canvasDraft.slug || '') : '';
+
+  const slugValidation = useMemo(() => {
+    if (!isPageLinkElement) {
+      return { valid: true, sanitized: '', error: null as string | null };
+    }
+    const rawSlug = (canvasDraft.slug || '').trim();
+    if (!rawSlug) {
+      return {
+        valid: false,
+        sanitized: '',
+        error: hasManuallyEditedSlug ? 'URL name is required.' : null,
+      };
+    }
+    const result = validateSlug(rawSlug, effectiveParentId, effectivePages, editingPageId);
+    return {
+      valid: result.valid,
+      sanitized: result.sanitized,
+      error: result.valid ? null : (result.error ?? 'Invalid URL name.'),
+    };
+  }, [
+    isPageLinkElement,
+    canvasDraft.slug,
+    hasManuallyEditedSlug,
+    effectiveParentId,
+    effectivePages,
+    editingPageId,
+  ]);
+
+  const summaryWordCount = isPageLinkElement ? countSummaryWords(canvasDraft.summary) : 0;
+  const summaryError =
+    isPageLinkElement && summaryWordCount > MAX_PAGE_SUMMARY_WORDS
+      ? `Keep summary to ${MAX_PAGE_SUMMARY_WORDS} words or fewer.`
+      : null;
+
+  const canSubmitPageLink =
+    !isPageLinkElement ||
+    (Boolean(canvasDraft.title?.trim()) &&
+      slugValidation.valid &&
+      summaryWordCount <= MAX_PAGE_SUMMARY_WORDS);
+
+  const handlePageTitleChange = (nextTitle: string) => {
+    if (mode === 'add' && !hasManuallyEditedSlug) {
+      const sanitized = sanitizeSlug(nextTitle);
+      const nextSlug = sanitized
+        ? ensureUniqueSiblingSlug(sanitized, effectiveParentId, effectivePages)
+        : '';
+      setCanvasDraft((prev) => ({ ...prev, title: nextTitle, slug: nextSlug }));
+      return;
+    }
+    setCanvasDraft((prev) => ({ ...prev, title: nextTitle }));
+  };
+
+  const handlePageSlugChange = (nextSlug: string) => {
+    setHasManuallyEditedSlug(true);
+    setCanvasDraft((prev) => ({ ...prev, slug: nextSlug }));
+  };
+
+  const handleResetSlugFromTitle = () => {
+    const sanitized = sanitizeSlug(canvasDraft.title || '');
+    if (!sanitized) return;
+    const uniqueSlug = ensureUniqueSiblingSlug(
+      sanitized,
+      effectiveParentId,
+      effectivePages,
+      editingPageId
+    );
+    setHasManuallyEditedSlug(mode === 'edit');
+    setCanvasDraft((prev) => ({ ...prev, slug: uniqueSlug }));
+  };
+
   // Submit Handler
-  const handleSave = () => {
+  const handleSave = async () => {
     if (isCanvasDomain && onSubmit) {
-      onSubmit(canvasDraft);
+      if (!canSubmitPageLink || isSubmitting) return;
+      const result = onSubmit(canvasDraft);
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        setIsSubmitting(true);
+        try {
+          await result;
+          setHasUnpublishedChanges(true);
+          showToast(
+            mode === 'add' ? 'Element added to canvas.' : 'Changes saved to draft successfully.',
+            'success'
+          );
+          onClose();
+        } catch (err) {
+          showToast(
+            err instanceof Error ? err.message : 'Failed to save changes.',
+            'error'
+          );
+        } finally {
+          setIsSubmitting(false);
+        }
+        return;
+      }
       setHasUnpublishedChanges(true);
       showToast(mode === 'add' ? 'Element added to canvas.' : 'Changes saved to draft successfully.', 'success');
       onClose();
@@ -494,33 +587,60 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
       onNumberedChange(isNumberedDraft);
     }
 
-    // Persist content override strictly in draft sandbox
+    // Persist content override strictly in draft sandbox via PortalChromeContext (Bearer auth + KV SSOT)
     // Subtask 3.7: Canvas AST is the sole authority for canvas items — strip ContentDB writes for canvas elements
-    if (pointId && !isCanvasElement) {
-      const prevVal = getContent(
-        pointId,
+    if (pointId && !isCanvasElement && portalChrome) {
+      const hadOverride = Object.prototype.hasOwnProperty.call(
+        portalChrome.contentOverrides,
+        pointId
+      );
+      const prevOverrideVal = hadOverride ? portalChrome.contentOverrides[pointId] : undefined;
+      const defaultStr =
         typeof defaultValue === 'string'
           ? defaultValue
           : defaultValue
             ? JSON.stringify(defaultValue)
-            : '',
-        true
-      );
+            : '';
+      const prevEffectiveVal =
+        hadOverride && prevOverrideVal !== undefined ? prevOverrideVal : defaultStr;
 
-      if (prevVal !== resultString) {
+      if (prevEffectiveVal !== resultString) {
         pushAction({
           type: 'content_text_override',
           description: `Edit text for ${pointId}`,
-          undo: () => {
-            setContent(pointId, prevVal, true);
+          undo: async () => {
+            try {
+              if (hadOverride && prevOverrideVal !== undefined) {
+                await portalChrome.updateOverride(pointId, prevOverrideVal);
+              } else {
+                await portalChrome.removeOverride(pointId);
+              }
+              return true;
+            } catch (err) {
+              showToast(err instanceof Error ? err.message : 'Undo failed.', 'error');
+              return false;
+            }
           },
-          redo: () => {
-            setContent(pointId, resultString, true);
+          redo: async () => {
+            try {
+              await portalChrome.updateOverride(pointId, resultString);
+              return true;
+            } catch (err) {
+              showToast(err instanceof Error ? err.message : 'Redo failed.', 'error');
+              return false;
+            }
           },
         });
       }
 
-      setContent(pointId, resultString, true);
+      if (!onSave) {
+        void portalChrome.updateOverride(pointId, resultString).catch((err) => {
+          showToast(
+            err instanceof Error ? err.message : 'Failed to save content override to KV.',
+            'error'
+          );
+        });
+      }
     }
 
     if (onSave) {
@@ -544,26 +664,43 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
       return;
     }
 
-    if (pointId) {
-      const prevVal = getContent(pointId, '', true);
-      const defaultStr =
-        typeof defaultValue === 'string'
-          ? defaultValue
-          : defaultValue
-            ? JSON.stringify(defaultValue)
-            : '';
+    if (pointId && portalChrome) {
+      const hadOverride = Object.prototype.hasOwnProperty.call(
+        portalChrome.contentOverrides,
+        pointId
+      );
+      const prevOverrideVal = hadOverride ? portalChrome.contentOverrides[pointId] : undefined;
 
-      resetContent(pointId, true);
+      if (!onReset) {
+        void portalChrome.removeOverride(pointId).catch((err) => {
+          showToast(
+            err instanceof Error ? err.message : 'Failed to reset content override in KV.',
+            'error'
+          );
+        });
+      }
 
-      if (prevVal && prevVal !== defaultStr) {
+      if (hadOverride && prevOverrideVal !== undefined) {
         pushAction({
           type: 'content_text_override',
           description: `Reset text for ${pointId}`,
-          undo: () => {
-            setContent(pointId, prevVal, true);
+          undo: async () => {
+            try {
+              await portalChrome.updateOverride(pointId, prevOverrideVal);
+              return true;
+            } catch (err) {
+              showToast(err instanceof Error ? err.message : 'Undo failed.', 'error');
+              return false;
+            }
           },
-          redo: () => {
-            resetContent(pointId, true);
+          redo: async () => {
+            try {
+              await portalChrome.removeOverride(pointId);
+              return true;
+            } catch (err) {
+              showToast(err instanceof Error ? err.message : 'Redo failed.', 'error');
+              return false;
+            }
           },
         });
       }
@@ -611,298 +748,71 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
     return 'Save Changes';
   }, [isCanvasDomain, mode, elementType]);
 
+  const modalFooter = (
+    <ModalActions
+      left={
+        (mode === 'edit' || onResetToDefault || onReset || defaultValue) ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleReset}
+          >
+            Reset to default
+          </Button>
+        ) : undefined
+      }
+    >
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={onClose}
+        disabled={isSubmitting}
+      >
+        Cancel
+      </Button>
+      <Button
+        type="button"
+        variant="primary"
+        size="sm"
+        onClick={handleSave}
+        disabled={!canSubmitPageLink || isSubmitting}
+      >
+        {submitButtonLabel}
+      </Button>
+    </ModalActions>
+  );
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      onConfirm={handleSave}
+      onConfirm={canSubmitPageLink && !isSubmitting ? handleSave : undefined}
       title={modalHeaderTitle}
       maxWidth="500px"
       ariaLabel={modalHeaderTitle}
+      footer={modalFooter}
     >
       <div className={styles.container}>
         {/* DOMAIN A: Dynamic Canvas Elements */}
-        {isCanvasDomain && elementType === 'section' && (
-          <div className={styles.panel}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="edit-modal-section-title">
-                Section Title <span className={styles.requiredMark}>*</span>
-              </label>
-              <input
-                id="edit-modal-section-title"
-                ref={(el) => { initialFocusRef.current = el; }}
-                type="text"
-                className={styles.input}
-                value={canvasDraft.title || ''}
-                onChange={(e) => setCanvasDraft((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="e.g. Strategic Academic Intervention"
-                aria-label="Section Title"
-              />
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  className={styles.checkbox}
-                  checked={canvasDraft.isNumbered !== false}
-                  onChange={(e) => setCanvasDraft((prev) => ({ ...prev, isNumbered: e.target.checked }))}
-                />
-                <span>
-                  Numbered section<DevHelpTooltip
-                    text="Adds a number before the title, like I or II."
-                    label="Numbered section"
-                  />
-                </span>
-              </label>
-            </div>
-          </div>
-        )}
-
-        {isCanvasDomain && elementType === 'subsection' && (
-          <div className={styles.panel}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="canvas-subsection-title">
-                Subsection Title <span className={styles.requiredMark}>*</span>
-              </label>
-              <input
-                id="canvas-subsection-title"
-                ref={(el) => { initialFocusRef.current = el; }}
-                type="text"
-                className={styles.input}
-                value={canvasDraft.title || ''}
-                onChange={(e) => setCanvasDraft((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="e.g. Implementation Milestones"
-                aria-label="Subsection Title"
-              />
-            </div>
-          </div>
-        )}
-
-        {isCanvasDomain && elementType === 'text' && (
-          <div className={styles.panel}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel}>Typography Style</label>
-              <div className={styles.segmentedControl} role="radiogroup" aria-label="Typography Style">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={canvasDraft.as !== 'blockquote'}
-                  className={`${styles.segmentButton} ${canvasDraft.as !== 'blockquote' ? styles.segmentButtonActive : ''}`}
-                  onClick={() => setCanvasDraft((prev) => ({ ...prev, as: 'p' }))}
-                >
-                  Paragraph
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={canvasDraft.as === 'blockquote'}
-                  className={`${styles.segmentButton} ${canvasDraft.as === 'blockquote' ? styles.segmentButtonActive : ''}`}
-                  onClick={() => setCanvasDraft((prev) => ({ ...prev, as: 'blockquote' }))}
-                >
-                  Quote / Callout
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="canvas-text-content">
-                Narrative Text<span className={styles.requiredMark}>*</span>
-              </label>
-              <textarea
-                id="canvas-text-content"
-                ref={(el) => { initialFocusRef.current = el; }}
-                className={styles.textarea}
-                value={canvasDraft.content || ''}
-                onChange={(e) => setCanvasDraft((prev) => ({ ...prev, content: e.target.value }))}
-                placeholder="Enter narrative text or editorial testimony..."
-                rows={5}
-                aria-label="Narrative Text Content"
-              />
-            </div>
-          </div>
-        )}
-
-        {isCanvasDomain && elementType === 'photo' && (
-          <div className={styles.panel}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="canvas-photo-url">
-                Photo URL <span className={styles.requiredMark}>*</span>
-              </label>
-              <input
-                id="canvas-photo-url"
-                ref={(el) => { initialFocusRef.current = el; }}
-                type="text"
-                className={styles.input}
-                value={canvasDraft.driveUrl || canvasDraft.src || ''}
-                onChange={(e) => handlePhotoUrlChange(e.target.value)}
-                placeholder="Paste any Google Drive photo link (e.g. https://drive.google.com/file/d/.../view)"
-                aria-label="Photo URL"
-              />
-            </div>
-
-            {canvasDraft.src ? (
-              <div className={styles.imagePreviewWrapper}>
-                <img
-                  src={canvasDraft.src}
-                  alt={canvasDraft.alt || 'Preview'}
-                  className={styles.previewThumb}
-                />
-              </div>
-            ) : null}
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="canvas-photo-alt">
-                Alt Text (Accessibility)
-              </label>
-              <input
-                id="canvas-photo-alt"
-                type="text"
-                className={styles.input}
-                value={canvasDraft.alt || ''}
-                onChange={(e) => setCanvasDraft((prev) => ({ ...prev, alt: e.target.value }))}
-                placeholder="Descriptive image summary for screen readers"
-                aria-label="Photo Alt Text"
-              />
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  className={styles.checkbox}
-                  checked={Boolean(canvasDraft.showCaption)}
-                  onChange={(e) => setCanvasDraft((prev) => ({ ...prev, showCaption: e.target.checked }))}
-                />
-                <span>Show caption below photo</span>
-              </label>
-            </div>
-
-            {canvasDraft.showCaption ? (
-              <div className={styles.formField}>
-                <label className={styles.fieldLabel} htmlFor="canvas-photo-caption">
-                  Caption
-                </label>
-                <input
-                  id="canvas-photo-caption"
-                  type="text"
-                  className={styles.input}
-                  value={canvasDraft.caption || ''}
-                  onChange={(e) => setCanvasDraft((prev) => ({ ...prev, caption: e.target.value }))}
-                  placeholder="Photo caption or description"
-                  aria-label="Photo Caption"
-                />
-              </div>
-            ) : null}
-          </div>
-        )}
-
-        {isCanvasDomain && elementType === 'gallery' && (
-          <div className={styles.panel}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="canvas-gallery-title">
-                Gallery Title <span className={styles.requiredMark}>*</span>
-              </label>
-              <input
-                id="canvas-gallery-title"
-                ref={(el) => { initialFocusRef.current = el; }}
-                type="text"
-                className={styles.input}
-                value={canvasDraft.title || ''}
-                onChange={(e) => setCanvasDraft((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="e.g. Mid-Year Assessment & Verification"
-                aria-label="Gallery Title"
-              />
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="canvas-gallery-drive">
-                Google Drive Repository URL <span className={styles.requiredMark}>*</span>
-                <DevHelpTooltip
-                  text="A link to an online folder with more photos or files."
-                  label="Folder Link"
-                />
-              </label>
-              <input
-                id="canvas-gallery-drive"
-                type="text"
-                className={styles.input}
-                value={canvasDraft.driveUrl || ''}
-                onChange={(e) => setCanvasDraft((prev) => ({ ...prev, driveUrl: e.target.value }))}
-                placeholder="https://drive.google.com/drive/folders/..."
-                aria-label="Google Drive URL"
-              />
-            </div>
-          </div>
-        )}
-
-        {isCanvasDomain && elementType === 'pdf' && (
-          <div className={styles.panel}>
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="canvas-pdf-title">
-                Document Title
-              </label>
-              <input
-                id="canvas-pdf-title"
-                ref={(el) => { initialFocusRef.current = el; }}
-                type="text"
-                className={styles.input}
-                value={canvasDraft.title || ''}
-                onChange={(e) => setCanvasDraft((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="e.g. Q1 Financial Report"
-                aria-label="Document Title"
-              />
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.fieldLabel} htmlFor="canvas-pdf-url">
-                Google Drive PDF URL <span className={styles.requiredMark}>*</span>
-              </label>
-              <input
-                id="canvas-pdf-url"
-                type="text"
-                className={styles.input}
-                value={canvasDraft.driveUrl || canvasDraft.src || ''}
-                onChange={(e) => handlePdfUrlChange(e.target.value)}
-                placeholder="Paste Google Drive PDF link (https://drive.google.com/file/d/.../view)"
-                aria-label="Google Drive PDF URL"
-              />
-              {pdfUrlFeedback ? (
-                <p className={styles.fieldWarning} role="status">
-                  {pdfUrlFeedback}
-                </p>
-              ) : null}
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  className={styles.checkbox}
-                  checked={Boolean(canvasDraft.showCaption)}
-                  onChange={(e) => setCanvasDraft((prev) => ({ ...prev, showCaption: e.target.checked }))}
-                />
-                <span>Show caption below document</span>
-              </label>
-            </div>
-
-            {canvasDraft.showCaption ? (
-              <div className={styles.formField}>
-                <label className={styles.fieldLabel} htmlFor="canvas-pdf-caption">
-                  Caption
-                </label>
-                <input
-                  id="canvas-pdf-caption"
-                  type="text"
-                  className={styles.input}
-                  value={canvasDraft.caption || ''}
-                  onChange={(e) => setCanvasDraft((prev) => ({ ...prev, caption: e.target.value }))}
-                  placeholder="Optional document caption or context"
-                  aria-label="Caption"
-                />
-              </div>
-            ) : null}
-          </div>
+        {isCanvasDomain && elementType && (
+          <CanvasElementFields
+            elementType={elementType}
+            value={canvasDraft}
+            onChange={setCanvasDraft}
+            initialFocusRef={initialFocusRef}
+            pdfUrlFeedback={pdfUrlFeedback}
+            requireGalleryDriveUrl
+            parentPagePath={parentPagePath}
+            slugPreview={sanitizedSlugPreview}
+            slugError={slugValidation.error}
+            summaryWordCount={summaryWordCount}
+            summaryError={summaryError}
+            onPageTitleChange={handlePageTitleChange}
+            onPageSlugChange={handlePageSlugChange}
+            onResetSlugFromTitle={handleResetSlugFromTitle}
+          />
         )}
 
         {/* DOMAIN B: Generic Portal Strings (DevActionAffordance) */}
@@ -1150,41 +1060,6 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
             </div>
           </div>
         )}
-
-        {/* Modal Actions Footer */}
-        <div className={styles.actions}>
-          <div>
-            {(mode === 'edit' || onResetToDefault || onReset || defaultValue) && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleReset}
-              >
-                Reset to default
-              </Button>
-            )}
-          </div>
-
-          <div className={styles.actionGroupRight}>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={onClose}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={handleSave}
-            >
-              {submitButtonLabel}
-            </Button>
-          </div>
-        </div>
       </div>
     </Modal>
   );
