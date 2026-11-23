@@ -46,6 +46,7 @@ import {
   dispatchDraftUpdatedAtSync,
   enqueueDraftMutation,
   getLastKnownDraftUpdatedAt,
+  setLastKnownDraftUpdatedAt,
 } from '../services/draftService';
 import { deriveSubpageOrderFromCanvas } from '../services/pageTreeService';
 import { createWorkspaceUndoAction, undoRedoService } from '../services/undoRedoService';
@@ -423,6 +424,9 @@ export function useDocumentCanvas(nodeId: string): UseNodeCanvasReturn {
             responseData = (await res.json()) as DraftWorkspaceCanvasResponse;
             if (typeof responseData?.updatedAt === 'string') {
               draftUpdatedAtRef.current = responseData.updatedAt;
+              // Update module-level SSOT synchronously before dispatching the event so the next
+              // enqueued mutation in the FIFO queue reads the correct timestamp immediately.
+              setLastKnownDraftUpdatedAt(responseData.updatedAt);
               dispatchDraftUpdatedAtSync(responseData.updatedAt);
             }
           } catch {

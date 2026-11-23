@@ -318,6 +318,9 @@ export async function saveDraftWorkspace(
     const updated = (await res.json()) as DraftWorkspacePayload;
     notifySyncStatus('saved');
     if (updated.updatedAt) {
+      // Update module-level SSOT synchronously so the next enqueued task reads the correct
+      // timestamp immediately — do NOT rely solely on the async CustomEvent listener.
+      lastKnownDraftUpdatedAt = updated.updatedAt;
       dispatchDraftUpdatedAtSync(updated.updatedAt);
     }
     if (updated.pages) {
@@ -335,6 +338,10 @@ export async function saveDraftWorkspace(
 /**
  * Serializes an atomic multi-surface workspace mutation (canvases + pages + contentOverrides + deletedPageIds)
  * through `enqueueDraftMutation`, broadcasts canvas & timestamp sync events, and returns the authoritative KV payload.
+ *
+ * NOTE: `expectedUpdatedAt` is intentionally read lazily from `getLastKnownDraftUpdatedAt()` at execution
+ * time (not at enqueue time) so that chained mutations in the FIFO queue always use the authoritative
+ * timestamp written by the preceding task — preventing HTTP 409 concurrency conflicts.
  */
 export async function commitDraftWorkspaceTransaction(
   payload: {
@@ -346,11 +353,14 @@ export async function commitDraftWorkspaceTransaction(
   options: { lockToken?: string | null; expectedUpdatedAt?: string | null } = {}
 ): Promise<DraftWorkspacePayload> {
   return enqueueDraftMutation(async () => {
+    // Read lazily at execution time so queued tasks always see the latest authoritative timestamp,
+    // not the stale snapshot captured at enqueue time by the caller.
+    const liveExpectedUpdatedAt = getLastKnownDraftUpdatedAt() ?? options.expectedUpdatedAt ?? undefined;
     const updated = await saveDraftWorkspace(
       payload,
       options.lockToken,
       undefined,
-      options.expectedUpdatedAt ?? undefined
+      liveExpectedUpdatedAt
     );
 
     if (

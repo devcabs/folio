@@ -27,6 +27,7 @@ import {
   dispatchDraftUpdatedAtSync,
   enqueueDraftMutation,
   commitDraftWorkspaceTransaction,
+  getLastKnownDraftUpdatedAt,
 } from '../services/draftService';
 import type { NodeCanvasDocument } from '../types/canvas';
 import type { DraftWorkspacePayload, PublicPortalManifestPayload } from '../types/edge';
@@ -246,7 +247,7 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
       await enqueueDraftMutation(async () => {
         const result = await updateDraftContentOverride(key, value, overridesRef.current, {
           lockToken,
-          expectedUpdatedAt: draftUpdatedAtRef.current,
+          expectedUpdatedAt: getLastKnownDraftUpdatedAt() ?? draftUpdatedAtRef.current,
         });
         overridesRef.current = result.contentOverrides;
         setContentOverrides(result.contentOverrides);
@@ -268,7 +269,7 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
       await enqueueDraftMutation(async () => {
         const result = await removeDraftContentOverride(key, overridesRef.current, {
           lockToken,
-          expectedUpdatedAt: draftUpdatedAtRef.current,
+          expectedUpdatedAt: getLastKnownDraftUpdatedAt() ?? draftUpdatedAtRef.current,
         });
         overridesRef.current = result.contentOverrides;
         setContentOverrides(result.contentOverrides);
@@ -294,7 +295,7 @@ export const PortalChromeProvider: React.FC<PortalChromeProviderProps> = ({
       }
       const updated = await commitDraftWorkspaceTransaction(mutation, {
         lockToken,
-        expectedUpdatedAt: draftUpdatedAtRef.current,
+        expectedUpdatedAt: getLastKnownDraftUpdatedAt() ?? draftUpdatedAtRef.current,
       });
       if (updated.pages) {
         setPages(updated.pages);
