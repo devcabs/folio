@@ -23,6 +23,8 @@
    /* Subtle secondary card & neutral pill background */
    --folio-bg-canvas: var(--bg-canvas);
    --folio-bg-surface: var(--bg-surface);
+   --color-surface: var(--bg-surface);
+   --color-surface-muted: var(--bg-surface-muted);
    --folio-border: var(--border-subtle);
    --bg-surface-glass: rgba(255, 255, 255, 0.92);
    /* Floating glass capsule navbar & pill bar */
@@ -94,12 +96,16 @@
    /* Folio Engine Semantic Primary Text Token */
    --folio-text-secondary: var(--text-secondary);
    /* Folio Engine Semantic Secondary Text Token */
+   --color-text-primary: var(--text-primary);
+   --color-text-secondary: var(--text-secondary);
+   --color-text-muted: var(--text-muted);
 
    /* ==========================================================================
      3. Institutional Brand Identity
      ========================================================================== */
    --folio-primary: #881337;
    /* Official Primary */
+   --color-primary: var(--folio-primary);
    --brand-primary-dark: #800020;
    /* Deep burgundy shade */
    --brand-primary-tint: #ffe4e6;

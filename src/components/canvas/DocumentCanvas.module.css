@@ -1,0 +1,28 @@
+/**
+ * DocumentCanvas Module Styles — Modern Academic Editorial
+ * Folio Engine — Subtask 14.1: Page Link Card Sizes & Grid Clustering
+ *
+ * Strict Architectural Standards:
+ * - 100% Design Token Purity
+ * - Universal Zero Outline Policy
+ */
+
+.pageLinkGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  margin: var(--space-4) 0;
+}
+
+@media (min-width: 640px) {
+  .pageLinkGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.gridItem {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}

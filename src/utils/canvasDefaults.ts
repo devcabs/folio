@@ -18,6 +18,7 @@ import type {
   PdfElement,
   DocumentsElement,
   PageLinkElement,
+  PageLinkCardSize,
   SubsectionElement,
   SectionElement,
   CanvasElement,
@@ -148,11 +149,15 @@ export function createDefaultDocuments(nodeId: string): DocumentsElement {
 /**
  * Generate a default Page Link card referencing a dynamic subpage.
  */
-export function createDefaultPageLink(targetPageId: string): PageLinkElement {
+export function createDefaultPageLink(
+  targetPageId: string,
+  cardSize?: PageLinkCardSize
+): PageLinkElement {
   return {
     id: generateCanvasId('page-link'),
     type: 'page-link',
     targetPageId,
+    ...(cardSize ? { cardSize } : {}),
   };
 }
 

@@ -500,4 +500,71 @@ describe('13.12 <CanvasPageLink> Editorial Card & Canvas Reorder Order-Sync', ()
     expect(img).toBeTruthy();
     expect(img.getAttribute('src')).toBe('https://example.com/cover.jpg');
   });
+
+  describe('card size variants', () => {
+    const baseElement: PageLinkElement = {
+      id: 'page-link-test-size',
+      type: 'page-link',
+      targetPageId: 'page-research',
+    };
+    const mockPage = samplePages['page-research'];
+
+    it('renders .cardSm class when cardSize is sm', () => {
+      render(
+        <CanvasPageLink
+          element={{ ...baseElement, cardSize: 'sm' }}
+          page={mockPage}
+          isDevMode={false}
+        />
+      );
+      expect(document.querySelector('[class*="cardSm"]')).toBeTruthy();
+      expect(document.querySelector('[class*="cardLg"]')).toBeNull();
+    });
+
+    it('renders .cardLg class when cardSize is lg', () => {
+      render(
+        <CanvasPageLink
+          element={{ ...baseElement, cardSize: 'lg' }}
+          page={mockPage}
+          isDevMode={false}
+        />
+      );
+      expect(document.querySelector('[class*="cardLg"]')).toBeTruthy();
+      expect(document.querySelector('[class*="cardSm"]')).toBeNull();
+    });
+
+    it('renders neither cardSm nor cardLg when cardSize is omitted (defaults to md)', () => {
+      const { container } = render(
+        <CanvasPageLink
+          element={baseElement}
+          page={mockPage}
+          isDevMode={false}
+        />
+      );
+      expect(container.querySelector('[class*="cardSm"]')).toBeNull();
+      expect(container.querySelector('[class*="cardLg"]')).toBeNull();
+    });
+
+    it('lg variant renders Explore CTA button', () => {
+      render(
+        <CanvasPageLink
+          element={{ ...baseElement, cardSize: 'lg' }}
+          page={mockPage}
+          isDevMode={false}
+        />
+      );
+      expect(screen.getByText(/Explore/i)).toBeInTheDocument();
+    });
+
+    it('sm variant renders Read cue', () => {
+      render(
+        <CanvasPageLink
+          element={{ ...baseElement, cardSize: 'sm' }}
+          page={mockPage}
+          isDevMode={false}
+        />
+      );
+      expect(screen.getByText(/Read/i)).toBeInTheDocument();
+    });
+  });
 });

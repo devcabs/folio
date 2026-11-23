@@ -1,5 +1,6 @@
 import React, { memo, useState, useEffect, useMemo } from 'react';
-import type { PageLinkElement } from '../../types/canvas';
+import type { PageLinkElement, PageLinkCardSize } from '../../types/canvas';
+import type { PageNode } from '../../types/page';
 import { usePortalChrome } from '../../context/PortalChromeContext';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { getActiveNodes, getEngineConfig } from '../../config/engine.config';
@@ -14,12 +15,15 @@ import styles from './CanvasPageLink.module.css';
 
 export interface CanvasPageLinkProps {
   element: PageLinkElement;
-  nodeId: string;
+  nodeId?: string;
   accentColor?: string;
   mediaPosition?: 'left' | 'right';
   onNavigate?: (pageId: string) => void;
   onEdit?: () => void;
   className?: string;
+  cardSize?: PageLinkCardSize;
+  page?: PageNode;
+  isDevMode?: boolean;
 }
 
 function resolveCoverImageSrc(rawUrl?: string): string | null {
@@ -48,12 +52,17 @@ export const CanvasPageLink: React.FC<CanvasPageLinkProps> = memo(({
   onNavigate,
   onEdit,
   className,
+  cardSize,
+  page,
+  isDevMode: isDevModeProp,
 }) => {
   const portalChrome = usePortalChrome();
   const pages = portalChrome?.pages ?? {};
-  const targetPage = pages[element.targetPageId];
-  const { isDevMode, isDesktop } = useDeveloperMode();
-  const isDevActive = Boolean(isDevMode && isDesktop);
+  const targetPage = page ?? pages[element.targetPageId];
+  const { isDevMode: devModeFromHook, isDesktop } = useDeveloperMode();
+  const effectiveDevMode = isDevModeProp !== undefined ? isDevModeProp : devModeFromHook;
+  const isDevActive = Boolean(effectiveDevMode && isDesktop);
+  const size = cardSize ?? element.cardSize ?? 'md';
 
   const coverSrc = resolveCoverImageSrc(targetPage?.coverImage);
   const [imageFailed, setImageFailed] = useState(false);
@@ -82,7 +91,7 @@ export const CanvasPageLink: React.FC<CanvasPageLinkProps> = memo(({
   }, [shuffleSrc]);
 
   if (!targetPage) {
-    if (!isDevMode) {
+    if (!effectiveDevMode) {
       return null;
     }
 
@@ -129,12 +138,146 @@ export const CanvasPageLink: React.FC<CanvasPageLinkProps> = memo(({
     );
   }
 
+  const effectivePages = page ? { ...pages, [page.id]: page } : pages;
   const href = buildPagePath(
     targetPage.id,
     getActiveNodes(),
-    pages,
-    getEngineConfig().basePath
+    effectivePages,
+    getEngineConfig()?.basePath || '/'
   );
+
+  if (size === 'sm') {
+    return (
+      <div className={`${styles.cardSmWrapper} ${className || ''}`.trim()}>
+        <a
+          href={href}
+          className={styles.cardSm}
+          onClick={(e) => {
+            e.preventDefault();
+            onNavigate?.(targetPage.id);
+          }}
+        >
+          {coverSrc && !imageFailed ? (
+            <img
+              src={coverSrc}
+              alt=""
+              className={styles.cardSmThumb}
+              loading="lazy"
+              onError={() => setImageFailed(true)}
+            />
+          ) : shuffleState.current ? (
+            <img
+              src={shuffleState.current}
+              alt=""
+              className={styles.cardSmThumb}
+              loading="lazy"
+              data-shuffle-photo="true"
+            />
+          ) : (
+            <div className={styles.cardSmThumbPlaceholder}>
+              <ParametricShape
+                sides={8}
+                waviness={0.12}
+                radius={18}
+                fill={accentColor || 'var(--folio-primary)'}
+              />
+            </div>
+          )}
+
+          <div className={styles.cardSmBody}>
+            <span className={styles.cardSmTitle}>{targetPage.title}</span>
+            {targetPage.summary ? (
+              <span className={styles.cardSmSummary}>{targetPage.summary}</span>
+            ) : null}
+            <span className={styles.cardSmCue}>Read &rarr;</span>
+          </div>
+        </a>
+
+        {isDevActive && onEdit ? (
+          <div className={styles.sideEditWrapper}>
+            <Button
+              variant="admin"
+              size="xs"
+              onClick={onEdit}
+              data-dev-edit-trigger="true"
+              data-canvas-edit-trigger={element.id}
+            >
+              ✎ Edit
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (size === 'lg') {
+    return (
+      <div className={`${styles.cardLgWrapper} ${className || ''}`.trim()}>
+        <div className={styles.cardLg}>
+          {coverSrc && !imageFailed ? (
+            <img
+              src={coverSrc}
+              alt=""
+              className={styles.cardLgThumb}
+              loading="lazy"
+              onError={() => setImageFailed(true)}
+            />
+          ) : shuffleState.current ? (
+            <img
+              src={shuffleState.current}
+              alt=""
+              className={styles.cardLgThumb}
+              loading="lazy"
+              data-shuffle-photo="true"
+            />
+          ) : (
+            <div className={styles.cardLgThumbPlaceholder}>
+              <ParametricShape
+                sides={8}
+                waviness={0.12}
+                radius={28}
+                fill={accentColor || 'var(--folio-primary)'}
+              />
+            </div>
+          )}
+
+          <div className={styles.cardLgBody}>
+            <h3 className={styles.cardLgTitle}>{targetPage.title}</h3>
+            {targetPage.summary ? (
+              <p className={styles.cardLgSummary}>{targetPage.summary}</p>
+            ) : null}
+            <div className={styles.cardLgCta}>
+              <Button
+                variant="primary"
+                as="a"
+                href={href}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigate?.(targetPage.id);
+                }}
+              >
+                Explore &rarr;
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {isDevActive && onEdit ? (
+          <div className={styles.sideEditWrapper}>
+            <Button
+              variant="admin"
+              size="xs"
+              onClick={onEdit}
+              data-dev-edit-trigger="true"
+              data-canvas-edit-trigger={element.id}
+            >
+              ✎ Edit
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   const cardClasses = [
     styles.cardLink,

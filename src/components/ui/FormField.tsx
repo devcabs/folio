@@ -12,6 +12,7 @@ export interface FormFieldProps {
   labelAction?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  role?: string;
 }
 
 /**
@@ -30,6 +31,7 @@ export const FormField: React.FC<FormFieldProps> = ({
   labelAction,
   children,
   className,
+  role,
 }) => {
   const hasHint = hint !== undefined && hint !== null && hint !== '';
   const hasError = typeof error === 'string' && error.trim().length > 0;
@@ -54,7 +56,11 @@ export const FormField: React.FC<FormFieldProps> = ({
   }
 
   return (
-    <div className={`${styles.field} ${className || ''}`.trim()}>
+    <div
+      className={`${styles.field} ${className || ''}`.trim()}
+      role={role}
+      aria-label={role ? label : undefined}
+    >
       <div className={styles.labelRow}>
         <label htmlFor={id} className={styles.label}>
           <span>{label}</span>

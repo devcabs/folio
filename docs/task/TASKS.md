@@ -13,6 +13,17 @@
 | **Epic 11** | [Lightweight Canvas PDF Support — Inline `pdf` Viewer & Drive `documents` Folder Sync](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-11.md) | `docs/task/TASKS-EPIC-11.md` | Planned |
 | **Epic 12** | [Canonical UI Primitives & Anti-Duplication Consolidation](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-12.md) | `docs/task/TASKS-EPIC-12.md` | Completed |
 | **Epic 13** | [Dynamic Multi-Page & Nested Subpage Architecture](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-13.md) | `docs/task/TASKS-EPIC-13.md` | Completed |
+| **Epic 14** | [PageLinkElement Card Size Variants (Small 2-Col & Large Hero)](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-14.md) | `docs/task/TASKS-EPIC-14.md` | Planned |
+
+---
+
+## 🗂️ Epic 14: `PageLinkElement` Card Size Variants (`TASKS-EPIC-14.md`)
+
+**Canonical Document:** [TASKS-EPIC-14.md](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-14.md)
+
+| Subtask ID | Phase | Title | Scope | File Reference | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **14.1** | Implementation | [`PageLinkElement` Card Size Variants — AST, Authoring UX, Rendering & Grid Clustering](file:///Users/francisdave/Documents/folio/docs/task/14.1-page-link-card-sizes.md) | Add `PageLinkCardSize` type + `cardSize?` to `PageLinkElement` & Zod schema; `SegmentedControl` on General tab (default `md`); `sm` compact 2-col card + `lg` cinematic hero variant in `CanvasPageLink`; consecutive `sm` grid clustering in `DocumentCanvas`; TDD tests & full verification gates | `docs/task/14.1-page-link-card-sizes.md` | Planned |
 
 ---
 

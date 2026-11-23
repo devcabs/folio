@@ -12,6 +12,7 @@ import {
   resolveSingleDrivePdfUrl,
   resolveSingleDrivePhotoUrl,
 } from '../../utils/mediaUrl';
+import type { PageLinkCardSize } from '../../types/canvas';
 import styles from './CanvasElementFields.module.css';
 
 export type CanvasElementFieldType =
@@ -39,6 +40,7 @@ export interface CanvasElementFieldsValue {
   slug?: string;
   summary?: string;
   coverImage?: string;
+  cardSize?: PageLinkCardSize;
 }
 
 export interface CanvasElementFieldsProps {
@@ -71,6 +73,12 @@ const NUMBERING_OPTIONS = [
 const TYPOGRAPHY_OPTIONS = [
   { value: 'p', label: 'Paragraph' },
   { value: 'blockquote', label: 'Quote / Callout' },
+] as const;
+
+const CARD_SIZE_OPTIONS = [
+  { value: 'sm', label: 'Small' },
+  { value: 'md', label: 'Medium' },
+  { value: 'lg', label: 'Large' },
 ] as const;
 
 /**
@@ -112,15 +120,15 @@ export const CanvasElementFields: React.FC<CanvasElementFieldsProps> = ({
       onChange((prev) =>
         resolved
           ? {
-              ...prev,
-              src: resolved.displayUrl,
-              driveUrl: resolved.rawUrl,
-            }
+            ...prev,
+            src: resolved.displayUrl,
+            driveUrl: resolved.rawUrl,
+          }
           : {
-              ...prev,
-              src: rawValue,
-              driveUrl: '',
-            }
+            ...prev,
+            src: rawValue,
+            driveUrl: '',
+          }
       );
     },
     [onChange]
@@ -132,15 +140,15 @@ export const CanvasElementFields: React.FC<CanvasElementFieldsProps> = ({
       onChange((prev) =>
         resolved
           ? {
-              ...prev,
-              src: resolved.previewUrl,
-              driveUrl: resolved.rawUrl,
-            }
+            ...prev,
+            src: resolved.previewUrl,
+            driveUrl: resolved.rawUrl,
+          }
           : {
-              ...prev,
-              src: rawValue,
-              driveUrl: rawValue,
-            }
+            ...prev,
+            src: rawValue,
+            driveUrl: rawValue,
+          }
       );
     },
     [onChange]
@@ -480,25 +488,42 @@ export const CanvasElementFields: React.FC<CanvasElementFieldsProps> = ({
         />
 
         {pageLinkTab === 'general' ? (
-          <FormField id="canvas-page-title" label="Page Title" required>
-            <Input
-              id="canvas-page-title"
-              ref={assignFocusRef}
-              type="text"
-              value={value.title || ''}
-              onChange={(e) => {
-                const nextTitle = e.target.value;
-                if (onPageTitleChange) {
-                  onPageTitleChange(nextTitle);
-                } else {
-                  onChange((prev) => ({ ...prev, title: nextTitle }));
+          <>
+            <FormField id="canvas-page-title" label="Page Title" required>
+              <Input
+                id="canvas-page-title"
+                ref={assignFocusRef}
+                type="text"
+                value={value.title || ''}
+                onChange={(e) => {
+                  const nextTitle = e.target.value;
+                  if (onPageTitleChange) {
+                    onPageTitleChange(nextTitle);
+                  } else {
+                    onChange((prev) => ({ ...prev, title: nextTitle }));
+                  }
+                }}
+                placeholder="e.g. 2026 Field Research"
+                aria-label="Page Title"
+                required
+              />
+            </FormField>
+
+            <FormField id="canvas-page-card-size" label="Card Size" role="group">
+              <SegmentedControl
+                label="Card Size"
+                aria-label="Card Size"
+                options={CARD_SIZE_OPTIONS}
+                value={value.cardSize ?? 'md'}
+                onChange={(size) =>
+                  onChange((prev) => ({
+                    ...prev,
+                    cardSize: size as PageLinkCardSize,
+                  }))
                 }
-              }}
-              placeholder="e.g. 2026 Field Research"
-              aria-label="Page Title"
-              required
-            />
-          </FormField>
+              />
+            </FormField>
+          </>
         ) : (
           <>
             <FormField

@@ -214,6 +214,7 @@ export const PageLinkElementSchema = z.object({
   id: z.string(),
   type: z.literal('page-link'),
   targetPageId: z.string().min(1),
+  cardSize: z.enum(['sm', 'md', 'lg']).optional(),
 }).passthrough();
 
 export const CanvasLeafElementSchema = z.union([

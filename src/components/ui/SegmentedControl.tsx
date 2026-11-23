@@ -11,7 +11,8 @@ export interface SegmentedControlProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   options: ReadonlyArray<SegmentedOption<T>>;
-  'aria-label': string;
+  'aria-label'?: string;
+  label?: string;
   disabled?: boolean;
   size?: 'sm' | 'md';
   className?: string;
@@ -26,10 +27,12 @@ export function SegmentedControl<T extends string>({
   onChange,
   options,
   'aria-label': ariaLabel,
+  label,
   disabled = false,
   size = 'md',
   className = '',
 }: SegmentedControlProps<T>): React.ReactElement {
+  const effectiveAriaLabel = ariaLabel || label || '';
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, currentIndex: number) => {
     if (disabled) return;
 
@@ -54,7 +57,7 @@ export function SegmentedControl<T extends string>({
     <div
       className={`${styles.group} ${size === 'sm' ? styles.sizeSm : styles.sizeMd} ${className}`.trim()}
       role="radiogroup"
-      aria-label={ariaLabel}
+      aria-label={effectiveAriaLabel}
     >
       {options.map((option, index) => {
         const isSelected = option.value === value;

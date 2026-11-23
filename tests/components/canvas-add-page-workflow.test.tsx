@@ -680,4 +680,83 @@ describe('13.13 CanvasAddBar Add Page & Canonical Page Metadata Modal', () => {
     fireEvent.click(resetBtn);
     expect(slugInput.value).toBe('research-notes-2');
   });
+
+  describe('card size SegmentedControl in page-link modal', () => {
+    it('shows card size control on General tab', async () => {
+      vi.spyOn(developerModeHook, 'useDeveloperMode').mockReturnValue(
+        createDevModeStub() as any
+      );
+
+      render(
+        <UniversalEditModal
+          isOpen
+          mode="add"
+          elementType="page-link"
+          nodeId="access"
+          parentPageId="access"
+          parentPagePath="/node/access"
+          existingPages={existingPages}
+          onClose={vi.fn()}
+          onSubmit={vi.fn()}
+        />
+      );
+
+      expect(screen.getByRole('group', { name: /card size/i })).toBeInTheDocument();
+    });
+
+    it('defaults card size to Medium', async () => {
+      vi.spyOn(developerModeHook, 'useDeveloperMode').mockReturnValue(
+        createDevModeStub() as any
+      );
+
+      render(
+        <UniversalEditModal
+          isOpen
+          mode="add"
+          elementType="page-link"
+          nodeId="access"
+          parentPageId="access"
+          parentPagePath="/node/access"
+          existingPages={existingPages}
+          onClose={vi.fn()}
+          onSubmit={vi.fn()}
+        />
+      );
+
+      expect(screen.getByRole('radio', { name: /medium/i })).toBeChecked();
+    });
+
+    it('persists sm cardSize in page-link element when saved', async () => {
+      vi.spyOn(developerModeHook, 'useDeveloperMode').mockReturnValue(
+        createDevModeStub() as any
+      );
+
+      const onSubmit = vi.fn();
+
+      render(
+        <UniversalEditModal
+          isOpen
+          mode="add"
+          elementType="page-link"
+          nodeId="access"
+          parentPageId="access"
+          parentPagePath="/node/access"
+          existingPages={existingPages}
+          onClose={vi.fn()}
+          onSubmit={onSubmit}
+        />
+      );
+
+      const titleInput = document.getElementById('canvas-page-title') as HTMLInputElement;
+      setInputValue(titleInput, 'Compact Card Page');
+
+      fireEvent.click(screen.getByRole('radio', { name: /small/i }));
+      const submitBtn = screen.getByRole('button', { name: 'Add Page' }) as HTMLButtonElement;
+      fireEvent.click(submitBtn);
+
+      expect(onSubmit).toHaveBeenCalled();
+      const submittedData = onSubmit.mock.calls[0][0];
+      expect(submittedData.cardSize).toBe('sm');
+    });
+  });
 });

@@ -1,4 +1,6 @@
-import { describe, it, expect } from "vitest";
+import React from 'react';
+import { render, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   isSectionElement,
   isSubsectionElement,
@@ -32,6 +34,12 @@ import {
   createDefaultSubsection,
   normalizeCanvasDocument,
 } from "../../src/utils/canvasDefaults";
+import { DocumentCanvas } from '../../src/components/canvas/DocumentCanvas';
+import { PortalChromeContext } from '../../src/context/PortalChromeContext';
+import * as developerModeHook from '../../src/hooks/useDeveloperMode';
+import * as nodeCanvasHook from '../../src/hooks/useNodeCanvas';
+import * as engineConfigModule from '../../src/config/engine.config';
+import type { PageLinkElement } from '../../src/types/canvas';
 
 describe("DocumentCanvas AST Tree & Layout Engine", () => {
   it("creates a well-formed default AST document structure", () => {
@@ -239,5 +247,175 @@ describe("DocumentCanvas AST Tree & Layout Engine", () => {
     const migrated = normalizeCanvasDocument(legacyDoc);
     expect(migrated.version).toBe(3);
     expect(migrated.elements.map((e) => e.id)).toEqual(["sec-1", "txt-1", "sub-1", "txt-2"]);
+  });
+
+  describe('PageLink sm grid clustering', () => {
+    afterEach(() => {
+      cleanup();
+      vi.restoreAllMocks();
+    });
+
+    const mockPages: Record<string, any> = {
+      'page-1': {
+        id: 'page-1',
+        parentId: 'test-node',
+        slug: 'page-1',
+        title: 'Subpage One',
+        summary: 'First subpage summary',
+        order: 0,
+      },
+      'page-2': {
+        id: 'page-2',
+        parentId: 'test-node',
+        slug: 'page-2',
+        title: 'Subpage Two',
+        summary: 'Second subpage summary',
+        order: 1,
+      },
+      'page-3': {
+        id: 'page-3',
+        parentId: 'test-node',
+        slug: 'page-3',
+        title: 'Subpage Three',
+        summary: 'Third subpage summary',
+        order: 2,
+      },
+    };
+
+    const setupMocks = (elements: any[]) => {
+      vi.spyOn(developerModeHook, 'useDeveloperMode').mockReturnValue({
+        isDevMode: false,
+        isDesktop: true,
+        isHydrated: true,
+        lockToken: null,
+        enterDevMode: vi.fn(),
+        exitDevMode: vi.fn(),
+        toggleDevMode: vi.fn(),
+      } as any);
+
+      vi.spyOn(engineConfigModule, 'getActiveNodes').mockReturnValue([
+        { id: 'test-node', index: 0, nodeNumber: 1, title: 'Test Node' } as any,
+      ]);
+
+      vi.spyOn(engineConfigModule, 'getEngineConfig').mockReturnValue({
+        appId: 'test-app',
+        appNamespace: 'test',
+        basePath: '/',
+        nodes: [],
+        branding: {},
+      } as any);
+
+      vi.spyOn(nodeCanvasHook, 'useDocumentCanvas').mockReturnValue({
+        document: {
+          nodeId: 'test-node',
+          version: 3,
+          elements,
+          updatedAt: '2026-11-20T00:00:00.000Z',
+        },
+        isPending: false,
+        isHydrating: false,
+        addSection: vi.fn(),
+        addSubsection: vi.fn(),
+        addElement: vi.fn(),
+        moveItem: vi.fn(),
+        relocateItem: vi.fn(),
+        removeItem: vi.fn(),
+        updateItem: vi.fn(),
+        saveError: null,
+        clearSaveError: vi.fn(),
+        fetchError: null,
+        retryFetch: vi.fn(),
+      } as any);
+    };
+
+    it('wraps consecutive sm page-links in a grid container', () => {
+      const sm1: PageLinkElement = {
+        id: 'link-1',
+        type: 'page-link',
+        targetPageId: 'page-1',
+        cardSize: 'sm',
+      };
+      const sm2: PageLinkElement = {
+        id: 'link-2',
+        type: 'page-link',
+        targetPageId: 'page-2',
+        cardSize: 'sm',
+      };
+
+      setupMocks([sm1, sm2]);
+
+      const mockChromeValue: any = {
+        pages: mockPages,
+        contentOverrides: {},
+        publishedPages: {},
+        isHydrating: false,
+        hasHydrated: true,
+        commitWorkspaceMutation: vi.fn(),
+      };
+
+      render(
+        React.createElement(
+          PortalChromeContext.Provider,
+          { value: mockChromeValue },
+          React.createElement(DocumentCanvas, {
+            nodeId: 'test-node',
+            nodeTitle: 'Test Node',
+          })
+        )
+      );
+
+      const grids = document.querySelectorAll('[class*="pageLinkGrid"]');
+      expect(grids.length).toBe(1);
+      const cardsInGrid = grids[0].querySelectorAll('a[class*="cardSm"]');
+      expect(cardsInGrid.length).toBe(2);
+    });
+
+    it('does not wrap sm page-link in grid when md card interrupts', () => {
+      const sm1: PageLinkElement = {
+        id: 'link-1',
+        type: 'page-link',
+        targetPageId: 'page-1',
+        cardSize: 'sm',
+      };
+      const md1: PageLinkElement = {
+        id: 'link-2',
+        type: 'page-link',
+        targetPageId: 'page-2',
+        cardSize: 'md',
+      };
+      const sm2: PageLinkElement = {
+        id: 'link-3',
+        type: 'page-link',
+        targetPageId: 'page-3',
+        cardSize: 'sm',
+      };
+
+      setupMocks([sm1, md1, sm2]);
+
+      const mockChromeValue: any = {
+        pages: mockPages,
+        contentOverrides: {},
+        publishedPages: {},
+        isHydrating: false,
+        hasHydrated: true,
+        commitWorkspaceMutation: vi.fn(),
+      };
+
+      render(
+        React.createElement(
+          PortalChromeContext.Provider,
+          { value: mockChromeValue },
+          React.createElement(DocumentCanvas, {
+            nodeId: 'test-node',
+            nodeTitle: 'Test Node',
+          })
+        )
+      );
+
+      const grids = document.querySelectorAll('[class*="pageLinkGrid"]');
+      expect(grids.length).toBe(2);
+      expect(grids[0].querySelectorAll('a[class*="cardSm"]').length).toBe(1);
+      expect(grids[1].querySelectorAll('a[class*="cardSm"]').length).toBe(1);
+    });
   });
 });

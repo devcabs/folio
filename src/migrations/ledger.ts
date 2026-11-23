@@ -1128,6 +1128,54 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.3.2',
+    releaseDate: '2026-11-23',
+    title: 'PageLinkElement Card Size Variants (Small & Large Hero) & Grid Clustering',
+    summary:
+      'Added cardSize ("sm" | "md" | "lg") variant to PageLinkElement, wired SegmentedControl in the page-link authoring modal General tab, implemented 2-column grid clustering for consecutive sm cards in DocumentCanvas, and added large hero rendering while keeping existing md cards 100% untouched.',
+    breakingChanges: [
+      'No breaking API changes; additive features and rendering variants only. Omitted cardSize gracefully defaults to "md" for complete backward compatibility with existing canvas AST documents.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.3.2 to acknowledge PageLinkElement card size variants and grid clustering.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.3.1" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.3.2" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'page-link-card-sizes-0.3.2',
+        title: 'PageLinkElement Card Size Variants (Small, Medium & Large)',
+        required: false,
+        description:
+          'PageLinkElement now accepts an optional cardSize property ("sm" | "md" | "lg"). Small (sm) renders a compact vertical card with top thumbnail and Read cue, automatically clustered into a 2-column grid (>=640px) when placed consecutively in DocumentCanvas. Large (lg) renders a cinematic hero card with prominent cover, display typography, and an Explore CTA button. Omitted cardSize renders the existing medium editorial card.',
+        affectedEntities: [
+          'PageLinkElement',
+          'PageLinkCardSize',
+          'CanvasPageLink',
+          'DocumentCanvas',
+          'UniversalEditModal',
+          'CanvasElementFields',
+        ],
+        migrationPrompt:
+          'No migration required. Existing page link elements default to "md" automatically. Authors can select Small, Medium, or Large from the Card Size SegmentedControl in the General tab of the Page Link edit modal.',
+      },
+      {
+        id: 'content-version-watermark-0.3.2',
+        title: 'Advance contentVersion Watermark to 0.3.2',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.3.2 to acknowledge PageLinkElement card size variants and clear pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.3.2"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

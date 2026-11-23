@@ -1,7 +1,43 @@
 import React, { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
+import { expect } from 'vitest';
 
 export { act };
+
+declare module 'vitest' {
+  interface Assertion<T = any> {
+    toBeInTheDocument(): T;
+    toBeChecked(): T;
+  }
+}
+
+if (expect && typeof expect.extend === 'function') {
+  expect.extend({
+    toBeInTheDocument(received: any) {
+      const pass = received !== null && received !== undefined;
+      return {
+        pass,
+        message: () =>
+          pass
+            ? 'expected element not to be in document'
+            : 'expected element to be in document',
+      };
+    },
+    toBeChecked(received: any) {
+      const isAriaChecked = received?.getAttribute
+        ? received.getAttribute('aria-checked') === 'true'
+        : received?.['aria-checked'] === 'true' || received?.['aria-checked'] === true;
+      const isChecked = Boolean(received?.checked || isAriaChecked);
+      return {
+        pass: isChecked,
+        message: () =>
+          isChecked
+            ? 'expected element not to be checked'
+            : 'expected element to be checked',
+      };
+    },
+  });
+}
 
 function createMockStyle() {
   const store: Record<string, string> = {};
@@ -27,6 +63,38 @@ function createMockStyle() {
       return true;
     },
   });
+}
+
+function matchesSelector(el: any, selector: string): boolean {
+  if (!el || el.nodeType !== 1) return false;
+  if (selector === '*') return true;
+  if (selector.startsWith('.')) {
+    const className = selector.slice(1);
+    return Boolean(el.className && el.className.split(/\s+/).includes(className));
+  }
+  const combinedMatch = selector.match(/^([a-zA-Z0-9_-]+)?(\[([a-zA-Z0-9_-]+)(\*?=)"([^"]+)"\])$/);
+  if (combinedMatch) {
+    const [, tag, , attr, op, val] = combinedMatch;
+    if (tag && el.tagName !== tag.toUpperCase()) return false;
+    const attrVal = attr === 'class' ? (el.className || '') : (el.getAttribute ? el.getAttribute(attr) : el[attr]) || '';
+    if (op === '*=') {
+      return typeof attrVal === 'string' && attrVal.includes(val);
+    }
+    return attrVal === val;
+  }
+  const attrContainsMatch = selector.match(/^\[([a-zA-Z0-9_-]+)\*="([^"]+)"\]$/);
+  if (attrContainsMatch) {
+    const [, attr, val] = attrContainsMatch;
+    const attrVal = attr === 'class' ? (el.className || '') : (el.getAttribute ? el.getAttribute(attr) : el[attr]) || '';
+    return typeof attrVal === 'string' && attrVal.includes(val);
+  }
+  const attrExactMatch = selector.match(/^\[([a-zA-Z0-9_-]+)="([^"]+)"\]$/);
+  if (attrExactMatch) {
+    const [, attr, val] = attrExactMatch;
+    const attrVal = attr === 'class' ? (el.className || '') : (el.getAttribute ? el.getAttribute(attr) : el[attr]) || '';
+    return attrVal === val;
+  }
+  return el.tagName === selector.toUpperCase();
 }
 
 export class MockElement {
@@ -226,9 +294,12 @@ export class MockElement {
     return false;
   }
 
+  querySelector(selector: string): any {
+    return this.querySelectorAll(selector)[0] || null;
+  }
+
   querySelectorAll(selector: string): any[] {
-    const targetTag = selector.toUpperCase();
-    return traverse(this, (el) => el !== this && (el.tagName === targetTag || selector === '*'));
+    return traverse(this, (el) => el !== this && matchesSelector(el, selector));
   }
 
   get textContent(): string {
@@ -279,6 +350,12 @@ export function ensureDomEnvironment() {
     getElementById(id: string) {
       const results = traverse(doc.body, (el) => el.getAttribute('id') === id || el.id === id);
       return results[0] || null;
+    },
+    querySelector(selector: string) {
+      return doc.body.querySelector(selector);
+    },
+    querySelectorAll(selector: string) {
+      return doc.body.querySelectorAll(selector);
     },
     createElement(tag: string) {
       let el: MockElement;

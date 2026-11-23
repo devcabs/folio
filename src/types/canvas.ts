@@ -102,10 +102,13 @@ export interface DocumentsElement extends CanvasElementBase {
   syncedDocuments?: SyncedDocumentItem[];
 }
 
+export type PageLinkCardSize = 'sm' | 'md' | 'lg';
+
 export interface PageLinkElement extends CanvasElementBase {
   type: 'page-link';
   /** Foreign key pointing to PageNode.id in draft.pages / manifest.pages */
   targetPageId: string;
+  cardSize?: PageLinkCardSize;
 }
 
 export type CanvasLeafElement =
@@ -256,4 +259,6 @@ export interface CanvasElementFormData {
   slug?: string;
   /** Optional <=15-word 1-line summary for page-link add/edit */
   summary?: string;
+  /** Optional card size variant for page-link add/edit ('sm' | 'md' | 'lg') */
+  cardSize?: PageLinkCardSize;
 }

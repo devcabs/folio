@@ -14,6 +14,8 @@ import type {
   ChartElement,
   PdfElement,
   DocumentsElement,
+  PageLinkElement,
+  CanvasElement,
 } from '../../types/canvas';
 import type { NodeCode } from '../../types/node';
 import type { SheetChartConfig } from '../../types/chart';
@@ -59,6 +61,7 @@ import { ChartConfigDrawer } from '../chart/ChartConfigDrawer';
 import { Toast } from '../feedback/Toast';
 import { TopErrorBanner } from '../feedback/TopErrorBanner';
 import { useDynamicCanvasSectionNumbers } from '../../hooks/use-dynamic-section-numbers';
+import styles from './DocumentCanvas.module.css';
 
 export interface NodeCanvasProps {
   nodeId: string;
@@ -574,6 +577,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
           slug: targetPage.slug,
           summary: targetPage.summary || '',
           coverImage: targetPage.coverImage || '',
+          cardSize: leaf.cardSize ?? 'md',
         },
       });
       return;
@@ -726,7 +730,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
           ...(trimmedCover ? { coverImage: trimmedCover } : {}),
         });
         const newSubpageCanvas = createDefaultCanvasDocument(newPage.id);
-        const newCard = createDefaultPageLink(newPage.id);
+        const newCard = createDefaultPageLink(newPage.id, data.cardSize ?? 'md');
 
         const nextParentCanvas = insertCanvasElement(
           beforeParentCanvas,
@@ -786,6 +790,12 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
             coverImage: trimmedCover || undefined,
           }
         );
+
+        if (itemId) {
+          updateItem<PageLinkElement>(itemId, {
+            cardSize: data.cardSize ?? 'md',
+          });
+        }
 
         await portalChrome.commitWorkspaceMutation({
           pages: nextPages,
@@ -959,10 +969,39 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         />
       )}
 
-      {/* Flat Canvas Elements Loop */}
-      {validElements.map((element, idx) => {
-        const canMoveUp = idx > 0;
-        const canMoveDown = idx < validElements.length - 1;
+      {/* Flat Canvas Elements Loop with sm Page-Link Grid Clustering */}
+      {(() => {
+        type Cluster =
+          | { type: 'single'; element: CanvasElement; idx: number }
+          | {
+            type: 'sm-grid';
+            items: Array<{ element: PageLinkElement; idx: number }>;
+          };
+
+        const clusters: Cluster[] = [];
+        let i = 0;
+        while (i < validElements.length) {
+          const el = validElements[i];
+          if (el.type === 'page-link' && (el as PageLinkElement).cardSize === 'sm') {
+            const run: Array<{ element: PageLinkElement; idx: number }> = [];
+            while (
+              i < validElements.length &&
+              validElements[i].type === 'page-link' &&
+              (validElements[i] as PageLinkElement).cardSize === 'sm'
+            ) {
+              run.push({ element: validElements[i] as PageLinkElement, idx: i });
+              i++;
+            }
+            clusters.push({ type: 'sm-grid', items: run });
+          } else {
+            clusters.push({ type: 'single', element: el, idx: i });
+            i++;
+          }
+        }
+
+        const renderSingleItem = (element: CanvasElement, idx: number) => {
+          const canMoveUp = idx > 0;
+          const canMoveDown = idx < validElements.length - 1;
 
           if (element.type === 'section') {
             const computedNumber = sectionNumbers[element.id];
@@ -1094,7 +1133,26 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
               )}
             </React.Fragment>
           );
-        })}
+        };
+
+        return clusters.map((cluster) => {
+          if (cluster.type === 'sm-grid') {
+            return (
+              <div
+                key={cluster.items.map((item) => item.element.id).join('-')}
+                className={styles.pageLinkGrid}
+              >
+                {cluster.items.map(({ element, idx }) => (
+                  <div key={element.id} className={styles.gridItem}>
+                    {renderSingleItem(element, idx)}
+                  </div>
+                ))}
+              </div>
+            );
+          }
+          return renderSingleItem(cluster.element, cluster.idx);
+        });
+      })()}
 
       {/* Undo Toast Notification */}
       {showUndoToast && (
