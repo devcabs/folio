@@ -593,5 +593,68 @@ describe('Dev Mode Undo / Redo Engine & Persistence', () => {
       expect(chromeApi!.contentOverrides['hero.title']).toBeUndefined();
       expect(undoApi.canRedo).toBe(true);
     });
+
+    it('auto-recovers from HTTP 409 conflict via commitDraftWorkspaceTransaction retry with latestWorkspace updatedAt', async () => {
+      let callCount = 0;
+      const initialUpdatedAt = '2026-11-19T10:00:00.000Z';
+      const advancedUpdatedAt = '2026-11-19T10:00:01.000Z';
+      const resolvedUpdatedAt = '2026-11-19T10:00:02.000Z';
+
+      const {
+        commitDraftWorkspaceTransaction,
+        setLastKnownDraftUpdatedAt,
+      } = await import('../../src/services/draftService');
+
+      setLastKnownDraftUpdatedAt(initialUpdatedAt);
+
+      global.fetch = vi.fn(async (input: any, init?: any) => {
+        const url = String(input);
+        const method = (init?.method || 'GET').toUpperCase();
+
+        if (url === '/api/draft' && method === 'PUT') {
+          callCount += 1;
+          const body = JSON.parse(String(init?.body || '{}'));
+
+          if (callCount === 1) {
+            // First attempt sends initialUpdatedAt, which fails with 409 returning advanced latestWorkspace
+            return new Response(
+              JSON.stringify({
+                error: 'Draft workspace was modified concurrently',
+                latestWorkspace: {
+                  updatedAt: advancedUpdatedAt,
+                  revision: 2,
+                  canvases: {},
+                  pages: {},
+                  contentOverrides: {},
+                },
+              }),
+              { status: 409, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+
+          // Second attempt sends advancedUpdatedAt, succeeding
+          expect(body.expectedUpdatedAt).toBe(advancedUpdatedAt);
+          return new Response(
+            JSON.stringify({
+              updatedAt: resolvedUpdatedAt,
+              revision: 3,
+              canvases: body.canvases ?? {},
+              pages: body.pages ?? {},
+              contentOverrides: body.contentOverrides ?? {},
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        return new Response(JSON.stringify({}), { status: 200 });
+      }) as any;
+
+      const result = await commitDraftWorkspaceTransaction({
+        contentOverrides: { 'test.key': 'test.value' },
+      });
+
+      expect(callCount).toBe(2);
+      expect(result.updatedAt).toBe(resolvedUpdatedAt);
+    });
   });
 });

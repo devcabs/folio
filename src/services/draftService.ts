@@ -311,6 +311,18 @@ export async function saveDraftWorkspace(
     });
 
     if (!res.ok) {
+      if (res.status === 409) {
+        try {
+          const cloned = res.clone();
+          const data = (await cloned.json()) as { latestWorkspace?: DraftWorkspacePayload };
+          if (data?.latestWorkspace?.updatedAt) {
+            lastKnownDraftUpdatedAt = data.latestWorkspace.updatedAt;
+            dispatchDraftUpdatedAtSync(data.latestWorkspace.updatedAt);
+          }
+        } catch {
+          // ignore clone/parse failure
+        }
+      }
       const detail = await parseErrorDetail(res);
       throw new Error(`Draft workspace KV write failed: ${detail} (HTTP ${res.status})`);
     }
@@ -353,15 +365,35 @@ export async function commitDraftWorkspaceTransaction(
   options: { lockToken?: string | null; expectedUpdatedAt?: string | null } = {}
 ): Promise<DraftWorkspacePayload> {
   return enqueueDraftMutation(async () => {
-    // Read lazily at execution time so queued tasks always see the latest authoritative timestamp,
-    // not the stale snapshot captured at enqueue time by the caller.
-    const liveExpectedUpdatedAt = getLastKnownDraftUpdatedAt() ?? options.expectedUpdatedAt ?? undefined;
-    const updated = await saveDraftWorkspace(
-      payload,
-      options.lockToken,
-      undefined,
-      liveExpectedUpdatedAt
-    );
+    // Read caller's explicit expectedUpdatedAt first, or fall back lazily at execution time
+    // to getLastKnownDraftUpdatedAt() so chained queue tasks always see the latest authoritative timestamp.
+    const liveExpectedUpdatedAt = options.expectedUpdatedAt ?? getLastKnownDraftUpdatedAt() ?? undefined;
+    let updated: DraftWorkspacePayload;
+    try {
+      updated = await saveDraftWorkspace(
+        payload,
+        options.lockToken,
+        undefined,
+        liveExpectedUpdatedAt
+      );
+    } catch (err: unknown) {
+      // If a 409 concurrency collision occurred and caller did NOT pin a specific expectedUpdatedAt,
+      // retry once with the newly advanced authoritative timestamp from KV.
+      if (
+        !options.expectedUpdatedAt &&
+        getLastKnownDraftUpdatedAt() &&
+        getLastKnownDraftUpdatedAt() !== liveExpectedUpdatedAt
+      ) {
+        updated = await saveDraftWorkspace(
+          payload,
+          options.lockToken,
+          undefined,
+          getLastKnownDraftUpdatedAt() ?? undefined
+        );
+      } else {
+        throw err;
+      }
+    }
 
     if (
       payload.canvases &&

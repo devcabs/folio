@@ -554,6 +554,17 @@ describe('13.13 CanvasAddBar Add Page & Canonical Page Metadata Modal', () => {
       slug: 'updated-field-notes',
       summary: 'Revised concise summary',
     });
+    expect(putPayloads[0].canvases['access']).toBeDefined();
+    expect(putPayloads[0].canvases['access'].elements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'link-1',
+          type: 'page-link',
+          targetPageId: 'page-existing',
+          cardSize: 'md',
+        }),
+      ])
+    );
 
     await vi.waitFor(() => {
       expect(document.body.textContent).toContain('Updated Field Notes');

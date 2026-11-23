@@ -1176,6 +1176,51 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.3.3',
+    releaseDate: '2026-11-23',
+    title: 'Atomic Page Link Mutations & Optimistic Concurrency Conflict Resolution',
+    summary:
+      'Resolved concurrent write / stale expectedUpdatedAt conflict when editing page-link canvas elements by unifying canvas element updates and page metadata updates into a single atomic draft workspace transaction, lazy-reading authoritative timestamps, and auto-recovering from 409 concurrency collisions.',
+    breakingChanges: [
+      'No breaking API changes; bug fix patch release ensuring atomic multi-entity workspace persistence.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.3.3 to acknowledge atomic page link mutations and concurrency conflict fixes.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.3.2" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.3.3" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'atomic-page-link-mutations-0.3.3',
+        title: 'Atomic Page Link Mutations in Draft Workspace',
+        required: false,
+        description:
+          'Editing a page-link element now atomically persists both canvas card size AST changes and page metadata changes in a single PUT /api/draft transaction, eliminating HTTP 409 optimistic concurrency races and maintaining unified undo history.',
+        affectedEntities: [
+          'DocumentCanvas',
+          'PortalChromeContext',
+          'draftService',
+        ],
+        migrationPrompt:
+          'No migration required. Update @devcabs/folio-engine to 0.3.3 to benefit from unified atomic page-link transactions and automatic 409 concurrency conflict recovery.',
+      },
+      {
+        id: 'content-version-watermark-0.3.3',
+        title: 'Advance contentVersion Watermark to 0.3.3',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.3.3 to acknowledge atomic page-link mutations and clear pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.3.3"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

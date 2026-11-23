@@ -29,7 +29,7 @@ import {
   createDefaultCanvasDocument,
   createDefaultPageLink,
 } from '../../utils/canvasDefaults';
-import { insertCanvasElement, removeCanvasItem } from '../../services/canvasLayoutService';
+import { insertCanvasElement, removeCanvasItem, updateCanvasItem } from '../../services/canvasLayoutService';
 import {
   buildPagePath,
   createPageNode,
@@ -777,6 +777,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       }
 
       if (mode === 'edit' && editingPageId) {
+        const beforeParentCanvas = document;
         const beforePages = portalChrome.pages;
         const trimmedSummary = data.summary?.trim();
         const trimmedCover = data.coverImage?.trim();
@@ -791,13 +792,16 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
           }
         );
 
-        if (itemId) {
-          updateItem<PageLinkElement>(itemId, {
+        const nextParentCanvas = itemId
+          ? updateCanvasItem<PageLinkElement>(beforeParentCanvas, itemId, {
             cardSize: data.cardSize ?? 'md',
-          });
-        }
+          })
+          : beforeParentCanvas;
 
         await portalChrome.commitWorkspaceMutation({
+          canvases: {
+            [nodeId]: nextParentCanvas,
+          },
           pages: nextPages,
         });
 
@@ -805,8 +809,14 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
           createWorkspaceUndoAction({
             type: 'page_update_metadata',
             description: `Update page "${updatedPage.title}"`,
-            before: { pages: beforePages },
-            after: { pages: nextPages },
+            before: {
+              canvases: { [nodeId]: beforeParentCanvas },
+              pages: beforePages,
+            },
+            after: {
+              canvases: { [nodeId]: nextParentCanvas },
+              pages: nextPages,
+            },
             getLockToken: () => lockToken ?? null,
           })
         );
