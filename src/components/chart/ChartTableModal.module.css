@@ -78,6 +78,8 @@
 .closeButton {
   width: 28px;
   height: 28px;
+  min-width: unset;
+  min-height: unset;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -240,5 +242,17 @@
   .headerActions {
     justify-content: space-between;
     width: 100%;
+  }
+
+  .indexColHeader,
+  .indexCell {
+    width: 40px;
+    padding: var(--space-1-5) var(--space-2);
+  }
+
+  .headerCell,
+  .categoryCell,
+  .dataCell {
+    padding: var(--space-1-5) var(--space-2);
   }
 }

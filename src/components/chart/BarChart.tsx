@@ -2,7 +2,14 @@ import React, { useState, useMemo, useRef } from 'react';
 import type { ChartSeries } from '../../types/chart';
 import { createBandScale, createLinearScale, createRoundedRectPath } from '../../utils/chartMath';
 import { resolveUniqueChartColors } from '../../utils/chartColors';
-import { useChartPlotArea } from '../../utils/chartDimensions';
+import {
+  CHART_CANVAS_DIMENSIONS,
+  computeDynamicLeftMargin,
+  getMaxDynamicLeftMargin,
+  getVisibleTickIndices,
+  useChartPlotArea,
+} from '../../utils/chartDimensions';
+import { useChartContainerWidth } from '../../hooks/useChartContainerWidth';
 import { useChartTooltip } from '../../hooks/useChartTooltip';
 import { ChartTooltip } from './ChartTooltip';
 import { ChartLegend } from './ChartLegend';
@@ -19,6 +26,7 @@ export interface BarChartProps {
   showValues?: boolean;
   xLabel?: string;
   yLabel?: string;
+  showLegend?: boolean;
   onSelectDataPoint?: (point: { category: string; seriesName: string; value: number | null }) => void;
   // Deprecated/pruned props preserved for non-breaking API compatibility
   variant?: 'standard' | 'progress';
@@ -26,7 +34,8 @@ export interface BarChartProps {
   targetLabel?: string;
 }
 
-const MIN_LABEL_PIXEL_THRESHOLD = 24;
+const MIN_LABEL_PIXEL_THRESHOLD = 16;
+const MIN_VERTICAL_BAR_WIDTH = 10;
 const DIMMED_OPACITY = 0.15;
 
 export const BarChart: React.FC<BarChartProps> = ({
@@ -40,9 +49,11 @@ export const BarChart: React.FC<BarChartProps> = ({
   showValues = false,
   xLabel,
   yLabel,
+  showLegend = true,
   onSelectDataPoint,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { width: containerWidth, isCompact } = useChartContainerWidth({ ref: containerRef });
   const orientation = propOrientation || barOrientation || 'vertical';
   const isHorizontal = orientation === 'horizontal';
 
@@ -50,31 +61,15 @@ export const BarChart: React.FC<BarChartProps> = ({
   const [activeSeriesName, setActiveSeriesName] = useState<string | null>(null);
 
   // Canonical Tooltip hook
-  const { tooltipState, showTooltip, hideTooltip } = useChartTooltip();
-
-  // Dynamic left margin calculation for horizontal layout (clamped up to 180px)
-  const dynamicLeftMargin = useMemo(() => {
-    if (!isHorizontal || categories.length === 0) return undefined;
-    const maxChars = Math.max(...categories.map((c) => String(c).length), 4);
-    // Approximate ~7px per character plus padding, clamped between 56px and 180px
-    const extraForLabel = yLabel ? 24 : 0;
-    return Math.min(180, Math.max(56, maxChars * 7 + 16 + extraForLabel));
-  }, [isHorizontal, categories, yLabel]);
-
-  // Canonical Plot Area calculation
   const {
-    width,
-    height,
-    margin,
-    innerWidth,
-    innerHeight,
-    baselineY,
-  } = useChartPlotArea({
-    dynamicLeftMargin,
-    margins: {
-      bottom: xLabel ? 56 : 48,
-      left: !isHorizontal && yLabel ? 64 : undefined,
-    },
+    tooltipState,
+    handleMarkPointerEnter,
+    handleMarkPointerLeave,
+    handleMarkClick,
+  } = useChartTooltip({
+    containerRef,
+    containerWidth,
+    onDismiss: () => setActiveSeriesName(null),
   });
 
   // Prepare series with resolved colors and domain bounds
@@ -120,6 +115,92 @@ export const BarChart: React.FC<BarChartProps> = ({
     return { maxValue: finalMax, seriesList: list };
   }, [series, categories, accentColor, stacked]);
 
+  // Estimate Y-tick strings before plot area calculation so vertical left margin scales for 6-7 digit ticks
+  const estimatedYTickLabels = useMemo(() => {
+    if (isHorizontal) return [];
+    return createLinearScale([0, maxValue], [100, 0], true)
+      .ticks(5)
+      .map((t) => t.toLocaleString());
+  }, [isHorizontal, maxValue]);
+
+  // Dynamic left margin calculation (aligned with chartDimensions.ts compact & desktop caps)
+  const dynamicLeftMargin = useMemo(() => {
+    if (isHorizontal) {
+      if (categories.length === 0) return undefined;
+      const baseLeft = isCompact
+        ? CHART_CANVAS_DIMENSIONS.compactMargins.left
+        : CHART_CANVAS_DIMENSIONS.margins.left;
+      const maxChars = Math.max(...categories.map((c) => String(c).length), 4);
+      const charWidth = isCompact ? 6.5 : 7;
+      const extraForLabel = yLabel ? (isCompact ? 18 : 22) : 0;
+      const estimated = Math.ceil(maxChars * charWidth + 16 + extraForLabel);
+      return Math.min(getMaxDynamicLeftMargin(containerWidth, isCompact), Math.max(baseLeft, estimated));
+    }
+    return computeDynamicLeftMargin({
+      tickLabels: estimatedYTickLabels,
+      hasYLabel: Boolean(yLabel),
+      isCompact,
+      containerWidth,
+    });
+  }, [isHorizontal, categories, yLabel, isCompact, containerWidth, estimatedYTickLabels]);
+
+  const numSeries = Math.max(seriesList.length, 1);
+  const barGap = !stacked && numSeries > 1 ? (isCompact ? 2 : 3) : 0;
+
+  // Responsive dimensions: expand vertical width for dense clustered bars, expand horizontal height for multi-category bars
+  const bottomMargin = xLabel ? (isCompact ? 46 : 56) : (isCompact ? 36 : 48);
+  const topMargin = showValues && !isHorizontal ? (isCompact ? 24 : 28) : undefined;
+  const rightMargin = isHorizontal && showValues ? (isCompact ? 44 : 56) : undefined;
+
+  const targetWidth = useMemo(() => {
+    if (isHorizontal || categories.length === 0) return containerWidth;
+    const minBandWidth = stacked
+      ? 16
+      : numSeries * MIN_VERTICAL_BAR_WIDTH + (numSeries - 1) * barGap;
+    const slotWidth = minBandWidth / 0.75;
+    const leftEst = dynamicLeftMargin ?? (isCompact ? CHART_CANVAS_DIMENSIONS.compactMargins.left : CHART_CANVAS_DIMENSIONS.margins.left);
+    const rightEst = rightMargin ?? (isCompact ? CHART_CANVAS_DIMENSIONS.compactMargins.right : CHART_CANVAS_DIMENSIONS.margins.right);
+    const requiredWidth = Math.ceil(leftEst + (categories.length + 0.25) * slotWidth + rightEst);
+    return Math.max(containerWidth, requiredWidth);
+  }, [isHorizontal, categories.length, containerWidth, stacked, numSeries, barGap, dynamicLeftMargin, isCompact, rightMargin]);
+
+  const targetHeight = useMemo(() => {
+    const baseHeight = isCompact
+      ? CHART_CANVAS_DIMENSIONS.mobileDefaultHeight
+      : CHART_CANVAS_DIMENSIONS.viewBoxHeight;
+    if (!isHorizontal || categories.length === 0) return baseHeight;
+    const minBarThickness = isCompact ? 14 : 16;
+    const minBandHeight = stacked
+      ? 24
+      : numSeries * minBarThickness + (numSeries - 1) * barGap;
+    const slotHeight = minBandHeight / 0.75;
+    const effectiveTop = topMargin ?? (isCompact ? CHART_CANVAS_DIMENSIONS.compactMargins.top : CHART_CANVAS_DIMENSIONS.margins.top);
+    const requiredHeight = Math.ceil(effectiveTop + (categories.length + 0.25) * slotHeight + bottomMargin);
+    return Math.max(baseHeight, requiredHeight);
+  }, [isHorizontal, categories.length, isCompact, stacked, numSeries, barGap, topMargin, bottomMargin]);
+
+  const needsHorizontalScroll = !isHorizontal && targetWidth > containerWidth;
+
+  // Canonical Plot Area calculation
+  const {
+    width,
+    height,
+    margin,
+    innerWidth,
+    innerHeight,
+    baselineY,
+  } = useChartPlotArea({
+    width: targetWidth,
+    height: targetHeight,
+    isCompact,
+    dynamicLeftMargin,
+    margins: {
+      top: topMargin,
+      right: rightMargin,
+      bottom: bottomMargin,
+    },
+  });
+
   // Geometry Scalers
   const categoryScale = useMemo(() => {
     if (isHorizontal) {
@@ -144,12 +225,16 @@ export const BarChart: React.FC<BarChartProps> = ({
     return valueScale.ticks(5);
   }, [valueScale]);
 
-  const numSeries = Math.max(seriesList.length, 1);
   const bandDimension = categoryScale.bandwidth();
-  const barGap = !stacked && numSeries > 1 ? 3 : 0;
   const singleBarDimension = stacked
     ? bandDimension
     : Math.max((bandDimension - (numSeries - 1) * barGap) / numSeries, 2);
+
+  // Decimate vertical X-axis category labels on tight/compact viewports
+  const visibleCategoryIndices = useMemo(() => {
+    if (isHorizontal) return new Set<number>();
+    return new Set(getVisibleTickIndices(categories.length, innerWidth, isCompact ? 44 : 52));
+  }, [isHorizontal, categories.length, innerWidth, isCompact]);
 
   // Tooltip interaction handlers
   const handlePointerEnter = (
@@ -165,20 +250,23 @@ export const BarChart: React.FC<BarChartProps> = ({
     const clientY = e.clientY - rect.top;
 
     setActiveSeriesName(seriesName);
-    showTooltip({
-      x: clientX,
-      y: clientY,
-      title: cat,
-      seriesName,
-      value: val,
-      unit,
-      color,
-    });
+    handleMarkPointerEnter(
+      e,
+      {
+        x: clientX,
+        y: clientY,
+        title: cat,
+        seriesName,
+        value: val,
+        unit,
+        color,
+      },
+      `${cat}::${seriesName}`
+    );
   };
 
-  const handlePointerLeave = () => {
-    setActiveSeriesName(null);
-    hideTooltip();
+  const handlePointerLeave = (e?: React.PointerEvent<SVGElement>) => {
+    handleMarkPointerLeave(e);
   };
 
   return (
@@ -187,6 +275,7 @@ export const BarChart: React.FC<BarChartProps> = ({
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className={styles.chartSvg}
+          style={needsHorizontalScroll ? { width: `${width}px`, minWidth: `${width}px` } : undefined}
           role="graphics-document document"
           aria-label="Bar Chart Visualizer"
         >
@@ -316,8 +405,14 @@ export const BarChart: React.FC<BarChartProps> = ({
                         handlePointerEnter(e, rawLabel, '', null, '');
                       }
                     }}
+                    onClick={(e) => {
+                      if (rawLabel !== displayLabel) {
+                        handlePointerEnter(e as unknown as React.PointerEvent<SVGElement>, rawLabel, '', null, '');
+                      }
+                    }}
                     onPointerLeave={handlePointerLeave}
                   >
+                    <title>{rawLabel}</title>
                     {displayLabel}
                   </text>
 
@@ -381,7 +476,11 @@ export const BarChart: React.FC<BarChartProps> = ({
                               handlePointerEnter(e, cat, s.name, val, s.resolvedColor)
                             }
                             onPointerLeave={handlePointerLeave}
-                            onClick={() => onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val })}
+                            onClick={() => {
+                              if (!handleMarkClick(`${cat}::${s.name}`)) {
+                                onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val });
+                              }
+                            }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
                                 onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val });
@@ -408,7 +507,11 @@ export const BarChart: React.FC<BarChartProps> = ({
                               handlePointerEnter(e, cat, s.name, val, s.resolvedColor)
                             }
                             onPointerLeave={handlePointerLeave}
-                            onClick={() => onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val })}
+                            onClick={() => {
+                              if (!handleMarkClick(`${cat}::${s.name}`)) {
+                                onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val });
+                              }
+                            }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
                                 onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val });
@@ -535,7 +638,11 @@ export const BarChart: React.FC<BarChartProps> = ({
                             handlePointerEnter(e, cat, s.name, val, s.resolvedColor)
                           }
                           onPointerLeave={handlePointerLeave}
-                          onClick={() => onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val })}
+                          onClick={() => {
+                            if (!handleMarkClick(`${cat}::${s.name}`)) {
+                              onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val });
+                            }
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val });
@@ -562,7 +669,11 @@ export const BarChart: React.FC<BarChartProps> = ({
                             handlePointerEnter(e, cat, s.name, val, s.resolvedColor)
                           }
                           onPointerLeave={handlePointerLeave}
-                          onClick={() => onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val })}
+                          onClick={() => {
+                            if (!handleMarkClick(`${cat}::${s.name}`)) {
+                              onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val });
+                            }
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               onSelectDataPoint?.({ category: cat, seriesName: s.name, value: val });
@@ -612,13 +723,15 @@ export const BarChart: React.FC<BarChartProps> = ({
                 )}
 
                 {/* Category Axis Label */}
-                <text
-                  x={catX + bandDimension / 2}
-                  y={baselineY + 22}
-                  className={styles.axisText}
-                >
-                  {cat}
-                </text>
+                {visibleCategoryIndices.has(catIdx) && (
+                  <text
+                    x={catX + bandDimension / 2}
+                    y={baselineY + 22}
+                    className={styles.axisText}
+                  >
+                    {cat}
+                  </text>
+                )}
               </g>
             );
           })}
@@ -630,6 +743,7 @@ export const BarChart: React.FC<BarChartProps> = ({
         visible={tooltipState.visible}
         x={tooltipState.x}
         y={tooltipState.y}
+        placement={tooltipState.placement}
         title={tooltipState.title}
         seriesName={tooltipState.seriesName}
         value={tooltipState.value}
@@ -638,7 +752,7 @@ export const BarChart: React.FC<BarChartProps> = ({
       />
 
       {/* Canonical Interactive Series Legend */}
-      {seriesList.length > 1 && (
+      {showLegend && seriesList.length > 1 && (
         <ChartLegend
           items={seriesList.map((s) => ({
             id: s.name,

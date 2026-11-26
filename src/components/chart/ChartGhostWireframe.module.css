@@ -55,3 +55,9 @@
   stroke-width: 1;
   opacity: 0.85;
 }
+
+@media (max-width: 640px) {
+  .wireframeWrapper {
+    min-height: 140px;
+  }
+}

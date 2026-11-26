@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styles from './ChartLegend.module.css';
 
 export const CHART_DIMMED_OPACITY = 0.15;
@@ -22,18 +22,39 @@ export const ChartLegend: React.FC<ChartLegendProps> = ({
   onHover,
   className = '',
 }) => {
+  const [pinnedIndex, setPinnedIndex] = useState<number | null>(null);
+
   if (!items || items.length === 0) return null;
+
+  const effectiveActiveIndex =
+    activeIndex !== null && activeIndex !== undefined ? activeIndex : pinnedIndex;
+
+  const handleTogglePin = (idx: number) => {
+    if (pinnedIndex === idx) {
+      setPinnedIndex(null);
+      onHover?.(null);
+    } else {
+      setPinnedIndex(idx);
+      onHover?.(idx);
+    }
+  };
 
   return (
     <div
       className={`${styles.legend} ${className}`.trim()}
       role="list"
       aria-label="Chart legend"
-      onMouseLeave={() => onHover?.(null)}
+      onMouseLeave={() => {
+        if (pinnedIndex === null) {
+          onHover?.(null);
+        } else {
+          onHover?.(pinnedIndex);
+        }
+      }}
     >
       {items.map((item, idx) => {
-        const isSelected = activeIndex !== null && activeIndex === idx;
-        const isDimmed = activeIndex !== null && activeIndex !== idx;
+        const isSelected = effectiveActiveIndex !== null && effectiveActiveIndex === idx;
+        const isDimmed = effectiveActiveIndex !== null && effectiveActiveIndex !== idx;
 
         return (
           <button
@@ -41,9 +62,20 @@ export const ChartLegend: React.FC<ChartLegendProps> = ({
             type="button"
             role="listitem"
             className={`${styles.legendItem} ${isSelected ? styles.active : ''} ${isDimmed ? styles.dimmed : ''}`.trim()}
-            onMouseEnter={() => onHover?.(idx)}
-            onFocus={() => onHover?.(idx)}
-            onBlur={() => onHover?.(null)}
+            onClick={() => handleTogglePin(idx)}
+            onMouseEnter={() => {
+              if (pinnedIndex === null) onHover?.(idx);
+            }}
+            onFocus={() => {
+              if (pinnedIndex === null) onHover?.(idx);
+            }}
+            onBlur={() => {
+              if (pinnedIndex === null) {
+                onHover?.(null);
+              } else {
+                onHover?.(pinnedIndex);
+              }
+            }}
             aria-pressed={isSelected}
           >
             <span

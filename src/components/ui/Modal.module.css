@@ -60,6 +60,8 @@
 
 .closeButton {
   flex-shrink: 0;
+  min-width: unset;
+  min-height: unset;
 }
 
 .absoluteCloseButton {

@@ -15,6 +15,7 @@ import type {
   PdfElement,
   VideoElement,
   DocumentsElement,
+  DocumentsLayout,
   PageLinkElement,
   CanvasElement,
 } from '../../types/canvas';
@@ -105,6 +106,7 @@ interface ActiveGalleryModalState {
   pointId: string;
   initialTitle: string;
   initialUrl: string;
+  initialLayout?: DocumentsLayout;
   targetSectionId?: string;
   targetIndex?: number;
   targetSubsectionId?: string;
@@ -236,6 +238,7 @@ function buildPdfElementFields(data: CanvasElementFormData): Omit<PdfElement, 'i
     driveUrl: resolved ? resolved.rawUrl : (data.driveUrl?.trim() || undefined),
     caption: data.showCaption ? (data.caption?.trim() || undefined) : undefined,
     showCaption: Boolean(data.showCaption),
+    layout: data.layout ?? 'list',
   };
 }
 
@@ -464,6 +467,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         pointId: `node.${nodeId}.gallery.${newGalleryId}`,
         initialTitle: '',
         initialUrl: '',
+        initialLayout: 'list',
         targetSectionId,
         targetIndex,
         targetSubsectionId,
@@ -481,6 +485,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         pointId: `node.${nodeId}.documents.${newDocsId}`,
         initialTitle: '',
         initialUrl: '',
+        initialLayout: 'list',
         targetSectionId,
         targetIndex,
         targetSubsectionId,
@@ -578,6 +583,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         pointId: leaf.pointId || leaf.id,
         initialTitle: leaf.title || '',
         initialUrl: leaf.driveUrl || '',
+        initialLayout: leaf.layout ?? 'list',
       });
       return;
     }
@@ -620,6 +626,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
           driveUrl: leaf.driveUrl || '',
           caption: leaf.caption || '',
           showCaption: Boolean(leaf.showCaption || (leaf.caption && leaf.caption.trim().length > 0)),
+          layout: leaf.layout ?? 'list',
         }
         : leaf.type === 'video'
           ? {
@@ -1023,27 +1030,35 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         />
       )}
 
-      {/* Flat Canvas Elements Loop with sm Page-Link Grid Clustering */}
+      {/* Flat Canvas Elements Loop with sm Page-Link & sm PDF Grid Clustering */}
       {(() => {
         type Cluster =
           | { type: 'single'; element: CanvasElement; idx: number }
           | {
             type: 'sm-grid';
-            items: Array<{ element: PageLinkElement; idx: number }>;
+            items: Array<{ element: PageLinkElement | PdfElement; idx: number }>;
           };
+
+        const isSmPageLink = (el: CanvasElement) =>
+          el.type === 'page-link' && (el as PageLinkElement).cardSize === 'sm';
+        const isSmPdf = (el: CanvasElement) =>
+          el.type === 'pdf' && (el as PdfElement).layout === 'sm';
 
         const clusters: Cluster[] = [];
         let i = 0;
         while (i < validElements.length) {
           const el = validElements[i];
-          if (el.type === 'page-link' && (el as PageLinkElement).cardSize === 'sm') {
+          if (isSmPageLink(el)) {
             const run: Array<{ element: PageLinkElement; idx: number }> = [];
-            while (
-              i < validElements.length &&
-              validElements[i].type === 'page-link' &&
-              (validElements[i] as PageLinkElement).cardSize === 'sm'
-            ) {
+            while (i < validElements.length && isSmPageLink(validElements[i])) {
               run.push({ element: validElements[i] as PageLinkElement, idx: i });
+              i++;
+            }
+            clusters.push({ type: 'sm-grid', items: run });
+          } else if (isSmPdf(el)) {
+            const run: Array<{ element: PdfElement; idx: number }> = [];
+            while (i < validElements.length && isSmPdf(validElements[i])) {
+              run.push({ element: validElements[i] as PdfElement, idx: i });
               i++;
             }
             clusters.push({ type: 'sm-grid', items: run });
@@ -1080,6 +1095,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                     nodeId={nodeId}
                     nodeTitle={nodeTitle}
                     accentColor={accentColor}
+                    isFirst={idx === 0}
                     computedNumber={computedNumber}
                     onEdit={() => handleEditSection(element)}
                   />
@@ -1260,8 +1276,10 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
           pointId={activeGalleryModal.pointId}
           initialTitle={activeGalleryModal.initialTitle}
           initialUrl={activeGalleryModal.initialUrl}
+          showLayoutOption={activeGalleryModal.elementType === 'documents'}
+          initialLayout={activeGalleryModal.initialLayout}
           onClose={() => setActiveGalleryModal(null)}
-          onSuccess={async (newUrl, newTitle) => {
+          onSuccess={async (newUrl, newTitle, newLayout) => {
             if (activeGalleryModal.mode === 'add') {
               const isDocs = activeGalleryModal.elementType === 'documents';
               const newId =
@@ -1275,6 +1293,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                   title: newTitle.trim() || undefined,
                   titlePointId: `node.${nodeId}.documents.${newId}.title`,
                   driveUrl: newUrl.trim() || undefined,
+                  ...(newLayout ? { layout: newLayout } : {}),
                 }
                 : {
                   id: newId,
@@ -1292,14 +1311,17 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
                 return result;
               }
             } else if (activeGalleryModal.itemId) {
-              const updater =
-                activeGalleryModal.elementType === 'documents'
-                  ? handleUpdateDocuments
-                  : handleUpdateGallery;
-              const result = await updater(activeGalleryModal.itemId, {
-                driveUrl: newUrl,
-                title: newTitle,
-              });
+              const isDocs = activeGalleryModal.elementType === 'documents';
+              const result = isDocs
+                ? await handleUpdateDocuments(activeGalleryModal.itemId, {
+                    driveUrl: newUrl,
+                    title: newTitle,
+                    ...(newLayout ? { layout: newLayout } : {}),
+                  })
+                : await handleUpdateGallery(activeGalleryModal.itemId, {
+                    driveUrl: newUrl,
+                    title: newTitle,
+                  });
               if (result && !result.ok) {
                 return result;
               }

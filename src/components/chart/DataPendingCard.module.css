@@ -183,3 +183,14 @@
   gap: var(--space-gap-inline);
   outline: none;
 }
+
+@media (max-width: 640px) {
+  .container {
+    min-height: 160px;
+    padding: var(--chart-pad-surface-mobile);
+  }
+
+  .staticState {
+    min-height: 140px;
+  }
+}

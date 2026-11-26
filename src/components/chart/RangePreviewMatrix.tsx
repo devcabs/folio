@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { indexToColLetter, parseRangeNotation } from '../../utils/chartSanitizer';
 import styles from './RangePreviewMatrix.module.css';
 
@@ -34,6 +34,7 @@ export const RangePreviewMatrix: React.FC<RangePreviewMatrixProps> = ({
   const [dragStart, setDragStart] = useState<CellCoord | null>(null);
   const [dragCurrent, setDragCurrent] = useState<CellCoord | null>(null);
   const [clickAnchor, setClickAnchor] = useState<CellCoord | null>(null);
+  const skipNextClickRef = useRef(false);
 
   // Maximum column count across all rows
   const maxCols = useMemo(() => {
@@ -61,6 +62,8 @@ export const RangePreviewMatrix: React.FC<RangePreviewMatrixProps> = ({
   // Global mouseup handler to finalize drag selection anywhere in window
   const handleMouseUp = useCallback(() => {
     if (dragStart && dragCurrent) {
+      const isSingleCellTap =
+        dragStart.r === dragCurrent.r && dragStart.c === dragCurrent.c;
       const minR = Math.min(dragStart.r, dragCurrent.r);
       const maxR = Math.max(dragStart.r, dragCurrent.r);
       const minC = Math.min(dragStart.c, dragCurrent.c);
@@ -73,7 +76,10 @@ export const RangePreviewMatrix: React.FC<RangePreviewMatrixProps> = ({
       onRangeSelect?.(computedRange);
       setDragStart(null);
       setDragCurrent(null);
-      setClickAnchor(null);
+      // Preserve clickAnchor on a single-cell tap so the next tap/click extends the range
+      if (!isSingleCellTap) {
+        setClickAnchor(null);
+      }
     }
   }, [dragStart, dragCurrent, onRangeSelect]);
 
@@ -88,6 +94,7 @@ export const RangePreviewMatrix: React.FC<RangePreviewMatrixProps> = ({
     // Only primary mouse button
     if (e.button !== 0) return;
     e.preventDefault();
+    skipNextClickRef.current = true;
 
     // If clickAnchor was set previously, complete two-click selection
     if (clickAnchor && !dragStart) {
@@ -113,6 +120,29 @@ export const RangePreviewMatrix: React.FC<RangePreviewMatrixProps> = ({
     onRangeSelect?.(singleCellRange);
   };
 
+  const handleCellClick = (r: number, c: number) => {
+    if (skipNextClickRef.current) {
+      skipNextClickRef.current = false;
+      return;
+    }
+
+    if (clickAnchor) {
+      const minR = Math.min(clickAnchor.r, r);
+      const maxR = Math.max(clickAnchor.r, r);
+      const minC = Math.min(clickAnchor.c, c);
+      const maxC = Math.max(clickAnchor.c, c);
+
+      const computedRange = `${indexToColLetter(minC)}${minR + 1}:${indexToColLetter(maxC)}${maxR + 1}`;
+      onRangeSelect?.(computedRange);
+      setClickAnchor(null);
+      return;
+    }
+
+    setClickAnchor({ r, c });
+    const singleCoord = `${indexToColLetter(c)}${r + 1}`;
+    onRangeSelect?.(`${singleCoord}:${singleCoord}`);
+  };
+
   const handleCellMouseEnter = (r: number, c: number) => {
     if (dragStart) {
       setDragCurrent({ r, c });
@@ -136,7 +166,7 @@ export const RangePreviewMatrix: React.FC<RangePreviewMatrixProps> = ({
       {isSelecting && (
         <div className={styles.selectionHintBar}>
           <div className={styles.selectionHintChip}>
-            <span>🎯 Click and drag across the sheet to highlight your cell range</span>
+            <span>🎯 Drag or tap two corners to highlight your cell range</span>
           </div>
         </div>
       )}
@@ -229,6 +259,7 @@ export const RangePreviewMatrix: React.FC<RangePreviewMatrixProps> = ({
                       className={cellClasses}
                       onMouseDown={(e) => handleCellMouseDown(rIdx, cIdx, e)}
                       onMouseEnter={() => handleCellMouseEnter(rIdx, cIdx)}
+                      onClick={() => handleCellClick(rIdx, cIdx)}
                       title={`Cell ${indexToColLetter(cIdx)}${rIdx + 1}`}
                     >
                       {cell === null || cell === undefined || cell === '' ? (

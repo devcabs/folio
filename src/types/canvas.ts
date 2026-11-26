@@ -71,6 +71,8 @@ export interface ChartElement extends CanvasElementBase {
   dataset?: ChartDataset;
 }
 
+export type PdfLayout = 'list' | 'sm' | 'full';
+
 export interface PdfElement extends CanvasElementBase {
   type: 'pdf';
   pointId: string;
@@ -88,6 +90,8 @@ export interface PdfElement extends CanvasElementBase {
   showCaption?: boolean;
   /** Optional aspect ratio override (defaults to token --pdf-viewer-aspect-ratio, e.g. "4/3") */
   aspectRatio?: string;
+  /** Display layout variant: 'default' (standard 4/3), 'list', 'sm' (2-column compact), or 'full' (full page height) */
+  layout?: PdfLayout;
 }
 
 export type VideoProvider = 'drive' | 'youtube';
@@ -108,6 +112,8 @@ export interface VideoElement extends CanvasElementBase {
   showCaption?: boolean;
 }
 
+export type DocumentsLayout = 'list' | 'sm' | 'full';
+
 export interface DocumentsElement extends CanvasElementBase {
   type: 'documents';
   pointId: string;
@@ -119,6 +125,8 @@ export interface DocumentsElement extends CanvasElementBase {
   description?: string;
   lastVerified?: string;
   syncedDocuments?: SyncedDocumentItem[];
+  /** Display layout variant: 'list' (default), 'sm' (2-column compact cards), or 'full' (full page height inline PDF) */
+  layout?: DocumentsLayout;
 }
 
 export type PageLinkCardSize = 'sm' | 'md' | 'lg';
@@ -291,4 +299,6 @@ export interface CanvasElementFormData {
   summary?: string;
   /** Optional card size variant for page-link add/edit ('sm' | 'md' | 'lg') */
   cardSize?: PageLinkCardSize;
+  /** Optional display layout variant for pdf add/edit ('default' | 'list' | 'sm' | 'full') */
+  layout?: PdfLayout;
 }

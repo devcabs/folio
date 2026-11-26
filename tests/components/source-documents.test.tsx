@@ -276,7 +276,7 @@ describe('11.5 SourceDocuments, PdfPreviewModal, CanvasAddBar Submenu & Document
     expect(syncDocumentsMock).toHaveBeenCalledTimes(1);
   });
 
-  it('expands Document option in CanvasAddBar with Single PDF and PDF Folder submenu', () => {
+  it('expands Docs & Data option in CanvasAddBar with Single PDF, PDF Folder, and Chart submenu', () => {
     vi.spyOn(developerModeHook, 'useDeveloperMode').mockReturnValue(createDevModeStub(true));
     const onAddElement = vi.fn();
 
@@ -286,22 +286,30 @@ describe('11.5 SourceDocuments, PdfPreviewModal, CanvasAddBar Submenu & Document
     (addBtn as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = () =>
       ({ top: 100, bottom: 130, left: 0, right: 100, width: 100, height: 30, x: 0, y: 100, toJSON: () => ({}) }) as DOMRect;
     fireEvent.click(addBtn);
-    const docMenuItem = screen.getByRole('menuitem', { name: 'Document' });
-    fireEvent.click(docMenuItem);
+    const docsDataMenuItem = screen.getByRole('menuitem', { name: 'Docs & Data' });
+    fireEvent.click(docsDataMenuItem);
 
     const singlePdfBtn = screen.getByRole('menuitem', { name: 'Single PDF' });
     const pdfFolderBtn = screen.getByRole('menuitem', { name: 'PDF Folder' });
+    const chartBtn = screen.getByRole('menuitem', { name: 'Chart' });
     expect(singlePdfBtn).toBeTruthy();
     expect(pdfFolderBtn).toBeTruthy();
+    expect(chartBtn).toBeTruthy();
 
     fireEvent.click(pdfFolderBtn);
     expect(onAddElement).toHaveBeenCalledWith('documents');
 
     // Re-open and test Single PDF
     fireEvent.click(addBtn);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Document' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Docs & Data' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Single PDF' }));
     expect(onAddElement).toHaveBeenCalledWith('pdf');
+
+    // Re-open and test Chart
+    fireEvent.click(addBtn);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Docs & Data' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Chart' }));
+    expect(onAddElement).toHaveBeenCalledWith('chart');
   });
 
   it('opens unified LinkFolderModal from both floating toolbar Edit and side Edit button on CanvasDocuments', async () => {

@@ -161,8 +161,27 @@ function useUnsavedChangesPrompt(): {
 
 ## 4. Media & Chart Hooks
 
-### `useChartTooltip()`
-Manages interactive hover coordinates, SVG viewport boundary containment, and formatted data strings for D3 chart tooltips.
+### `useChartContainerWidth(options?: UseChartContainerWidthOptions)`
+Internal chart hook (`src/hooks/useChartContainerWidth.ts`) that measures a chart container's CSS width via `ResizeObserver` so SVG `viewBox` coordinates track rendered pixels `1:1` on compact mobile viewports (`< 480px`), falling back cleanly in SSR/Node/happy-dom environments.
+
+```typescript
+function useChartContainerWidth<T extends HTMLElement = HTMLDivElement>(
+  options?: {
+    defaultWidth?: number;
+    compactBreakpoint?: number;
+    ref?: RefObject<T | null>;
+  }
+): {
+  containerRef: RefObject<T | null>;
+  width: number;
+  isCompact: boolean;
+};
+```
+
+---
+
+### `useChartTooltip(options?: UseChartTooltipOptions)`
+Manages interactive hover/focus/tap coordinates, container-relative viewport boundary clamping (`clampX`/`clampY` with above/below placement flipping), SVG coordinate projection (`projectSvgToContainer`), unified tap-to-inspect + tap-outside-to-dismiss touch lifecycles, and formatted data strings (`unit`) for SVG chart tooltips.
 
 ```typescript
 function useChartTooltip(): {

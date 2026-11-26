@@ -461,6 +461,7 @@ describe('13.12 <CanvasPageLink> Editorial Card & Canvas Reorder Order-Sync', ()
       toJSON: () => ({}),
     });
     fireEvent.click(addElementBtn);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Structure' }));
 
     const addPageBtn = screen.getByRole('menuitem', { name: /Page/i });
     fireEvent.click(addPageBtn);

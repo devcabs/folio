@@ -9,6 +9,7 @@ export interface CanvasSectionProps {
   nodeTitle?: string;
   accentColor?: string;
   isDevMode?: boolean;
+  isFirst?: boolean;
   className?: string;
   computedNumber?: string | null;
   onEdit?: () => void;
@@ -32,6 +33,7 @@ export const CanvasSection: React.FC<CanvasSectionProps> = memo(({
   nodeTitle: _nodeTitle,
   accentColor,
   isDevMode: _isDevMode,
+  isFirst = true,
   className,
   computedNumber,
   onEdit,
@@ -55,7 +57,7 @@ export const CanvasSection: React.FC<CanvasSectionProps> = memo(({
   return (
     <section
       id={domId}
-      className={`${styles.section} ${className || ''}`.trim()}
+      className={`${styles.section} ${!isFirst ? styles.sectionTopPad : ''} ${className || ''}`.trim()}
       aria-label={resolvedTitle}
       data-toc-title={resolvedTitle}
       data-toc-number={effectiveNumber || undefined}

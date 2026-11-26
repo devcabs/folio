@@ -6,6 +6,7 @@ import styles from './DevPinModal.module.css';
 
 export const DevPinModal: React.FC = () => {
   const {
+    isDesktop,
     isPinModalOpen,
     pinState,
     attemptsRemaining,
@@ -28,7 +29,7 @@ export const DevPinModal: React.FC = () => {
     if (isPinModalOpen) {
       setPin('');
       setIsShaking(false);
-      if (!isLockedOut) {
+      if (isDesktop && !isLockedOut) {
         // Multi-stage focus to guarantee immediate keyboard readiness upon modal opening
         inputRef.current?.focus();
         const raf = requestAnimationFrame(() => {
@@ -43,7 +44,7 @@ export const DevPinModal: React.FC = () => {
         };
       }
     }
-  }, [isPinModalOpen, isLockedOut]);
+  }, [isPinModalOpen, isDesktop, isLockedOut]);
 
   // Handle shake animation and input reset on error
   useEffect(() => {
@@ -96,6 +97,42 @@ export const DevPinModal: React.FC = () => {
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
+
+  if (!isDesktop) {
+    return (
+      <Modal
+        isOpen={isPinModalOpen}
+        onClose={closePinModal}
+        maxWidth="440px"
+        ariaLabelledBy="dev-pin-mobile-title"
+        ariaDescribedBy="dev-pin-mobile-desc"
+      >
+        <div className={styles.header}>
+          <div className={styles.kicker}>
+            <span className={styles.kickerDot} aria-hidden="true" />
+            <span>Desktop Required</span>
+          </div>
+          <h2 id="dev-pin-mobile-title" className={styles.title}>
+            Developer mode is desktop only
+          </h2>
+          <p id="dev-pin-mobile-desc" className={styles.subtitle}>
+            Switch to a desktop or laptop browser to authenticate and edit.
+          </p>
+        </div>
+
+        <div className={styles.actions}>
+          <Button
+            variant="secondary"
+            size="sm"
+            type="button"
+            onClick={closePinModal}
+          >
+            Close
+          </Button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal

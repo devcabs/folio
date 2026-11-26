@@ -86,6 +86,14 @@ Tracks whether local uncommitted drafts exist and handles browser beforeunload a
 
 ## 2. Utilities (`src/utils/`)
 
+### `chartDimensions.ts`
+Responsive SVG plot-area, margin, and tick-decimation helpers for all 5 chart visualizers:
+- `useChartPlotArea(options?: ChartPlotAreaOptions)` & `calculateChartPlotArea(options?)`: Computes responsive `width`, `height` (enforcing mobile floor `mobileMinHeight`), `margin`, `innerWidth`, `innerHeight`, and `baselineY`.
+- `computeDynamicLeftMargin(options)` & `getMaxDynamicLeftMargin(width, isCompact?)`: Dynamically sizes left margins for wide Y-axis ticks while preventing plot starvation on narrow mobile screens.
+- `computeTickStep(totalCount, plotWidth, minLabelWidth?)` & `getVisibleTickIndices(totalCount, plotWidth, minLabelWidth?)`: Decimates dense X-axis category ticks on compact viewports while preserving first and last landmarks.
+
+---
+
 ### `chartMath.ts`
 D3-scale domain calculations, tick generation, and histogram binning.
 - `computeLinearScale(domain: [number, number], range: [number, number]): (val: number) => number`

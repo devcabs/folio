@@ -11,6 +11,7 @@ export interface ChartRouterProps {
   dataset: ChartDataset;
   overrideType?: ChartType;
   accentColor?: string;
+  showLegend?: boolean;
 }
 
 import { NODE_ACCENT_TOKENS } from '../../utils/chartColors';
@@ -19,6 +20,7 @@ export const ChartRouter: React.FC<ChartRouterProps> = ({
   dataset,
   overrideType,
   accentColor,
+  showLegend = true,
 }) => {
   const chartType = overrideType || dataset.chartType || 'bar';
 
@@ -48,6 +50,7 @@ export const ChartRouter: React.FC<ChartRouterProps> = ({
           showValues={dataset.visualConfig?.showValues || false}
           xLabel={dataset.visualConfig?.xLabel}
           yLabel={dataset.visualConfig?.yLabel}
+          showLegend={showLegend}
         />
       </div>
     );
@@ -75,6 +78,7 @@ export const ChartRouter: React.FC<ChartRouterProps> = ({
           showValues={dataset.visualConfig?.showValues}
           xLabel={dataset.visualConfig?.xLabel}
           yLabel={dataset.visualConfig?.yLabel}
+          showLegend={showLegend}
         />
       </div>
     );
@@ -99,6 +103,7 @@ export const ChartRouter: React.FC<ChartRouterProps> = ({
           groupOthers={dataset.visualConfig?.groupOthers}
           showValues={dataset.visualConfig?.showValues}
           seriesName={series[0]?.name}
+          showLegend={showLegend}
         />
       </div>
     );
@@ -150,6 +155,7 @@ export const ChartRouter: React.FC<ChartRouterProps> = ({
           startAtZeroX={dataset.visualConfig?.startAtZeroX}
           showCorrelationChip={dataset.visualConfig?.showCorrelationChip}
           showReferenceGuide={dataset.visualConfig?.showReferenceGuide}
+          showLegend={showLegend}
         />
       </div>
     );
@@ -188,6 +194,7 @@ export const ChartRouter: React.FC<ChartRouterProps> = ({
           yLabel={dataset.visualConfig?.yLabel}
           unit={unit}
           accentColor={resolvedColor}
+          showLegend={showLegend}
         />
       </div>
     );

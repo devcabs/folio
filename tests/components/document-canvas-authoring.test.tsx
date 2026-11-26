@@ -428,6 +428,7 @@ describe('9.2 Eliminate Subsection Ghost Hover Zone & Duplicate Insertion Bars',
       toJSON: () => ({}),
     });
     fireEvent.click(addButtons[5]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Structure' }));
 
     const subMenuItem = screen.getByRole('menuitem', { name: /Subsection/i });
     fireEvent.click(subMenuItem);

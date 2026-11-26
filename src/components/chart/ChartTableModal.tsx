@@ -51,7 +51,7 @@ export const ChartTableModal: React.FC<ChartTableModalProps> = ({
       const colCount = hasGroups ? 4 : 3;
       const labelWidthPct = hasGroups ? 34 : 40;
       const metricColPct = (100 - labelWidthPct) / (colCount - 1);
-      const minTableWidth = 48 + 160 + (colCount - 1) * 130;
+      const minTableWidth = 40 + 110 + (colCount - 1) * 84;
 
       return (
         <table
@@ -96,7 +96,7 @@ export const ChartTableModal: React.FC<ChartTableModalProps> = ({
 
     // 2. Histogram Bins Table
     if (isHistogram && dataset.bins) {
-      const minTableWidth = 48 + 200 + 150;
+      const minTableWidth = 40 + 140 + 110;
       return (
         <table
           className={styles.table}
@@ -138,7 +138,7 @@ export const ChartTableModal: React.FC<ChartTableModalProps> = ({
       // and all sibling metric series divide remaining width with exact equality.
       const categoryWidthPct = seriesCount <= 2 ? 34 : seriesCount <= 4 ? 26 : 20;
       const dataColWidthPct = (100 - categoryWidthPct) / seriesCount;
-      const minTableWidth = 48 + 160 + seriesCount * 130;
+      const minTableWidth = 40 + 115 + seriesCount * 92;
 
       return (
         <table

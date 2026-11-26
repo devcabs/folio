@@ -18,10 +18,19 @@ export const Step4Review: React.FC<Step4ReviewProps> = ({
   accentColor,
   range,
 }) => {
+  const hasRenderableData = Boolean(
+    previewDataset &&
+      ((previewDataset.categories && previewDataset.categories.length > 0) ||
+        (previewDataset.series && previewDataset.series.length > 0) ||
+        (previewDataset.scatterPoints && previewDataset.scatterPoints.length > 0) ||
+        (previewDataset.rawValues && previewDataset.rawValues.length > 0) ||
+        (previewDataset.bins && previewDataset.bins.length > 0))
+  );
+
   return (
     <div className={styles.stepPanel}>
       <div className={styles.previewContainer}>
-        {isSyncing && (!previewDataset || (previewDataset.categories?.length || 0) === 0) ? (
+        {isSyncing && !hasRenderableData ? (
           <div className={styles.previewEmptyBox}>
             <span
               className={styles.spinner}
@@ -33,10 +42,7 @@ export const Step4Review: React.FC<Step4ReviewProps> = ({
             />
             <span>Loading live chart…</span>
           </div>
-        ) : previewDataset &&
-          ((previewDataset.categories && previewDataset.categories.length > 0) ||
-            (previewDataset.series && previewDataset.series.length > 0) ||
-            (previewDataset.scatterPoints && previewDataset.scatterPoints.length > 0)) ? (
+        ) : hasRenderableData && previewDataset ? (
           <ChartRouter
             dataset={previewDataset}
             overrideType={chartType}

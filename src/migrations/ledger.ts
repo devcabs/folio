@@ -1271,6 +1271,77 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.3.5',
+    releaseDate: '2026-11-26',
+    title: 'Mobile Chart Hardening, PDF/Document Layouts & Mobile Dev Gate',
+    summary:
+      'Hardened all 5 SVG chart visualizers (BarChart, LineChart, DonutChart, ScatterPlot, HistogramChart), ChartCard (mobile kebab menu & legend toggle), ChartTooltip, ChartLegend, ChartTableModal, and ChartConfigDrawer for 320px–480px viewports via container-driven ResizeObserver SVG coordinates, >= 10px–11px typography, touch hit-targets, and viewport-clamped tap-to-inspect tooltips. Added additive layout variants (list | sm | full) for PdfElement and DocumentsElement, plus mobile DevPinModal desktop-only gating and canvas/drawer responsiveness.',
+    breakingChanges: [
+      'No breaking API or schema changes; additive mobile chart CSS tokens, internal useChartContainerWidth hook, responsive useChartPlotArea options, optional PdfElement.layout / DocumentsElement.layout ("list" | "sm" | "full"), and mobile DevPinModal desktop-only gating.',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.3.5 to acknowledge mobile chart hardening, PDF/document layout variants, and mobile Dev Mode updates.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.3.4" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.3.5" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'mobile-chart-hardening-0.3.5',
+        title: 'Mobile Chart Responsive Geometry, Kebab Menu & Touch Ergonomics',
+        required: false,
+        description:
+          'All 5 SVG chart engines now measure container width via useChartContainerWidth and pass responsive dimensions into useChartPlotArea so rendered SVG typography stays >= 10–11px on 320px–480px screens. ChartCard adds a mobile kebab menu and legend toggle; ChartTooltip renders unit values and clamps within container bounds with unified tap-to-inspect / tap-outside-to-dismiss; ChartLegend supports compact mobile pills and tap-toggle; ChartConfigDrawer and ChartTableModal wrap cleanly with zero horizontal overflow.',
+        affectedEntities: [
+          'BarChart',
+          'LineChart',
+          'DonutChart',
+          'ScatterPlot',
+          'HistogramChart',
+          'ChartCard',
+          'ChartTooltip',
+          'ChartLegend',
+          'ChartConfigDrawer',
+          'ChartTableModal',
+          'tokens.css',
+        ],
+        migrationPrompt:
+          'No migration required. Existing ChartConfig and CanvasElement schemas are unchanged.',
+      },
+      {
+        id: 'pdf-documents-layout-variants-0.3.5',
+        title: 'Additive PDF & Documents Layout Variants (list | sm | full)',
+        required: false,
+        description:
+          'PdfElement and DocumentsElement now support an optional `layout` field ("list" | "sm" | "full") in canvas and edge Zod schemas, allowing compact 2-column cards ("sm"), list rows ("list"), or full-height inline PDF previews ("full") in CanvasPdf, CanvasDocuments, and SourceDocuments.',
+        affectedEntities: [
+          'PdfElement',
+          'DocumentsElement',
+          'CanvasPdf',
+          'CanvasDocuments',
+          'SourceDocuments',
+          'DocumentsElementSchema',
+          'PdfElementSchema',
+        ],
+        migrationPrompt:
+          'No migration required; existing PDF and Documents elements default to standard layout when `layout` is omitted.',
+      },
+      {
+        id: 'content-version-watermark-0.3.5',
+        title: 'Advance contentVersion Watermark to 0.3.5',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.3.5 to acknowledge mobile chart hardening and layout updates, clearing pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.3.5"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

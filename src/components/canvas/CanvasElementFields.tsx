@@ -14,7 +14,7 @@ import {
   resolveSingleDrivePhotoUrl,
   resolveSingleVideoUrl,
 } from '../../utils/mediaUrl';
-import type { PageLinkCardSize, VideoProvider } from '../../types/canvas';
+import type { PageLinkCardSize, PdfLayout, VideoProvider } from '../../types/canvas';
 import styles from './CanvasElementFields.module.css';
 
 export type CanvasElementFieldType =
@@ -46,6 +46,7 @@ export interface CanvasElementFieldsValue {
   summary?: string;
   coverImage?: string;
   cardSize?: PageLinkCardSize;
+  layout?: PdfLayout;
 }
 
 export interface CanvasElementFieldsProps {
@@ -84,6 +85,12 @@ const CARD_SIZE_OPTIONS = [
   { value: 'sm', label: 'Small' },
   { value: 'md', label: 'Medium' },
   { value: 'lg', label: 'Large' },
+] as const;
+
+const PDF_LAYOUT_OPTIONS = [
+  { value: 'list', label: 'List' },
+  { value: 'sm', label: 'Small' },
+  { value: 'full', label: 'Full Page' },
 ] as const;
 
 /**
@@ -433,6 +440,21 @@ export const CanvasElementFields: React.FC<CanvasElementFieldsProps> = ({
             {pdfUrlFeedback}
           </p>
         ) : null}
+
+        <FormField id="canvas-pdf-layout" label="Display Layout" role="group">
+          <SegmentedControl
+            label="Display Layout"
+            aria-label="Display Layout"
+            options={PDF_LAYOUT_OPTIONS}
+            value={value.layout ?? 'list'}
+            onChange={(nextLayout) =>
+              onChange((prev) => ({
+                ...prev,
+                layout: nextLayout as PdfLayout,
+              }))
+            }
+          />
+        </FormField>
 
         <Checkbox
           checked={Boolean(value.showCaption)}

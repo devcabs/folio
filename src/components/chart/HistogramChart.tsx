@@ -8,7 +8,12 @@ import {
   type ComputedBin,
   type Point2D,
 } from '../../utils/chartMath';
-import { useChartPlotArea } from '../../utils/chartDimensions';
+import {
+  computeDynamicLeftMargin,
+  getVisibleTickIndices,
+  useChartPlotArea,
+} from '../../utils/chartDimensions';
+import { useChartContainerWidth } from '../../hooks/useChartContainerWidth';
 import { useChartTooltip } from '../../hooks/useChartTooltip';
 import { ChartTooltip } from './ChartTooltip';
 import { ChartLegend, CHART_DIMMED_OPACITY } from './ChartLegend';
@@ -33,6 +38,7 @@ export interface HistogramChartProps {
   sortDirection?: 'asc' | 'desc';
   xLabel?: string;
   yLabel?: string;
+  showLegend?: boolean;
   onSelectBin?: (bin: HistogramBin) => void;
 }
 
@@ -53,30 +59,25 @@ export const HistogramChart: React.FC<HistogramChartProps> = ({
   sortDirection = 'asc',
   xLabel,
   yLabel,
+  showLegend = true,
   onSelectBin,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { width: containerWidth, isCompact } = useChartContainerWidth({ ref: containerRef });
 
   // Canonical Tooltip Hook
-  const { tooltipState, showTooltip, hideTooltip } = useChartTooltip();
+  const {
+    tooltipState,
+    handleMarkPointerEnter,
+    handleMarkPointerLeave,
+    handleMarkClick,
+  } = useChartTooltip({
+    containerRef,
+    containerWidth,
+  });
 
   // Hover state for 2-way legend synchronization
   const [hoveredSeriesName, setHoveredSeriesName] = useState<string | null>(null);
-
-  // Canonical Plot Area dimensions (Universal 800x360)
-  const {
-    width,
-    height,
-    margin,
-    innerWidth,
-    innerHeight,
-    baselineY,
-  } = useChartPlotArea({
-    margins: {
-      bottom: xLabel ? 56 : 48,
-      left: yLabel ? 64 : 56,
-    },
-  });
 
   // Normalize effective series list
   const effectiveSeries = useMemo<ChartSeries[]>(() => {
@@ -225,6 +226,42 @@ export const HistogramChart: React.FC<HistogramChartProps> = ({
     histogramYMode,
   ]);
 
+  const estimatedYTickLabels = useMemo(() => {
+    return createLinearScale([0, maxCountOrPct], [100, 0], true)
+      .ticks(5)
+      .map((t) => (histogramYMode === 'relative' ? `${t.toFixed(0)}%` : t.toLocaleString()));
+  }, [maxCountOrPct, histogramYMode]);
+
+  const dynamicLeftMargin = useMemo(() => {
+    return computeDynamicLeftMargin({
+      tickLabels: estimatedYTickLabels,
+      hasYLabel: Boolean(yLabel),
+      isCompact,
+      containerWidth,
+    });
+  }, [estimatedYTickLabels, yLabel, isCompact, containerWidth]);
+
+  // Canonical Plot Area dimensions (responsive to containerWidth)
+  const {
+    width,
+    height,
+    margin,
+    innerWidth,
+    innerHeight,
+    baselineY,
+  } = useChartPlotArea({
+    width: containerWidth,
+    isCompact,
+    dynamicLeftMargin,
+    margins: {
+      bottom: xLabel ? (isCompact ? 46 : 56) : (isCompact ? 36 : 48),
+    },
+  });
+
+  const visibleBinIndices = useMemo(() => {
+    return new Set(getVisibleTickIndices(templateBins.length, innerWidth, isCompact ? 52 : 48));
+  }, [templateBins.length, innerWidth, isCompact]);
+
   // Linear Y Scale
   const yScale = useMemo(() => {
     return createLinearScale([0, maxCountOrPct], [baselineY, margin.top], true);
@@ -296,22 +333,29 @@ export const HistogramChart: React.FC<HistogramChartProps> = ({
       const rect = containerRef.current.getBoundingClientRect();
       const pctStr = `${bin.percentage.toFixed(1)}%`;
       
-      showTooltip({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        title: `Range: [${bin.x0} – ${bin.x1}]`,
-        seriesName,
-        value: bin.count,
-        unit: `${unit} (${pctStr})`,
-        color,
-      });
+      handleMarkPointerEnter(
+        e,
+        {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+          title: `Range: [${bin.x0} – ${bin.x1}]`,
+          seriesName,
+          value: bin.count,
+          unit: `${unit} (${pctStr})`,
+          color,
+        },
+        `${seriesName}::${bin.x0}-${bin.x1}`
+      );
     },
-    [showTooltip, unit]
+    [handleMarkPointerEnter, unit]
   );
 
-  const handlePointerLeave = useCallback(() => {
-    hideTooltip();
-  }, [hideTooltip]);
+  const handlePointerLeave = useCallback(
+    (e?: React.PointerEvent<SVGRectElement>) => {
+      handleMarkPointerLeave(e);
+    },
+    [handleMarkPointerLeave]
+  );
 
   if (allNumbers.length === 0) {
     return (
@@ -460,33 +504,49 @@ export const HistogramChart: React.FC<HistogramChartProps> = ({
                   const val = histogramYMode === 'relative' ? bin.percentage : bin.count;
                   const barY = yScale(val);
                   const barH = Math.max(baselineY - barY, 0);
+                  const hitHeight = Math.max(barH, 32);
+                  const hitY = Math.min(barY, baselineY - hitHeight);
 
                   return (
-                    <rect
-                      key={`rect-${sIdx}-${bIdx}-${bin.x0}-${bin.x1}`}
-                      x={barX}
-                      y={barY}
-                      width={barActualWidth}
-                      height={barH}
-                      rx={3}
-                      ry={3}
-                      fill={s.color}
-                      stroke={isComparative ? s.color : 'none'}
-                      strokeWidth={isComparative ? 1 : 0}
-                      fillOpacity={currentOpacity}
-                      className={styles.barRect}
-                      tabIndex={0}
-                      onPointerEnter={(e) => handlePointerEnter(e, bin, s.name, s.color)}
-                      onPointerMove={(e) => handlePointerEnter(e, bin, s.name, s.color)}
-                      onPointerLeave={handlePointerLeave}
-                      onClick={() => onSelectBin?.({ x0: bin.x0, x1: bin.x1, count: bin.count })}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          onSelectBin?.({ x0: bin.x0, x1: bin.x1, count: bin.count });
-                        }
-                      }}
-                      aria-label={`${s.name} Range [${bin.x0} – ${bin.x1}]: ${bin.count} ${unit} (${bin.percentage.toFixed(1)}%)`}
-                    />
+                    <g key={`rect-${sIdx}-${bIdx}-${bin.x0}-${bin.x1}`}>
+                      <rect
+                        x={barX}
+                        y={barY}
+                        width={barActualWidth}
+                        height={barH}
+                        rx={3}
+                        ry={3}
+                        fill={s.color}
+                        stroke={isComparative ? s.color : 'none'}
+                        strokeWidth={isComparative ? 1 : 0}
+                        fillOpacity={currentOpacity}
+                        className={styles.barRect}
+                        style={{ pointerEvents: 'none' }}
+                      />
+                      <rect
+                        x={barX}
+                        y={hitY}
+                        width={barActualWidth}
+                        height={hitHeight}
+                        fill="transparent"
+                        className={styles.hitTarget}
+                        tabIndex={0}
+                        onPointerEnter={(e) => handlePointerEnter(e, bin, s.name, s.color)}
+                        onPointerMove={(e) => handlePointerEnter(e, bin, s.name, s.color)}
+                        onPointerLeave={handlePointerLeave}
+                        onClick={() => {
+                          if (!handleMarkClick(`${s.name}::${bin.x0}-${bin.x1}`)) {
+                            onSelectBin?.({ x0: bin.x0, x1: bin.x1, count: bin.count });
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            onSelectBin?.({ x0: bin.x0, x1: bin.x1, count: bin.count });
+                          }
+                        }}
+                        aria-label={`${s.name} Range [${bin.x0} – ${bin.x1}]: ${bin.count} ${unit} (${bin.percentage.toFixed(1)}%)`}
+                      />
+                    </g>
                   );
                 })}
               </g>
@@ -508,27 +568,32 @@ export const HistogramChart: React.FC<HistogramChartProps> = ({
           )}
 
           {/* Mean Reference Line on Plot */}
-          {showReferenceGuide && meanXPosition !== null && (
-            <g className={styles.meanGuideGroup}>
-              <line
-                x1={meanXPosition}
-                y1={margin.top}
-                x2={meanXPosition}
-                y2={baselineY}
-                className={styles.meanLine}
-              />
-              <text
-                x={meanXPosition + 4}
-                y={margin.top + 10}
-                className={styles.meanLabel}
-              >
-                Mean: {stats.mean}
-              </text>
-            </g>
-          )}
+          {showReferenceGuide && meanXPosition !== null && (() => {
+            const isMeanNearRightEdge = meanXPosition > margin.left + innerWidth * 0.8;
+            return (
+              <g className={styles.meanGuideGroup}>
+                <line
+                  x1={meanXPosition}
+                  y1={margin.top}
+                  x2={meanXPosition}
+                  y2={baselineY}
+                  className={styles.meanLine}
+                />
+                <text
+                  x={isMeanNearRightEdge ? meanXPosition - 4 : meanXPosition + 4}
+                  y={margin.top + 10}
+                  textAnchor={isMeanNearRightEdge ? 'end' : 'start'}
+                  className={styles.meanLabel}
+                >
+                  Mean: {stats.mean}
+                </text>
+              </g>
+            );
+          })()}
 
-          {/* X Axis Bin Range Labels */}
+          {/* X Axis Bin Range Labels (decimated on compact viewports) */}
           {templateBins.map((bin, idx) => {
+            if (!visibleBinIndices.has(idx)) return null;
             const barX = margin.left + idx * binSlotWidth + binSlotWidth / 2;
             return (
               <text
@@ -545,7 +610,7 @@ export const HistogramChart: React.FC<HistogramChartProps> = ({
       </div>
 
       {/* Comparative Cohort Legend */}
-      {hasMultipleSeries && (
+      {showLegend && hasMultipleSeries && (
         <ChartLegend
           items={processedSeries.map((s) => ({
             id: s.name,
@@ -568,6 +633,7 @@ export const HistogramChart: React.FC<HistogramChartProps> = ({
         visible={tooltipState.visible}
         x={tooltipState.x}
         y={tooltipState.y}
+        placement={tooltipState.placement}
         title={tooltipState.title}
         seriesName={tooltipState.seriesName}
         value={tooltipState.value}

@@ -15,6 +15,10 @@
   margin-bottom: var(--space-10);
 }
 
+.sectionTopPad {
+  padding-top: var(--space-10);
+}
+
 .section:last-child {
   margin-bottom: var(--space-6);
 }
@@ -28,6 +32,7 @@
 .subsection {
   position: relative;
   /* Spatial indentation & vertical breathing room */
+  padding-top: var(--space-4);
   margin-top: var(--space-6);
   margin-bottom: var(--space-6);
 }
@@ -45,6 +50,10 @@
 }
 
 @media (max-width: 1023px) {
+  .sectionTopPad {
+    padding-top: var(--space-8);
+  }
+
   .subsection h3 {
     font-size: clamp(1.05rem, 3.5vw, 1.2rem);
   }

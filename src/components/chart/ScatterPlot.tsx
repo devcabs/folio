@@ -11,7 +11,8 @@ import {
   computeCohortMeans,
   generateCubicBezierPath,
 } from '../../utils/chartMath';
-import { useChartPlotArea } from '../../utils/chartDimensions';
+import { computeDynamicLeftMargin, useChartPlotArea } from '../../utils/chartDimensions';
+import { useChartContainerWidth } from '../../hooks/useChartContainerWidth';
 import { useChartTooltip } from '../../hooks/useChartTooltip';
 import { ChartTooltip } from './ChartTooltip';
 import { ChartLegend, CHART_DIMMED_OPACITY, type ChartLegendItem } from './ChartLegend';
@@ -34,6 +35,7 @@ export interface ScatterPlotProps {
   startAtZeroX?: boolean;
   showCorrelationChip?: boolean;
   showReferenceGuide?: boolean;
+  showLegend?: boolean;
   onSelectPoint?: (point: ScatterPoint) => void;
 }
 
@@ -53,30 +55,30 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
   startAtZeroX,
   showCorrelationChip = false,
   showReferenceGuide = false,
+  showLegend = true,
   onSelectPoint,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Canonical Tooltip Hook
-  const { tooltipState, showTooltip, hideTooltip } = useChartTooltip();
+  const svgRef = useRef<SVGSVGElement>(null);
+  const { width: containerWidth, isCompact } = useChartContainerWidth({ ref: containerRef });
 
   // Cohort Legend hover state for 2-way dimming
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
 
-  // Canonical Plot Area dimensions (Universal 800x360)
+  // Canonical Tooltip Hook
   const {
-    width,
-    height,
-    margin,
-    innerWidth,
-    innerHeight,
-    baselineY,
-  } = useChartPlotArea({
-    margins: {
-      bottom: xLabel ? 56 : 48,
-      left: yLabel ? 64 : 56,
-    },
+    tooltipState,
+    showTooltip,
+    hideTooltip,
+    handleMarkPointerEnter,
+    handleMarkPointerLeave,
+    handleMarkClick,
+    projectSvgToContainer,
+  } = useChartTooltip({
+    containerRef,
+    containerWidth,
+    onDismiss: () => setHoveredPointIndex(null),
   });
 
   // Base marker radius mapping
@@ -98,6 +100,68 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
       (p) => typeof p.x === 'number' && Number.isFinite(p.x) && typeof p.y === 'number' && Number.isFinite(p.y)
     );
   }, [points]);
+
+  // Compute data domains before plot area so dynamicLeftMargin adapts to wide Y-ticks
+  const { domainX, domainY, xDataRange } = useMemo(() => {
+    const xVals = validPoints.map((p) => p.x);
+    const yVals = validPoints.map((p) => p.y);
+
+    const [xMinRaw, xMaxRaw] = computeDataExtent(xVals);
+    const [yMinRaw, yMaxRaw] = computeDataExtent(yVals);
+
+    const shouldStartAtZeroX = startAtZeroX !== undefined ? startAtZeroX : !autoScaleX;
+    const shouldStartAtZeroY = startAtZero !== undefined ? startAtZero : !autoScaleY;
+
+    let dx: [number, number];
+    if (!shouldStartAtZeroX) {
+      const span = xMaxRaw - xMinRaw || 10;
+      dx = [Math.max(0, xMinRaw - span * 0.1), xMaxRaw + span * 0.1];
+    } else {
+      dx = [0, xMaxRaw > 0 ? xMaxRaw * 1.1 : 100];
+    }
+
+    let dy: [number, number];
+    if (!shouldStartAtZeroY) {
+      const span = yMaxRaw - yMinRaw || 10;
+      dy = [Math.max(0, yMinRaw - span * 0.1), yMaxRaw + span * 0.1];
+    } else {
+      dy = [0, yMaxRaw > 0 ? yMaxRaw * 1.15 : 100];
+    }
+
+    return { domainX: dx, domainY: dy, xDataRange: [xMinRaw, xMaxRaw] as [number, number] };
+  }, [validPoints, autoScaleX, autoScaleY, startAtZero, startAtZeroX]);
+
+  const estimatedYTickLabels = useMemo(() => {
+    return createLinearScale(domainY, [100, 0], true)
+      .ticks(5)
+      .map((t) => t.toLocaleString());
+  }, [domainY]);
+
+  const dynamicLeftMargin = useMemo(() => {
+    return computeDynamicLeftMargin({
+      tickLabels: estimatedYTickLabels,
+      hasYLabel: Boolean(yLabel),
+      isCompact,
+      containerWidth,
+    });
+  }, [estimatedYTickLabels, yLabel, isCompact, containerWidth]);
+
+  // Canonical Plot Area dimensions (responsive to containerWidth)
+  const {
+    width,
+    height,
+    margin,
+    innerWidth,
+    innerHeight,
+    baselineY,
+  } = useChartPlotArea({
+    width: containerWidth,
+    isCompact,
+    dynamicLeftMargin,
+    margins: {
+      bottom: xLabel ? (isCompact ? 46 : 56) : (isCompact ? 36 : 48),
+    },
+  });
 
   // Groups and colors
   const { distinctGroups, groupColorMap, legendItems } = useMemo(() => {
@@ -136,50 +200,18 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 
   const activeHoveredGroup = hoveredGroupIndex !== null ? distinctGroups[hoveredGroupIndex] : null;
 
-  // Extents & Continuous Scales
-  const { xScale, yScale, xTicks, yTicks, xDataRange } = useMemo(() => {
-    const xVals = validPoints.map((p) => p.x);
-    const yVals = validPoints.map((p) => p.y);
-
-    const [xMinRaw, xMaxRaw] = computeDataExtent(xVals);
-    const [yMinRaw, yMaxRaw] = computeDataExtent(yVals);
-
-    const shouldStartAtZeroX = startAtZeroX !== undefined ? startAtZeroX : !autoScaleX;
-    const shouldStartAtZeroY = startAtZero !== undefined ? startAtZero : !autoScaleY;
-
-    let domainX: [number, number];
-    if (!shouldStartAtZeroX) {
-      const span = xMaxRaw - xMinRaw || 10;
-      const min = Math.max(0, xMinRaw - span * 0.1);
-      const max = xMaxRaw + span * 0.1;
-      domainX = [min, max];
-    } else {
-      const max = xMaxRaw > 0 ? xMaxRaw * 1.1 : 100;
-      domainX = [0, max];
-    }
-
-    let domainY: [number, number];
-    if (!shouldStartAtZeroY) {
-      const span = yMaxRaw - yMinRaw || 10;
-      const min = Math.max(0, yMinRaw - span * 0.1);
-      const max = yMaxRaw + span * 0.1;
-      domainY = [min, max];
-    } else {
-      const max = yMaxRaw > 0 ? yMaxRaw * 1.15 : 100;
-      domainY = [0, max];
-    }
-
+  // Continuous Scales & Ticks
+  const { xScale, yScale, xTicks, yTicks } = useMemo(() => {
     const xs = createLinearScale(domainX, [margin.left, margin.left + innerWidth], true);
     const ys = createLinearScale(domainY, [baselineY, margin.top], true);
 
     return {
       xScale: xs,
       yScale: ys,
-      xTicks: xs.ticks(6),
+      xTicks: xs.ticks(isCompact ? 4 : 6),
       yTicks: ys.ticks(5),
-      xDataRange: [xMinRaw, xMaxRaw] as [number, number],
     };
-  }, [validPoints, innerWidth, baselineY, margin.left, margin.top, autoScaleX, autoScaleY, startAtZero, startAtZeroX]);
+  }, [domainX, domainY, innerWidth, baselineY, margin.left, margin.top, isCompact]);
 
   // Linear Regression & Correlation
   const regression = useMemo(() => {
@@ -267,20 +299,23 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
     const ptColor = (point.group && groupColorMap[point.group]) || accentColor;
 
     setHoveredPointIndex(idx);
-    showTooltip({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-      title: point.label || 'Data Point',
-      seriesName: point.group || xLabel || 'Coordinate',
-      value: `X: ${point.x.toLocaleString()}  ·  Y: ${point.y.toLocaleString()}`,
-      color: ptColor,
-      unit,
-    });
+    handleMarkPointerEnter(
+      e,
+      {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        title: point.label || 'Data Point',
+        seriesName: point.group || xLabel || 'Coordinate',
+        value: `X: ${point.x.toLocaleString()}  ·  Y: ${point.y.toLocaleString()}`,
+        color: ptColor,
+        unit,
+      },
+      idx
+    );
   };
 
-  const handlePointerLeave = () => {
-    setHoveredPointIndex(null);
-    hideTooltip();
+  const handlePointerLeave = (e?: React.PointerEvent<SVGCircleElement>) => {
+    handleMarkPointerLeave(e);
   };
 
   return (
@@ -298,6 +333,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 
       <div className={styles.svgWrapper}>
         <svg
+          ref={svgRef}
           viewBox={`0 0 ${width} ${height}`}
           className={styles.chartSvg}
           role="img"
@@ -479,42 +515,63 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
             const currentR = isHovered ? 8 : baseRadius;
 
             return (
-              <circle
-                key={`point-${idx}-${pt.x}-${pt.y}`}
-                cx={cx}
-                cy={cy}
-                r={currentR}
-                fill={ptColor}
-                opacity={opacity}
-                className={styles.pointNode}
-                tabIndex={0}
-                onPointerEnter={(e) => handlePointerEnter(e, pt, idx)}
-                onPointerMove={(e) => handlePointerEnter(e, pt, idx)}
-                onPointerLeave={handlePointerLeave}
-                onClick={() => onSelectPoint?.(pt)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    onSelectPoint?.(pt);
-                  }
-                }}
-                onFocus={() => {
-                  setHoveredPointIndex(idx);
-                  showTooltip({
-                    x: cx,
-                    y: cy,
-                    title: pt.label || 'Data Point',
-                    seriesName: pt.group || xLabel || 'Coordinate',
-                    value: `X: ${pt.x.toLocaleString()}  ·  Y: ${pt.y.toLocaleString()}`,
-                    color: ptColor,
-                    unit,
-                  });
-                }}
-                onBlur={() => {
-                  setHoveredPointIndex(null);
-                  hideTooltip();
-                }}
-                aria-label={`${pt.label || 'Point'}: (${pt.x}, ${pt.y})`}
-              />
+              <g key={`point-${idx}-${pt.x}-${pt.y}`}>
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={currentR}
+                  fill={ptColor}
+                  opacity={opacity}
+                  className={styles.pointNode}
+                  style={{ pointerEvents: 'none' }}
+                />
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={20}
+                  fill="transparent"
+                  className={styles.hitTarget}
+                  tabIndex={0}
+                  onPointerEnter={(e) => handlePointerEnter(e, pt, idx)}
+                  onPointerMove={(e) => handlePointerEnter(e, pt, idx)}
+                  onPointerLeave={handlePointerLeave}
+                  onClick={() => {
+                    if (!handleMarkClick(idx)) {
+                      onSelectPoint?.(pt);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      onSelectPoint?.(pt);
+                    }
+                  }}
+                  onFocus={() => {
+                    const projected = projectSvgToContainer(
+                      svgRef.current,
+                      containerRef.current,
+                      cx,
+                      cy
+                    );
+                    setHoveredPointIndex(idx);
+                    showTooltip({
+                      x: projected.x,
+                      y: projected.y,
+                      title: pt.label || 'Data Point',
+                      seriesName: pt.group || xLabel || 'Coordinate',
+                      value: `X: ${pt.x.toLocaleString()}  ·  Y: ${pt.y.toLocaleString()}`,
+                      color: ptColor,
+                      unit,
+                    });
+                  }}
+                  onBlur={() => {
+                    if (!tooltipState.pinned) {
+                      setHoveredPointIndex(null);
+                      hideTooltip();
+                    }
+                  }}
+                  aria-label={`${pt.label || 'Point'}: (${pt.x}, ${pt.y})`}
+                />
+              </g>
             );
           })}
         </svg>
@@ -525,6 +582,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
         visible={tooltipState.visible}
         x={tooltipState.x}
         y={tooltipState.y}
+        placement={tooltipState.placement}
         title={tooltipState.title}
         seriesName={tooltipState.seriesName}
         value={tooltipState.value}
@@ -533,7 +591,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
       />
 
       {/* Interactive Legend (Multi-group cohort isolation) */}
-      {legendItems.length > 0 && (
+      {showLegend && legendItems.length > 0 && (
         <ChartLegend
           items={legendItems}
           activeIndex={hoveredGroupIndex}

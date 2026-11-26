@@ -21,7 +21,7 @@
   min-width: 0;
   border-radius: var(--radius-md);
   transition: box-shadow var(--duration-fast) var(--ease-out),
-              background-color var(--duration-fast) var(--ease-out);
+    background-color var(--duration-fast) var(--ease-out);
 }
 
 .textCardBody .textWrapper {
@@ -62,19 +62,25 @@
 }
 
 .quoteWrapper {
-  margin: var(--space-4) 0;
-  padding: var(--space-1) 0 var(--space-1) var(--space-3);
-  border-left: 3px solid var(--folio-primary);
+  margin: var(--space-6) 0;
+  padding: var(--space-6) 12%;
 }
 
 .quoteText {
   margin: 0;
   padding: 0;
   font-family: var(--font-display);
-  font-size: clamp(1.125rem, 2vw, 1.25rem);
+  font-size: clamp(1.75rem, 4.2vw, 3.25rem);
   font-style: italic;
-  line-height: var(--leading-snug);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   color: var(--folio-primary);
+}
+
+@media (max-width: 1023px) {
+  .quoteWrapper {
+    padding: var(--space-4) var(--space-6);
+  }
 }
 
 /* Photo Card Side-By-Side Layout (matching SourceGallery and ChartCard) */
@@ -94,7 +100,7 @@
   min-width: 0;
   border-radius: var(--radius-lg);
   transition: box-shadow var(--duration-fast) var(--ease-out),
-              background-color var(--duration-fast) var(--ease-out);
+    background-color var(--duration-fast) var(--ease-out);
 }
 
 .sideEditWrapper {
@@ -249,9 +255,9 @@
   cursor: pointer;
   outline: none;
   transition: background-color var(--duration-fast, 150ms) var(--ease-out),
-              border-color var(--duration-fast, 150ms) var(--ease-out),
-              color var(--duration-fast, 150ms) var(--ease-out),
-              transform var(--duration-fast, 150ms) var(--ease-out);
+    border-color var(--duration-fast, 150ms) var(--ease-out),
+    color var(--duration-fast, 150ms) var(--ease-out),
+    transform var(--duration-fast, 150ms) var(--ease-out);
 }
 
 .fallbackEditButton:hover {

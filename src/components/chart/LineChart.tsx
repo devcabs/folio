@@ -7,7 +7,12 @@ import {
   type Point2D,
 } from '../../utils/chartMath';
 import { resolveUniqueChartColors } from '../../utils/chartColors';
-import { useChartPlotArea } from '../../utils/chartDimensions';
+import {
+  computeDynamicLeftMargin,
+  getVisibleTickIndices,
+  useChartPlotArea,
+} from '../../utils/chartDimensions';
+import { useChartContainerWidth } from '../../hooks/useChartContainerWidth';
 import { useChartTooltip } from '../../hooks/useChartTooltip';
 import { ChartTooltip } from './ChartTooltip';
 import { ChartLegend, CHART_DIMMED_OPACITY } from './ChartLegend';
@@ -26,6 +31,7 @@ export interface LineChartProps {
   showValues?: boolean;
   xLabel?: string;
   yLabel?: string;
+  showLegend?: boolean;
   onSelectDataPoint?: (point: { category: string; seriesName: string; value: number | null }) => void;
 }
 
@@ -48,29 +54,28 @@ export const LineChart: React.FC<LineChartProps> = ({
   showValues = false,
   xLabel,
   yLabel,
+  showLegend = true,
   onSelectDataPoint,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Canonical Tooltip Hook
-  const { tooltipState, showTooltip, hideTooltip } = useChartTooltip();
+  const { width: containerWidth, isCompact } = useChartContainerWidth({ ref: containerRef });
 
   // Hover state for 2-way legend synchronization
   const [hoveredSeriesName, setHoveredSeriesName] = useState<string | null>(null);
   const [activeCrosshairX, setActiveCrosshairX] = useState<number | null>(null);
 
-  // Canonical Plot Area dimensions (Universal 800x360)
+  // Canonical Tooltip Hook
   const {
-    width,
-    height,
-    margin,
-    innerWidth,
-    innerHeight,
-    baselineY,
-  } = useChartPlotArea({
-    margins: {
-      bottom: xLabel ? 56 : 48,
-      left: yLabel ? 64 : 56,
+    tooltipState,
+    handleMarkPointerEnter,
+    handleMarkPointerLeave,
+    handleMarkClick,
+  } = useChartTooltip({
+    containerRef,
+    containerWidth,
+    onDismiss: () => {
+      setHoveredSeriesName(null);
+      setActiveCrosshairX(null);
     },
   });
 
@@ -131,6 +136,42 @@ export const LineChart: React.FC<LineChartProps> = ({
     };
   }, [series, accentColor, autoScaleY, startAtZero]);
 
+  const estimatedYTickLabels = useMemo(() => {
+    return createLinearScale([yDomainMin, yDomainMax], [100, 0], true)
+      .ticks(5)
+      .map((t) => t.toLocaleString());
+  }, [yDomainMin, yDomainMax]);
+
+  const dynamicLeftMargin = useMemo(() => {
+    return computeDynamicLeftMargin({
+      tickLabels: estimatedYTickLabels,
+      hasYLabel: Boolean(yLabel),
+      isCompact,
+      containerWidth,
+    });
+  }, [estimatedYTickLabels, yLabel, isCompact, containerWidth]);
+
+  // Canonical Plot Area dimensions (responsive to containerWidth)
+  const {
+    width,
+    height,
+    margin,
+    innerWidth,
+    innerHeight,
+    baselineY,
+  } = useChartPlotArea({
+    width: containerWidth,
+    isCompact,
+    dynamicLeftMargin,
+    margins: {
+      bottom: xLabel ? (isCompact ? 46 : 56) : (isCompact ? 36 : 48),
+    },
+  });
+
+  const visibleXIndices = useMemo(() => {
+    return new Set(getVisibleTickIndices(categories.length, innerWidth, isCompact ? 48 : 56));
+  }, [categories.length, innerWidth, isCompact]);
+
   // Scalers
   const numCats = Math.max(categories.length, 1);
   const xPositions = useMemo(() => {
@@ -174,24 +215,29 @@ export const LineChart: React.FC<LineChartProps> = ({
       setHoveredSeriesName(seriesName);
       setActiveCrosshairX(p.x);
 
-      showTooltip({
-        x: clientX,
-        y: clientY,
-        title: p.cat,
-        seriesName,
-        value: p.val,
-        unit,
-        color,
-      });
+      handleMarkPointerEnter(
+        e,
+        {
+          x: clientX,
+          y: clientY,
+          title: p.cat,
+          seriesName,
+          value: p.val,
+          unit,
+          color,
+        },
+        `${p.cat}::${seriesName}`
+      );
     },
-    [showTooltip, unit]
+    [handleMarkPointerEnter, unit]
   );
 
-  const handlePointerLeavePoint = useCallback(() => {
-    hideTooltip();
-    setHoveredSeriesName(null);
-    setActiveCrosshairX(null);
-  }, [hideTooltip]);
+  const handlePointerLeavePoint = useCallback(
+    (e?: React.PointerEvent<SVGElement>) => {
+      handleMarkPointerLeave(e);
+    },
+    [handleMarkPointerLeave]
+  );
 
   // Active legend item index
   const activeLegendIndex = useMemo(() => {
@@ -208,7 +254,7 @@ export const LineChart: React.FC<LineChartProps> = ({
           className={styles.chartSvg}
           role="img"
           aria-label="Line Chart Visualizer"
-          onMouseLeave={handlePointerLeavePoint}
+          onPointerLeave={handlePointerLeavePoint}
         >
           <defs>
             {seriesList.map((s, idx) => (
@@ -290,17 +336,19 @@ export const LineChart: React.FC<LineChartProps> = ({
             />
           )}
 
-          {/* X Axis ticks & labels */}
-          {categories.map((cat, idx) => (
-            <text
-              key={`x-label-${cat}`}
-              x={xPositions[idx]}
-              y={baselineY + 22}
-              className={styles.axisText}
-            >
-              {cat}
-            </text>
-          ))}
+          {/* X Axis ticks & labels (decimated on compact viewports) */}
+          {categories.map((cat, idx) =>
+            visibleXIndices.has(idx) ? (
+              <text
+                key={`x-label-${cat}`}
+                x={xPositions[idx]}
+                y={baselineY + 22}
+                className={styles.axisText}
+              >
+                {cat}
+              </text>
+            ) : null
+          )}
 
           {/* Series Lines, Area Fills, Dashed Gap Bridges, and Nodes */}
           {seriesList.map((s, sIdx) => {
@@ -402,41 +450,63 @@ export const LineChart: React.FC<LineChartProps> = ({
                   />
                 ))}
 
-                {/* Direct Point Value Labels */}
+                {/* Direct Point Value Labels (collision-thinned on compact viewports) */}
                 {showValues &&
-                  validPoints.map((p, pIdx) => (
-                    <text
-                      key={`val-label-${s.name}-${pIdx}`}
-                      x={p.x}
-                      y={p.y - (markerRadius + 5)}
-                      className={styles.pointValueLabel}
-                    >
-                      {p.val.toLocaleString()}
-                    </text>
-                  ))}
-
-                {/* Data Point Anchors / Nodes */}
-                {validPoints.map((p, pIdx) => (
-                  <circle
-                    key={`point-${s.name}-${pIdx}`}
-                    cx={p.x}
-                    cy={p.y}
-                    r={markerRadius}
-                    fill={s.resolvedColor}
-                    className={styles.dataNode}
-                    tabIndex={0}
-                    onPointerEnter={(e) => handlePointerEnterPoint(e, p, s.name, s.resolvedColor)}
-                    onPointerMove={(e) => handlePointerEnterPoint(e, p, s.name, s.resolvedColor)}
-                    onClick={() =>
-                      onSelectDataPoint?.({ category: p.cat, seriesName: s.name, value: p.val })
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        onSelectDataPoint?.({ category: p.cat, seriesName: s.name, value: p.val });
+                  (() => {
+                    let lastLabelX = -Infinity;
+                    const minLabelGap = isCompact ? 36 : 24;
+                    return validPoints.map((p, pIdx) => {
+                      if (Math.abs(p.x - lastLabelX) < minLabelGap) {
+                        return null;
                       }
-                    }}
-                    aria-label={`${p.cat}, ${s.name}: ${p.val.toLocaleString()}`}
-                  />
+                      lastLabelX = p.x;
+                      return (
+                        <text
+                          key={`val-label-${s.name}-${pIdx}`}
+                          x={p.x}
+                          y={p.y - (markerRadius + 5)}
+                          className={styles.pointValueLabel}
+                        >
+                          {p.val.toLocaleString()}
+                        </text>
+                      );
+                    });
+                  })()}
+
+                {/* Data Point Anchors / Nodes with >= 18px Touch Hit-Targets */}
+                {validPoints.map((p, pIdx) => (
+                  <g key={`point-${s.name}-${pIdx}`}>
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={markerRadius}
+                      fill={s.resolvedColor}
+                      className={styles.dataNode}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={20}
+                      fill="transparent"
+                      className={styles.hitTarget}
+                      tabIndex={0}
+                      onPointerEnter={(e) => handlePointerEnterPoint(e, p, s.name, s.resolvedColor)}
+                      onPointerMove={(e) => handlePointerEnterPoint(e, p, s.name, s.resolvedColor)}
+                      onPointerLeave={handlePointerLeavePoint}
+                      onClick={() => {
+                        if (!handleMarkClick(`${p.cat}::${s.name}`)) {
+                          onSelectDataPoint?.({ category: p.cat, seriesName: s.name, value: p.val });
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          onSelectDataPoint?.({ category: p.cat, seriesName: s.name, value: p.val });
+                        }
+                      }}
+                      aria-label={`${p.cat}, ${s.name}: ${p.val.toLocaleString()}`}
+                    />
+                  </g>
                 ))}
               </g>
             );
@@ -449,6 +519,7 @@ export const LineChart: React.FC<LineChartProps> = ({
         visible={tooltipState.visible}
         x={tooltipState.x}
         y={tooltipState.y}
+        placement={tooltipState.placement}
         title={tooltipState.title}
         seriesName={tooltipState.seriesName}
         value={tooltipState.value}
@@ -457,7 +528,7 @@ export const LineChart: React.FC<LineChartProps> = ({
       />
 
       {/* Canonical Multi-Series Legend with Two-Way Synchronization */}
-      {seriesList.length > 1 && (
+      {showLegend && seriesList.length > 1 && (
         <ChartLegend
           items={seriesList.map((s) => ({
             id: s.name,

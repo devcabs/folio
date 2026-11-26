@@ -558,4 +558,15 @@
    --video-play-size: 56px;
    --video-play-ring: var(--border-inverse-strong);
 
+   /* ==========================================================================
+     18. Mobile Chart Ergonomics & Responsive Tokens (Epic 16)
+     ========================================================================== */
+   --chart-pad-surface-mobile: var(--space-3);
+   --chart-axis-font-size-mobile: 11px;
+   --chart-value-font-size-mobile: 10px;
+   --chart-legend-pill-min-height: 32px;
+   --chart-donut-others-fill: var(--text-muted);
+   --chart-kebab-menu-min-width: 192px;
+   --chart-kebab-menu-z: 30;
+
 }

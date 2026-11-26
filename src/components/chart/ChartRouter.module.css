@@ -34,10 +34,3 @@
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
-
-/* Mobile Caption Purge */
-@media (max-width: 640px) {
-  .emptySubtitle {
-    display: none;
-  }
-}

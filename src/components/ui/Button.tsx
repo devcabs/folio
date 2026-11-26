@@ -30,6 +30,8 @@ export interface ButtonProps {
   'aria-expanded'?: boolean;
   'aria-haspopup'?: React.AriaAttributes['aria-haspopup'];
   'aria-controls'?: string;
+  'aria-checked'?: React.AriaAttributes['aria-checked'];
+  role?: React.AriaRole;
   title?: string;
   disabled?: boolean;
   target?: string;

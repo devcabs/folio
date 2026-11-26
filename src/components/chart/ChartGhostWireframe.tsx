@@ -25,7 +25,7 @@ export const ChartGhostWireframe: React.FC<ChartGhostWireframeProps> = memo(({ c
       <svg
         className={styles.wireframeSvg}
         viewBox="0 0 540 220"
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >

@@ -471,6 +471,17 @@ const DeveloperModeProviderComponent: React.FC<DeveloperModeProviderProps> = ({
   // 5. Modal Open & Close Handlers with Pre-Flight Lock Check
   const openPinModal = useCallback(
     (renewal = false, skipLockCheck = false) => {
+      if (!isDesktopDevice()) {
+        setIsDesktop(false);
+        setIsRenewal(false);
+        isLockBlockedRef.current = false;
+        setIsLockBlocked(false);
+        setActiveLockInfo(null);
+        isPinModalOpenRef.current = true;
+        setIsPinModalOpen(true);
+        return;
+      }
+
       setIsRenewal(renewal);
       const lockoutUntil = getLockoutUntil();
       if (lockoutUntil && Date.now() < lockoutUntil) {

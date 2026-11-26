@@ -38,7 +38,7 @@
 .svgWrapper {
   width: 100%;
   height: auto;
-  overflow: visible;
+  overflow: hidden;
   outline: none;
 }
 
@@ -46,7 +46,7 @@
   width: 100%;
   height: auto;
   display: block;
-  overflow: visible;
+  overflow: hidden;
   outline: none;
 }
 
@@ -117,21 +117,27 @@
 
 .pointNode:focus,
 .pointNode:focus-visible,
-.pointNode:active {
+.pointNode:active,
+.hitTarget:focus,
+.hitTarget:focus-visible,
+.hitTarget:active {
   outline: none !important;
 }
 
-/* Mobile Caption Purge */
+.hitTarget {
+  cursor: pointer;
+  outline: none !important;
+}
+
+/* Mobile Typography & Layout */
 @media (max-width: 640px) {
   .container {
     gap: var(--space-2);
   }
 
+  .axisText,
+  .axisTextY,
   .axisTitle {
-    display: none;
-  }
-
-  .axisText {
-    font-size: 8px;
+    font-size: var(--chart-axis-font-size-mobile, 11px);
   }
 }

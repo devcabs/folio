@@ -235,6 +235,7 @@ function buildInitialCanvasDraft(
       slug: '',
       summary: '',
       cardSize: 'md',
+      layout: 'list',
     };
   }
 
@@ -283,6 +284,7 @@ function buildInitialCanvasDraft(
     slug: initialData.slug || '',
     summary: initialData.summary || '',
     cardSize: initialData.cardSize ?? 'md',
+    layout: initialData.layout ?? 'list',
   };
 }
 
@@ -432,6 +434,7 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
         (canvasDraft.slug || '') !== (init.slug || '') ||
         (canvasDraft.summary || '') !== (init.summary || '') ||
         (canvasDraft.cardSize ?? 'md') !== (init.cardSize ?? 'md') ||
+        (canvasDraft.layout ?? 'list') !== (init.layout ?? 'list') ||
         canvasDraft.isNumbered !== init.isNumbered
       );
     } else {

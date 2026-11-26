@@ -93,8 +93,13 @@
 }
 
 @keyframes coverFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .contentSlot {
@@ -176,6 +181,7 @@
 }
 
 @media (min-width: 768px) {
+
   .cardLink,
   .mediaSlot {
     min-height: calc(var(--space-16) * 3.5);
@@ -238,14 +244,18 @@
   flex-direction: column;
   width: 100%;
   border-radius: var(--radius-md);
+  border: 1px solid var(--page-link-border);
   overflow: hidden;
   background: var(--color-surface);
   text-decoration: none;
   box-sizing: border-box;
-  transition: box-shadow var(--duration-fast) var(--ease-out);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .cardSm:hover {
+  border-color: var(--page-link-hover-border);
   box-shadow: var(--shadow-sm);
 }
 
@@ -257,6 +267,7 @@
 .cardSm:focus,
 .cardSm:focus-visible {
   outline: none;
+  border-color: var(--border-focus);
 }
 
 .cardSmThumb {
@@ -334,16 +345,19 @@
   flex-direction: column;
   width: 100%;
   border-radius: var(--radius-md);
+  border: 1px solid var(--page-link-border);
   overflow: hidden;
   background: var(--color-surface);
   text-decoration: none;
   box-sizing: border-box;
   transition:
+    border-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-out);
 }
 
 .cardLg:hover {
+  border-color: var(--page-link-hover-border);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
@@ -357,6 +371,7 @@
 .cardLg:focus,
 .cardLg:focus-visible {
   outline: none;
+  border-color: var(--border-focus);
 }
 
 .cardLgThumb {
@@ -408,4 +423,3 @@
   overflow: hidden;
   margin: 0;
 }
-

@@ -12,10 +12,12 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  min-height: var(--chart-legend-pill-min-height);
+  min-width: unset;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-full);
-  padding: 2px var(--space-2);
+  padding: var(--space-0-5) var(--space-2);
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: var(--text-caption);

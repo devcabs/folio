@@ -45,6 +45,12 @@
   outline: none;
 }
 
+@media (max-width: 400px) {
+  .chartTypeGroup {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .chartTypeOption {
   display: flex;
   flex-direction: column;

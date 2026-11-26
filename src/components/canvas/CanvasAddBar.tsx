@@ -16,10 +16,18 @@ export interface CanvasAddBarProps {
   onToggleActive?: (barId: string, isOpen: boolean) => void;
 }
 
-interface PaletteOptionItem {
+interface SubMenuOptionItem {
   type: CanvasElementType;
   label: string;
   IconComponent: React.ComponentType<{ className?: string }>;
+}
+
+interface PaletteOptionItem {
+  id: string;
+  label: string;
+  IconComponent: React.ComponentType<{ className?: string }>;
+  type?: CanvasElementType;
+  children?: readonly SubMenuOptionItem[];
 }
 
 // Crisp, bespoke SVG Icons adhering to Modern Academic Editorial
@@ -212,15 +220,43 @@ const FolderIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const VideoMenuIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <VideoIcon className={className} size={15} />
+);
+
 // Hoisted static palette options declared at module scope (Vercel Best Practice: rerender-no-inline-components)
 const PALETTE_OPTIONS: readonly PaletteOptionItem[] = [
-  { type: 'section', label: 'Section', IconComponent: SectionIcon },
-  { type: 'subsection', label: 'Subsection', IconComponent: SubsectionIcon },
-  { type: 'text', label: 'Text', IconComponent: TextIcon },
-  { type: 'photo', label: 'Media', IconComponent: PhotoIcon },
-  { type: 'pdf', label: 'Document', IconComponent: DocumentIcon },
-  { type: 'chart', label: 'Chart', IconComponent: ChartIcon },
-  { type: 'page-link', label: 'Page', IconComponent: PageIcon },
+  {
+    id: 'structure',
+    label: 'Structure',
+    IconComponent: SectionIcon,
+    children: [
+      { type: 'section', label: 'Section', IconComponent: SectionIcon },
+      { type: 'subsection', label: 'Subsection', IconComponent: SubsectionIcon },
+      { type: 'page-link', label: 'Page', IconComponent: PageIcon },
+    ],
+  },
+  { id: 'text', type: 'text', label: 'Text', IconComponent: TextIcon },
+  {
+    id: 'media',
+    label: 'Media',
+    IconComponent: PhotoIcon,
+    children: [
+      { type: 'photo', label: 'Single Photo', IconComponent: PhotoIcon },
+      { type: 'video', label: 'Single Video', IconComponent: VideoMenuIcon },
+      { type: 'gallery', label: 'Media Gallery', IconComponent: GalleryIcon },
+    ],
+  },
+  {
+    id: 'docs-data',
+    label: 'Docs & Data',
+    IconComponent: DocumentIcon,
+    children: [
+      { type: 'pdf', label: 'Single PDF', IconComponent: DocumentIcon },
+      { type: 'documents', label: 'PDF Folder', IconComponent: FolderIcon },
+      { type: 'chart', label: 'Chart', IconComponent: ChartIcon },
+    ],
+  },
 ];
 
 /**
@@ -232,8 +268,9 @@ const PALETTE_OPTIONS: readonly PaletteOptionItem[] = [
  * - Initial Starter Mode: Renders an inviting prompt box to add the first section
  * - Between-Element Mode: Gutter that dynamically reveals a subtle accent guide line
  *   and centered "+ Add Element" pill button on hover
- * - 5-Item Palette Popover: Section, Subsection, Text, Photo, Chart (parenthesis-free)
- * - Photo Sub-Menu: Single Photo vs Photo Gallery with viewport detection (dropup vs dropdown)
+ * - Compact 4-Item Palette Popover: Structure (Section, Subsection, Page), Text,
+ *   Media (Single Photo, Single Video, Media Gallery), Docs & Data (Single PDF, PDF Folder, Chart)
+ * - Viewport detection (dropup vs dropdown) and 350ms hover grace period
  * - Coordinated active state suppressing sibling hovers and duplicate menus
  * - Adheres strictly to Universal Zero Outline Policy and design tokens
  */
@@ -250,114 +287,71 @@ export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
   const { isDevMode, isDesktop } = useDeveloperMode();
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [isDropup, setIsDropup] = useState(false);
-  const [isPhotoSubMenuOpen, setIsPhotoSubMenuOpen] = useState(false);
-  const [isPhotoSubMenuPinned, setIsPhotoSubMenuPinned] = useState(false);
-  const [isDocumentSubMenuOpen, setIsDocumentSubMenuOpen] = useState(false);
-  const [isDocumentSubMenuPinned, setIsDocumentSubMenuPinned] = useState(false);
+  const [openSubMenuId, setOpenSubMenuId] = useState<string | null>(null);
+  const [pinnedSubMenuId, setPinnedSubMenuId] = useState<string | null>(null);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const photoLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const documentLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isMenuOpen = barId && activeBarId !== undefined ? activeBarId === barId : internalIsOpen;
   const isSuppressed = Boolean(activeBarId && barId && activeBarId !== barId);
 
-  const clearPhotoLeaveTimer = useCallback(() => {
-    if (photoLeaveTimerRef.current) {
-      clearTimeout(photoLeaveTimerRef.current);
-      photoLeaveTimerRef.current = null;
+  const clearLeaveTimer = useCallback(() => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
     }
   }, []);
 
-  const clearDocumentLeaveTimer = useCallback(() => {
-    if (documentLeaveTimerRef.current) {
-      clearTimeout(documentLeaveTimerRef.current);
-      documentLeaveTimerRef.current = null;
+  const handleGroupMouseEnter = useCallback((groupId: string) => {
+    clearLeaveTimer();
+    setOpenSubMenuId(groupId);
+    if (pinnedSubMenuId && pinnedSubMenuId !== groupId) {
+      setPinnedSubMenuId(null);
     }
-  }, []);
+  }, [clearLeaveTimer, pinnedSubMenuId]);
 
-  const handlePhotoMouseEnter = useCallback(() => {
-    clearPhotoLeaveTimer();
-    setIsPhotoSubMenuOpen(true);
-    if (!isDocumentSubMenuPinned) {
-      clearDocumentLeaveTimer();
-      setIsDocumentSubMenuOpen(false);
-    }
-  }, [clearPhotoLeaveTimer, isDocumentSubMenuPinned, clearDocumentLeaveTimer]);
-
-  const handlePhotoMouseLeave = useCallback(() => {
-    clearPhotoLeaveTimer();
-    if (!isPhotoSubMenuPinned) {
+  const handleGroupMouseLeave = useCallback((groupId: string) => {
+    clearLeaveTimer();
+    if (pinnedSubMenuId !== groupId) {
       // 350ms grace period allowing diagonal cursor travel into dropdown or dropup without snapping shut
-      photoLeaveTimerRef.current = setTimeout(() => {
-        setIsPhotoSubMenuOpen(false);
+      leaveTimerRef.current = setTimeout(() => {
+        setOpenSubMenuId((prev) => (prev === groupId ? null : prev));
       }, 350);
     }
-  }, [clearPhotoLeaveTimer, isPhotoSubMenuPinned]);
+  }, [clearLeaveTimer, pinnedSubMenuId]);
 
-  const handlePhotoClick = useCallback((e: React.MouseEvent) => {
+  const handleGroupClick = useCallback((e: React.MouseEvent, groupId: string) => {
     e.stopPropagation();
-    clearPhotoLeaveTimer();
-    setIsPhotoSubMenuPinned(prev => !prev);
-    setIsPhotoSubMenuOpen(prev => !prev);
-  }, [clearPhotoLeaveTimer]);
+    clearLeaveTimer();
+    const isCurrentlyPinned = pinnedSubMenuId === groupId;
+    setPinnedSubMenuId(isCurrentlyPinned ? null : groupId);
+    setOpenSubMenuId(isCurrentlyPinned ? null : groupId);
+  }, [clearLeaveTimer, pinnedSubMenuId]);
 
-  const handleDocumentMouseEnter = useCallback(() => {
-    clearDocumentLeaveTimer();
-    setIsDocumentSubMenuOpen(true);
-    if (!isPhotoSubMenuPinned) {
-      clearPhotoLeaveTimer();
-      setIsPhotoSubMenuOpen(false);
+  const handleDirectOptionMouseEnter = useCallback(() => {
+    if (!pinnedSubMenuId) {
+      clearLeaveTimer();
+      setOpenSubMenuId(null);
     }
-  }, [clearDocumentLeaveTimer, isPhotoSubMenuPinned, clearPhotoLeaveTimer]);
-
-  const handleDocumentMouseLeave = useCallback(() => {
-    clearDocumentLeaveTimer();
-    if (!isDocumentSubMenuPinned) {
-      documentLeaveTimerRef.current = setTimeout(() => {
-        setIsDocumentSubMenuOpen(false);
-      }, 350);
-    }
-  }, [clearDocumentLeaveTimer, isDocumentSubMenuPinned]);
-
-  const handleDocumentClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    clearDocumentLeaveTimer();
-    setIsDocumentSubMenuPinned(prev => !prev);
-    setIsDocumentSubMenuOpen(prev => !prev);
-  }, [clearDocumentLeaveTimer]);
-
-  const handleOtherOptionMouseEnter = useCallback(() => {
-    if (!isPhotoSubMenuPinned) {
-      clearPhotoLeaveTimer();
-      setIsPhotoSubMenuOpen(false);
-    }
-    if (!isDocumentSubMenuPinned) {
-      clearDocumentLeaveTimer();
-      setIsDocumentSubMenuOpen(false);
-    }
-  }, [isPhotoSubMenuPinned, clearPhotoLeaveTimer, isDocumentSubMenuPinned, clearDocumentLeaveTimer]);
+  }, [pinnedSubMenuId, clearLeaveTimer]);
 
   const closeMenu = useCallback(() => {
-    clearPhotoLeaveTimer();
-    clearDocumentLeaveTimer();
+    clearLeaveTimer();
     setInternalIsOpen(false);
-    setIsPhotoSubMenuOpen(false);
-    setIsPhotoSubMenuPinned(false);
-    setIsDocumentSubMenuOpen(false);
-    setIsDocumentSubMenuPinned(false);
+    setOpenSubMenuId(null);
+    setPinnedSubMenuId(null);
     if (barId && onToggleActive) {
       onToggleActive(barId, false);
     }
-  }, [barId, onToggleActive, clearPhotoLeaveTimer, clearDocumentLeaveTimer]);
+  }, [barId, onToggleActive, clearLeaveTimer]);
 
   const toggleMenu = useCallback(() => {
     if (isMenuOpen) {
       closeMenu();
     } else {
-      clearPhotoLeaveTimer();
-      clearDocumentLeaveTimer();
+      clearLeaveTimer();
       // Viewport proximity calculation (dropup vs dropdown)
       const rect =
         typeof buttonRef.current?.getBoundingClientRect === 'function'
@@ -366,22 +360,19 @@ export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
       const spaceBelow = rect ? window.innerHeight - rect.bottom : 300;
       setIsDropup(spaceBelow < 280);
       setInternalIsOpen(true);
-      setIsPhotoSubMenuOpen(false);
-      setIsPhotoSubMenuPinned(false);
-      setIsDocumentSubMenuOpen(false);
-      setIsDocumentSubMenuPinned(false);
+      setOpenSubMenuId(null);
+      setPinnedSubMenuId(null);
       if (barId && onToggleActive) {
         onToggleActive(barId, true);
       }
     }
-  }, [isMenuOpen, closeMenu, barId, onToggleActive, clearPhotoLeaveTimer, clearDocumentLeaveTimer]);
+  }, [isMenuOpen, closeMenu, barId, onToggleActive, clearLeaveTimer]);
 
   useEffect(() => {
     return () => {
-      clearPhotoLeaveTimer();
-      clearDocumentLeaveTimer();
+      clearLeaveTimer();
     };
-  }, [clearPhotoLeaveTimer, clearDocumentLeaveTimer]);
+  }, [clearLeaveTimer]);
 
   // Vercel Best Practice: client-event-listeners with clean teardown
   useEffect(() => {
@@ -450,21 +441,22 @@ export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
         >
           {PALETTE_OPTIONS.map((opt) => {
             const Icon = opt.IconComponent;
-            if (opt.type === 'photo') {
+            if (opt.children) {
+              const isSubMenuOpen = openSubMenuId === opt.id;
               return (
                 <div
-                  key={opt.type}
+                  key={opt.id}
                   className={styles.paletteOptionWrapper}
-                  onMouseEnter={handlePhotoMouseEnter}
-                  onMouseLeave={handlePhotoMouseLeave}
+                  onMouseEnter={() => handleGroupMouseEnter(opt.id)}
+                  onMouseLeave={() => handleGroupMouseLeave(opt.id)}
                 >
                   <button
                     role="menuitem"
                     type="button"
-                    className={`${styles.paletteOption} ${isPhotoSubMenuOpen ? styles.paletteOptionActive : ''}`.trim()}
-                    onClick={handlePhotoClick}
+                    className={`${styles.paletteOption} ${isSubMenuOpen ? styles.paletteOptionActive : ''}`.trim()}
+                    onClick={(e) => handleGroupClick(e, opt.id)}
                     aria-haspopup="menu"
-                    aria-expanded={isPhotoSubMenuOpen}
+                    aria-expanded={isSubMenuOpen}
                   >
                     <span className={styles.paletteIcon} aria-hidden="true">
                       <Icon />
@@ -475,123 +467,34 @@ export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
                     </span>
                   </button>
 
-                  {isPhotoSubMenuOpen && (
+                  {isSubMenuOpen && (
                     <div
                       role="menu"
-                      aria-label="Media Element Options"
+                      aria-label={`${opt.label} Element Options`}
                       className={`${styles.subMenu} ${isDropup ? styles.dropupSubMenu : ''}`}
-                      onMouseEnter={handlePhotoMouseEnter}
-                      onMouseLeave={handlePhotoMouseLeave}
+                      onMouseEnter={() => handleGroupMouseEnter(opt.id)}
+                      onMouseLeave={() => handleGroupMouseLeave(opt.id)}
                     >
-                      <button
-                        role="menuitem"
-                        type="button"
-                        className={styles.subOption}
-                        onClick={() => {
-                          onAddElement('photo');
-                          closeMenu();
-                        }}
-                      >
-                        <span className={styles.subOptionIcon} aria-hidden="true">
-                          <PhotoIcon />
-                        </span>
-                        <span>Single Photo</span>
-                      </button>
-                      <button
-                        role="menuitem"
-                        type="button"
-                        className={styles.subOption}
-                        onClick={() => {
-                          onAddElement('video');
-                          closeMenu();
-                        }}
-                      >
-                        <span className={styles.subOptionIcon} aria-hidden="true">
-                          <VideoIcon size={15} />
-                        </span>
-                        <span>Single Video</span>
-                      </button>
-                      <button
-                        role="menuitem"
-                        type="button"
-                        className={styles.subOption}
-                        onClick={() => {
-                          onAddElement('gallery');
-                          closeMenu();
-                        }}
-                      >
-                        <span className={styles.subOptionIcon} aria-hidden="true">
-                          <GalleryIcon />
-                        </span>
-                        <span>Media Gallery</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            if (opt.type === 'pdf') {
-              return (
-                <div
-                  key={opt.type}
-                  className={styles.paletteOptionWrapper}
-                  onMouseEnter={handleDocumentMouseEnter}
-                  onMouseLeave={handleDocumentMouseLeave}
-                >
-                  <button
-                    role="menuitem"
-                    type="button"
-                    className={`${styles.paletteOption} ${isDocumentSubMenuOpen ? styles.paletteOptionActive : ''}`.trim()}
-                    onClick={handleDocumentClick}
-                    aria-haspopup="menu"
-                    aria-expanded={isDocumentSubMenuOpen}
-                  >
-                    <span className={styles.paletteIcon} aria-hidden="true">
-                      <Icon />
-                    </span>
-                    <span>{opt.label}</span>
-                    <span className={styles.chevronIcon} aria-hidden="true">
-                      <ChevronRightIcon />
-                    </span>
-                  </button>
-
-                  {isDocumentSubMenuOpen && (
-                    <div
-                      role="menu"
-                      aria-label="Document Element Options"
-                      className={`${styles.subMenu} ${isDropup ? styles.dropupSubMenu : ''}`}
-                      onMouseEnter={handleDocumentMouseEnter}
-                      onMouseLeave={handleDocumentMouseLeave}
-                    >
-                      <button
-                        role="menuitem"
-                        type="button"
-                        className={styles.subOption}
-                        onClick={() => {
-                          onAddElement('pdf');
-                          closeMenu();
-                        }}
-                      >
-                        <span className={styles.subOptionIcon} aria-hidden="true">
-                          <DocumentIcon />
-                        </span>
-                        <span>Single PDF</span>
-                      </button>
-                      <button
-                        role="menuitem"
-                        type="button"
-                        className={styles.subOption}
-                        onClick={() => {
-                          onAddElement('documents');
-                          closeMenu();
-                        }}
-                      >
-                        <span className={styles.subOptionIcon} aria-hidden="true">
-                          <FolderIcon />
-                        </span>
-                        <span>PDF Folder</span>
-                      </button>
+                      {opt.children.map((sub) => {
+                        const SubIcon = sub.IconComponent;
+                        return (
+                          <button
+                            key={sub.type}
+                            role="menuitem"
+                            type="button"
+                            className={styles.subOption}
+                            onClick={() => {
+                              onAddElement(sub.type);
+                              closeMenu();
+                            }}
+                          >
+                            <span className={styles.subOptionIcon} aria-hidden="true">
+                              <SubIcon />
+                            </span>
+                            <span>{sub.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -600,13 +503,15 @@ export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
 
             return (
               <button
-                key={opt.type}
+                key={opt.id}
                 role="menuitem"
                 type="button"
                 className={styles.paletteOption}
-                onMouseEnter={handleOtherOptionMouseEnter}
+                onMouseEnter={handleDirectOptionMouseEnter}
                 onClick={() => {
-                  onAddElement(opt.type);
+                  if (opt.type) {
+                    onAddElement(opt.type);
+                  }
                   closeMenu();
                 }}
               >

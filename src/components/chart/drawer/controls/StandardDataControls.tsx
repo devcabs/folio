@@ -311,7 +311,7 @@ export const StandardDataControls: React.FC<StandardDataControlsProps> = ({
                 <DraggableRows<ColumnItem>
                   items={orderedCandidates}
                   keyExtractor={(col: ColumnItem) => col.index}
-                  showMicroArrows={false}
+                  showMicroArrows={true}
                   onReorder={(reordered: ColumnItem[]) => {
                     const newIncluded = reordered
                       .filter((c: ColumnItem) => activeIncluded.includes(c.index))

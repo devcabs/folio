@@ -59,5 +59,6 @@
 @media (max-width: 640px) {
   .previewContainer {
     min-height: auto;
+    padding: var(--chart-pad-surface-mobile);
   }
 }

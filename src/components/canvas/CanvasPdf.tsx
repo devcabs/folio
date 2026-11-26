@@ -1,5 +1,6 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import type { PdfElement } from '../../types/canvas';
+import type { SyncedDocumentItem } from '../../types/source';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import {
   buildDrivePreviewUrl,
@@ -9,6 +10,7 @@ import {
 import { isAuthoringPlaceholder } from '../../utils/canvasDefaults';
 import { Button } from '../ui/Button';
 import { DocumentIcon } from '../ui/Icons';
+import { PdfPreviewModal } from '../source/PdfPreviewModal';
 import styles from './CanvasPdf.module.css';
 
 export interface CanvasPdfProps {
@@ -39,6 +41,8 @@ export const CanvasPdf: React.FC<CanvasPdfProps> = memo(({
 }) => {
   const { isDevMode: isDevContext, isDesktop } = useDeveloperMode();
   const isDevActive = isDevProp !== undefined ? isDevProp : Boolean(isDevContext && isDesktop);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const layout = element.layout;
 
   const driveFileId = useMemo(() => {
     return (
@@ -70,6 +74,23 @@ export const CanvasPdf: React.FC<CanvasPdfProps> = memo(({
   }, [element.caption, element.showCaption, isDevActive]);
 
   const isValidPdf = Boolean(driveFileId && previewUrl);
+
+  const previewItems = useMemo<SyncedDocumentItem[]>(() => {
+    if (!driveFileId || !previewUrl) return [];
+    return [
+      {
+        id: element.id,
+        pointId: element.pointId,
+        driveFileId,
+        originalFileName: displayTitle,
+        title: displayTitle,
+        previewUrl,
+        viewUrl,
+        orderIndex: 0,
+        caption: displayCaption || undefined,
+      },
+    ];
+  }, [driveFileId, previewUrl, viewUrl, element.id, element.pointId, displayTitle, displayCaption]);
 
   const renderCardContent = () => {
     if (!isValidPdf) {
@@ -111,13 +132,33 @@ export const CanvasPdf: React.FC<CanvasPdfProps> = memo(({
       );
     }
 
-    return (
-      <div className={`${styles.pdfCard} ${className || ''}`.trim()}>
-        <div className={styles.pdfHeader}>
+    if (layout === 'list') {
+      return (
+        <div
+          role="button"
+          tabIndex={0}
+          className={`${styles.pdfListRow} ${className || ''}`.trim()}
+          onClick={() => setIsPreviewOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsPreviewOpen(true);
+            }
+          }}
+          aria-label={`Preview ${displayTitle}`}
+        >
           <div className={styles.pdfTitleGroup}>
-            <DocumentIcon className={styles.pdfIcon} size={18} />
-            <p className={styles.pdfTitle}>{displayTitle}</p>
+            <span className={styles.pdfBadge} aria-hidden="true">
+              <DocumentIcon size={18} />
+            </span>
+            <div className={styles.pdfListMeta}>
+              <p className={styles.pdfTitle}>{displayTitle}</p>
+              {displayCaption ? (
+                <p className={styles.pdfListCaption}>{displayCaption}</p>
+              ) : null}
+            </div>
           </div>
+
           <Button
             as="a"
             variant="secondary"
@@ -125,15 +166,98 @@ export const CanvasPdf: React.FC<CanvasPdfProps> = memo(({
             href={viewUrl}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             aria-label={`Open PDF document in new tab: ${displayTitle}`}
           >
-            Open in New Tab ↗
+            Open ↗
           </Button>
+        </div>
+      );
+    }
+
+    if (layout === 'sm') {
+      return (
+        <div
+          role="button"
+          tabIndex={0}
+          className={`${styles.pdfCardSm} ${className || ''}`.trim()}
+          onClick={() => setIsPreviewOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsPreviewOpen(true);
+            }
+          }}
+          aria-label={`Preview ${displayTitle}`}
+        >
+          <div className={styles.pdfCardSmTop}>
+            <span className={styles.pdfBadge} aria-hidden="true">
+              <DocumentIcon size={18} />
+            </span>
+            <Button
+              as="a"
+              variant="secondary"
+              size="xs"
+              href={viewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`Open PDF document in new tab: ${displayTitle}`}
+            >
+              Open ↗
+            </Button>
+          </div>
+
+          <div className={styles.pdfCardSmBody}>
+            <p className={styles.pdfCardSmTitle}>{displayTitle}</p>
+            {displayCaption ? (
+              <p className={styles.pdfCardSmCaption}>{displayCaption}</p>
+            ) : null}
+          </div>
+
+          <span className={styles.pdfCardSmCue}>Preview PDF →</span>
+        </div>
+      );
+    }
+
+    const isFullHeight = layout === 'full';
+
+    return (
+      <div className={`${styles.pdfCard} ${className || ''}`.trim()}>
+        <div className={styles.pdfHeader}>
+          <div className={styles.pdfTitleGroup}>
+            <DocumentIcon className={styles.pdfIcon} size={18} />
+            <p className={styles.pdfTitle}>{displayTitle}</p>
+          </div>
+          <div className={styles.pdfHeaderActions}>
+            {isFullHeight && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="xs"
+                onClick={() => setIsPreviewOpen(true)}
+                aria-label={`Expand ${displayTitle} preview`}
+              >
+                Expand ⤢
+              </Button>
+            )}
+            <Button
+              as="a"
+              variant="secondary"
+              size="xs"
+              href={viewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open PDF document in new tab: ${displayTitle}`}
+            >
+              Open in New Tab ↗
+            </Button>
+          </div>
         </div>
 
         <div
-          className={styles.iframeFrame}
-          style={element.aspectRatio ? { aspectRatio: element.aspectRatio } : undefined}
+          className={isFullHeight ? styles.iframeFrameFull : styles.iframeFrame}
+          style={!isFullHeight && element.aspectRatio ? { aspectRatio: element.aspectRatio } : undefined}
         >
           <iframe
             src={previewUrl}
@@ -170,6 +294,16 @@ export const CanvasPdf: React.FC<CanvasPdfProps> = memo(({
           </Button>
         </div>
       ) : null}
+
+      {isPreviewOpen && previewItems.length > 0 && (
+        <PdfPreviewModal
+          isOpen={isPreviewOpen}
+          items={previewItems}
+          currentIndex={0}
+          onClose={() => setIsPreviewOpen(false)}
+          onNavigate={() => {}}
+        />
+      )}
     </div>
   );
 });

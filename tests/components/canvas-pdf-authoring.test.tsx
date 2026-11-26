@@ -139,8 +139,8 @@ describe('11.3 Single PDF Authoring & Modal Wiring', () => {
     stubButtonRect(addButtons[1]);
     fireEvent.click(addButtons[1]);
 
-    // Click "Document" in the palette, then "Single PDF" in its submenu
-    const docMenuItem = screen.getByRole('menuitem', { name: 'Document' });
+    // Click "Docs & Data" in the palette, then "Single PDF" in its submenu
+    const docMenuItem = screen.getByRole('menuitem', { name: 'Docs & Data' });
     fireEvent.click(docMenuItem);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Single PDF' }));
 
@@ -185,7 +185,7 @@ describe('11.3 Single PDF Authoring & Modal Wiring', () => {
     const addButtons = screen.getAllByRole('button', { name: /Add Element/i });
     stubButtonRect(addButtons[1]);
     fireEvent.click(addButtons[1]);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Document' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Docs & Data' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Single PDF' }));
 
     const urlInput = findById(document.body, 'canvas-pdf-url') as HTMLInputElement;

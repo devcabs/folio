@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import type { DocumentsElement } from '../../types/canvas';
+import type { DocumentsElement, DocumentsLayout } from '../../types/canvas';
 import type { SyncedDocumentItem } from '../../types/source';
 import { SourceDocuments } from '../source/SourceDocuments';
 import styles from './CanvasContainers.module.css';
@@ -11,6 +11,7 @@ export interface DocumentsElementUpdates {
   description?: string;
   lastVerified?: string;
   syncedDocuments?: SyncedDocumentItem[];
+  layout?: DocumentsLayout;
 }
 
 export interface CanvasDocumentsProps {
@@ -51,6 +52,7 @@ export const CanvasDocuments: React.FC<CanvasDocumentsProps> = memo(({
         description={element.description}
         lastVerified={element.lastVerified}
         syncedDocuments={element.syncedDocuments}
+        layout={element.layout}
         accentColor={accentColor}
         editTriggerId={element.id}
         onUpdateDocuments={onUpdateDocuments}

@@ -10,6 +10,7 @@ import {
   triggerPositiveAction,
 } from '../../utils/modalActions';
 import { IconButton } from './IconButton';
+import { Button } from './Button';
 import styles from './Drawer.module.css';
 
 export interface DrawerTabItem {
@@ -90,11 +91,18 @@ export const Drawer: React.FC<DrawerProps> = ({
   companionContent,
 }) => {
   const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [isMobileCompanionOpen, setIsMobileCompanionOpen] = useState<boolean>(false);
   const drawerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsMobileCompanionOpen(false);
+    }
+  }, [isOpen]);
 
   // Lock body scrolling when drawer is open
   useEffect(() => {
@@ -279,7 +287,26 @@ export const Drawer: React.FC<DrawerProps> = ({
         ) : null}
 
         {/* Scrollable Body */}
-        <div className={`${styles.body} ${bodyClassName || ''}`}>{children}</div>
+        <div className={`${styles.body} ${bodyClassName || ''}`}>
+          {companionContent && (
+            <div className={styles.mobileCompanionSection}>
+              <Button
+                variant="secondary"
+                size="xs"
+                type="button"
+                className={styles.mobileCompanionToggle}
+                aria-expanded={isMobileCompanionOpen}
+                onClick={() => setIsMobileCompanionOpen((prev) => !prev)}
+              >
+                {isMobileCompanionOpen ? 'Hide Preview' : 'Show Preview'}
+              </Button>
+              {isMobileCompanionOpen && (
+                <div className={styles.mobileCompanionContent}>{companionContent}</div>
+              )}
+            </div>
+          )}
+          {children}
+        </div>
 
         {/* Drawer Footer with Buttons Placeholder */}
         {hasFooter && (

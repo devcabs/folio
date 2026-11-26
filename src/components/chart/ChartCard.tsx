@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { ChartDataset, SheetChartConfig } from '../../types/chart';
 import type { NodeCode } from '../../types/node';
 import { ChartRouter } from './ChartRouter';
@@ -12,6 +12,8 @@ import {
 } from '../../utils/chartSanitizer';
 import { formatSheetModifiedTime } from '../../services/sheetsVerificationService';
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
+import { MoreVerticalIcon } from '../ui/Icons';
 import { Toast } from '../feedback/Toast';
 import { ChartTableModal } from './ChartTableModal';
 import styles from './ChartCard.module.css';
@@ -72,6 +74,9 @@ export const ChartCard: React.FC<ChartCardProps> = ({
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [isKebabOpen, setIsKebabOpen] = useState(false);
+  const [showLegend, setShowLegend] = useState(false);
+  const kebabRef = useRef<HTMLDivElement>(null);
   const [internalSyncing, setInternalSyncing] = useState(false);
   const isSyncing = isSyncingProp || status === 'syncing' || internalSyncing;
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -180,6 +185,30 @@ export const ChartCard: React.FC<ChartCardProps> = ({
 
   const [isEditHovered, setIsEditHovered] = useState(false);
 
+  useEffect(() => {
+    if (!isKebabOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsKebabOpen(false);
+      }
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (kebabRef.current && !kebabRef.current.contains(event.target as Node)) {
+        setIsKebabOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [isKebabOpen]);
+
   return (
     <>
       <div className={styles.cardOuterWrapper}>
@@ -201,6 +230,76 @@ export const ChartCard: React.FC<ChartCardProps> = ({
                 {subtitle}
               </p>
             )}
+
+            {hasData && (
+              <div ref={kebabRef} className={styles.kebabWrapper}>
+                <IconButton
+                  variant="ghost"
+                  size="sm"
+                  shape="circle"
+                  aria-label="Chart actions"
+                  aria-haspopup="menu"
+                  aria-expanded={isKebabOpen}
+                  aria-controls={`chart-kebab-menu-${chartId}`}
+                  onClick={() => setIsKebabOpen((prev) => !prev)}
+                  className={styles.kebabButton}
+                >
+                  <MoreVerticalIcon size={18} />
+                </IconButton>
+
+                {isKebabOpen && (
+                  <div
+                    id={`chart-kebab-menu-${chartId}`}
+                    role="menu"
+                    aria-label="Chart actions menu"
+                    className={styles.kebabMenu}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      role="menuitem"
+                      className={styles.kebabMenuItem}
+                      onClick={() => {
+                        setIsTableModalOpen(true);
+                        setIsKebabOpen(false);
+                      }}
+                    >
+                      View Table
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      role="menuitem"
+                      className={styles.kebabMenuItem}
+                      onClick={() => {
+                        handleDownloadCsv();
+                        setIsKebabOpen(false);
+                      }}
+                    >
+                      Download Data (CSV)
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      role="menuitemcheckbox"
+                      aria-checked={showLegend}
+                      className={`${styles.kebabMenuItem} ${styles.kebabMenuCheckboxItem}`}
+                      onClick={() => setShowLegend((prev) => !prev)}
+                    >
+                      <span>Show Legend</span>
+                      <span
+                        className={`${styles.kebabCheckIndicator} ${
+                          showLegend ? styles.kebabCheckIndicatorActive : ''
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {showLegend ? '✓' : ''}
+                      </span>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </header>
 
         {/* Content Body */}
@@ -209,6 +308,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({
             <ChartRouter
               dataset={dataset}
               accentColor={accentColor}
+              showLegend={showLegend}
             />
           ) : (
             <DataPendingCard

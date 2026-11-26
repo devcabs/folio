@@ -195,6 +195,7 @@ export const DocumentsElementSchema = z.object({
   description: z.string().optional(),
   lastVerified: z.string().optional(),
   syncedDocuments: z.array(z.record(z.string(), z.any())).optional(),
+  layout: z.enum(['list', 'sm', 'full']).optional(),
 }).passthrough();
 
 export const PdfElementSchema = z.object({
@@ -208,6 +209,7 @@ export const PdfElementSchema = z.object({
   caption: z.string().optional(),
   showCaption: z.boolean().optional(),
   aspectRatio: z.string().optional(),
+  layout: z.enum(['list', 'sm', 'full']).optional(),
 }).passthrough();
 
 export const VideoElementSchema = z.object({

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useChartPlotArea } from '../../utils/chartDimensions';
+import { useChartContainerWidth } from '../../hooks/useChartContainerWidth';
 import { useChartTooltip } from '../../hooks/useChartTooltip';
 import { resolveUniqueChartColors } from '../../utils/chartColors';
 import { ChartTooltip } from './ChartTooltip';
@@ -15,6 +16,7 @@ export interface DonutChartProps {
   groupOthers?: boolean;
   showValues?: boolean;
   seriesName?: string;
+  showLegend?: boolean;
   onSelectDataPoint?: (point: { category: string; value: number }) => void;
 }
 
@@ -27,29 +29,50 @@ export const DonutChart: React.FC<DonutChartProps> = ({
   donutVariant = 'donut',
   groupOthers = true,
   showValues = false,
+  showLegend = true,
   onSelectDataPoint,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { width: containerWidth, isCompact } = useChartContainerWidth({ ref: containerRef });
   const isPie = donutVariant === 'pie';
-
-  // Canonical Tooltip Hook
-  const { tooltipState, showTooltip, hideTooltip } = useChartTooltip();
 
   // Active slice index for two-way synchronization between legend and slices
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  // Canonical 800x360 Plot Area
-  const { width, height } = useChartPlotArea();
+  // Canonical Tooltip Hook
+  const {
+    tooltipState,
+    hideTooltip,
+    handleMarkPointerEnter,
+    handleMarkPointerLeave,
+    handleMarkClick,
+  } = useChartTooltip({
+    containerRef,
+    containerWidth,
+    onDismiss: () => setActiveIndex(null),
+  });
 
-  const cx = width / 2; // 400
-  const cy = height / 2; // 180
+  // Responsive Plot Area (square-ish coordinate frame on compact mobile, 800x360 on desktop)
+  const targetHeight = isCompact
+    ? Math.min(280, Math.max(220, containerWidth))
+    : undefined;
+  const { width, height } = useChartPlotArea({
+    width: isCompact ? containerWidth : undefined,
+    height: targetHeight,
+    isCompact,
+  });
 
-  // Geometry: Balanced Donut with 65% inner radius cutout
-  const outerRadius = 120;
-  const innerRadius = isPie ? 0 : 78; // 65% cutout for donut (78 / 120 = 0.65)
-  const ringRadius = (outerRadius + innerRadius) / 2; // 99 for donut
-  const strokeWidth = outerRadius - innerRadius; // 42 for donut
+  const cx = width / 2;
+  const cy = height / 2;
+
+  // Geometry: Balanced Donut with 65% inner radius cutout scaled to viewport
+  const minDim = Math.min(width, height);
+  const outerRadius = isCompact ? Math.min(100, Math.round(minDim * 0.36)) : 120;
+  const innerRadius = isPie ? 0 : Math.round(outerRadius * 0.65); // 65% cutout for donut
+  const ringRadius = (outerRadius + innerRadius) / 2;
+  const strokeWidth = outerRadius - innerRadius;
   const circumference = 2 * Math.PI * ringRadius;
+  const minLabelArcLength = isCompact ? 28 : MIN_LABEL_PIXEL_THRESHOLD;
 
   // Prepare categories & data (Long-tail "Others" Rollup & slice math)
   const { validTotal, segments } = useMemo(() => {
@@ -113,7 +136,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
 
       const percentage = Math.round(fraction * 100);
       const color = item.isOther
-        ? 'var(--bg-surface-muted)'
+        ? 'var(--chart-donut-others-fill)'
         : colors[nonOtherIdx++] || 'var(--folio-primary)';
 
       // Mid-angle for slice labels
@@ -168,22 +191,28 @@ export const DonutChart: React.FC<DonutChartProps> = ({
       if (!seg) return;
 
       setActiveIndex(idx);
-      showTooltip({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        title: seg.category,
-        seriesName: `${seg.percentage}%`,
-        value: seg.value,
-        color: seg.color,
-      });
+      handleMarkPointerEnter(
+        e,
+        {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+          title: seg.category,
+          seriesName: `${seg.percentage}%`,
+          value: seg.value,
+          color: seg.color,
+        },
+        idx
+      );
     },
-    [segments, showTooltip]
+    [segments, handleMarkPointerEnter]
   );
 
-  const handlePointerLeaveSlice = useCallback(() => {
-    setActiveIndex(null);
-    hideTooltip();
-  }, [hideTooltip]);
+  const handlePointerLeaveSlice = useCallback(
+    (e?: React.PointerEvent) => {
+      handleMarkPointerLeave(e);
+    },
+    [handleMarkPointerLeave]
+  );
 
   const activeSegment = activeIndex !== null ? segments[activeIndex] : null;
 
@@ -230,7 +259,11 @@ export const DonutChart: React.FC<DonutChartProps> = ({
                       onPointerEnter={(e) => handlePointerEnterSlice(e, idx)}
                       onPointerMove={(e) => handlePointerEnterSlice(e, idx)}
                       onPointerLeave={handlePointerLeaveSlice}
-                      onClick={() => onSelectDataPoint?.({ category: seg.category, value: seg.value })}
+                      onClick={() => {
+                        if (!handleMarkClick(idx)) {
+                          onSelectDataPoint?.({ category: seg.category, value: seg.value });
+                        }
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           onSelectDataPoint?.({ category: seg.category, value: seg.value });
@@ -252,7 +285,11 @@ export const DonutChart: React.FC<DonutChartProps> = ({
                     onPointerEnter={(e) => handlePointerEnterSlice(e, idx)}
                     onPointerMove={(e) => handlePointerEnterSlice(e, idx)}
                     onPointerLeave={handlePointerLeaveSlice}
-                    onClick={() => onSelectDataPoint?.({ category: seg.category, value: seg.value })}
+                    onClick={() => {
+                      if (!handleMarkClick(idx)) {
+                        onSelectDataPoint?.({ category: seg.category, value: seg.value });
+                      }
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         onSelectDataPoint?.({ category: seg.category, value: seg.value });
@@ -289,7 +326,11 @@ export const DonutChart: React.FC<DonutChartProps> = ({
                     onPointerEnter={(e) => handlePointerEnterSlice(e, idx)}
                     onPointerMove={(e) => handlePointerEnterSlice(e, idx)}
                     onPointerLeave={handlePointerLeaveSlice}
-                    onClick={() => onSelectDataPoint?.({ category: seg.category, value: seg.value })}
+                    onClick={() => {
+                      if (!handleMarkClick(idx)) {
+                        onSelectDataPoint?.({ category: seg.category, value: seg.value });
+                      }
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         onSelectDataPoint?.({ category: seg.category, value: seg.value });
@@ -306,7 +347,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
           {showValues && (
             <g className={styles.labelsGroup} pointerEvents="none">
               {segments.map((seg, idx) => {
-                if (seg.arcLength < MIN_LABEL_PIXEL_THRESHOLD) return null;
+                if (seg.arcLength < minLabelArcLength) return null;
                 const isDimmed = activeIndex !== null && activeIndex !== idx;
                 return (
                   <text
@@ -368,6 +409,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
         visible={tooltipState.visible}
         x={tooltipState.x}
         y={tooltipState.y}
+        placement={tooltipState.placement}
         title={tooltipState.title}
         seriesName={tooltipState.seriesName}
         value={tooltipState.value}
@@ -375,20 +417,22 @@ export const DonutChart: React.FC<DonutChartProps> = ({
       />
 
       {/* Canonical Interactive Multi-Slice Legend */}
-      <ChartLegend
-        items={segments.map((seg) => ({
-          id: seg.id,
-          name: `${seg.category} (${seg.percentage}%)`,
-          color: seg.color,
-        }))}
-        activeIndex={activeIndex}
-        onHover={(idx) => {
-          setActiveIndex(idx);
-          if (idx === null) {
-            hideTooltip();
-          }
-        }}
-      />
+      {showLegend && (
+        <ChartLegend
+          items={segments.map((seg) => ({
+            id: seg.id,
+            name: `${seg.category} (${seg.percentage}%)`,
+            color: seg.color,
+          }))}
+          activeIndex={activeIndex}
+          onHover={(idx) => {
+            setActiveIndex(idx);
+            if (idx === null) {
+              hideTooltip();
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

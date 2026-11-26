@@ -97,7 +97,7 @@ describe('13.13 CanvasAddBar Add Page & Canonical Page Metadata Modal', () => {
     },
   };
 
-  it('1. CanvasAddBar renders "Page" menuitem with PageIcon and calls onAddElement("page-link") on click', () => {
+  it('1. CanvasAddBar renders 4 compact top-level items and expands Structure with Section, Subsection, and Page', () => {
     vi.spyOn(developerModeHook, 'useDeveloperMode').mockReturnValue(
       createDevModeStub() as any
     );
@@ -107,6 +107,20 @@ describe('13.13 CanvasAddBar Add Page & Canonical Page Metadata Modal', () => {
     stubAddButtonsRect();
 
     fireEvent.click(screen.getByRole('button', { name: /add element/i }));
+
+    // Top-level palette has 4 compact items: Structure, Text, Media, Docs & Data
+    const topLevelItems = screen.getAllByRole('menuitem');
+    expect(topLevelItems).toHaveLength(4);
+    expect(screen.getByRole('menuitem', { name: 'Structure' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Text' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Media' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Docs & Data' })).toBeTruthy();
+
+    // Expand Structure submenu
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Structure' }));
+    expect(screen.getByRole('menuitem', { name: 'Section' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Subsection' })).toBeTruthy();
+
     const pageMenuItem = screen.getByRole('menuitem', { name: 'Page' });
     expect(pageMenuItem).toBeTruthy();
     expect(
@@ -338,6 +352,7 @@ describe('13.13 CanvasAddBar Add Page & Canonical Page Metadata Modal', () => {
     stubAddButtonsRect();
 
     fireEvent.click(screen.getAllByRole('button', { name: /add element/i })[1]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Structure' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Page' }));
 
     const titleInput = document.getElementById('canvas-page-title') as HTMLInputElement;

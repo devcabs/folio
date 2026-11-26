@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { SyncedDocumentItem } from '../../types/source';
+import type { DocumentsLayout } from '../../types/canvas';
 import type { DocumentsElementUpdates } from '../canvas/CanvasDocuments';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useDriveDocumentSync } from '../../hooks/useDriveDocumentSync';
-import { buildDriveViewUrl } from '../../utils/mediaUrl';
+import { buildDrivePreviewUrl, buildDriveViewUrl } from '../../utils/mediaUrl';
 import { formatDriveSyncError } from '../../utils/driveErrors';
 import { EmptyState } from '../feedback/EmptyState';
 import { Button } from '../ui/Button';
@@ -24,6 +25,7 @@ export interface SourceDocumentsProps {
   description?: string;
   lastVerified?: string;
   syncedDocuments?: SyncedDocumentItem[];
+  layout?: DocumentsLayout;
   accentColor?: string;
   className?: string;
   editTriggerId?: string;
@@ -51,6 +53,7 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
   title,
   description,
   syncedDocuments: propSyncedDocuments,
+  layout = 'list',
   accentColor,
   className = '',
   editTriggerId,
@@ -188,31 +191,135 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
           className={`${styles.documentsCardBody} ${isEditHovered ? styles.highlightedDocuments : ''}`.trim()}
         >
           {hasItems ? (
-            <div className={styles.documentList} role="list" aria-label={currentFolderTitle}>
-              {syncedDocuments.map((doc, index) => {
-                const displayDate = doc.date || doc.dateStamp;
-                const viewUrl = doc.viewUrl || buildDriveViewUrl(doc.driveFileId);
+            layout === 'full' ? (
+              <div className={styles.documentFullList} role="list" aria-label={currentFolderTitle}>
+                {syncedDocuments.map((doc, index) => {
+                  const displayDate = doc.date || doc.dateStamp;
+                  const viewUrl = doc.viewUrl || buildDriveViewUrl(doc.driveFileId);
+                  const previewUrl = doc.previewUrl || buildDrivePreviewUrl(doc.driveFileId);
 
-                return (
-                  <div
-                    key={doc.id}
-                    role="listitem"
-                    className={styles.documentRow}
-                    tabIndex={0}
-                    onClick={() => handleRowClick(index)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleRowClick(index);
-                      }
-                    }}
-                  >
-                    <div className={styles.rowLeft}>
-                      <span className={styles.pdfBadge} aria-hidden="true">
-                        <DocumentIcon size={18} />
-                      </span>
-                      <div className={styles.rowMeta}>
-                        <span className={styles.rowTitle}>{doc.title}</span>
+                  return (
+                    <div key={doc.id} role="listitem" className={styles.documentFullCard}>
+                      <div className={styles.documentFullHeader}>
+                        <div className={styles.rowLeft}>
+                          <span className={styles.pdfBadge} aria-hidden="true">
+                            <DocumentIcon size={18} />
+                          </span>
+                          <div className={styles.rowMeta}>
+                            <span className={styles.rowTitle}>{doc.title}</span>
+                            {(displayDate || doc.size) && (
+                              <div className={styles.rowSubMeta}>
+                                {displayDate && <span>{displayDate}</span>}
+                                {doc.size && <span>{doc.size}</span>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className={styles.rowActions}>
+                          {isDevActive && (
+                            <Button
+                              type="button"
+                              variant="admin"
+                              size="xs"
+                              onClick={() => setEditingDocument(doc)}
+                              aria-label={`Edit ${doc.title}`}
+                            >
+                              ✎ Edit
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="xs"
+                            onClick={() => handleRowClick(index)}
+                            aria-label={`Expand ${doc.title} preview`}
+                          >
+                            Expand ⤢
+                          </Button>
+                          <Button
+                            as="a"
+                            variant="secondary"
+                            size="xs"
+                            href={viewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Open ${doc.title} in Google Drive`}
+                          >
+                            Open ↗
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className={styles.documentFullFrame}>
+                        <iframe
+                          src={previewUrl}
+                          title={doc.title}
+                          className={styles.documentFullIframe}
+                          loading="lazy"
+                          allow="autoplay"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : layout === 'sm' ? (
+              <div className={styles.documentGrid} role="list" aria-label={currentFolderTitle}>
+                {syncedDocuments.map((doc, index) => {
+                  const displayDate = doc.date || doc.dateStamp;
+                  const viewUrl = doc.viewUrl || buildDriveViewUrl(doc.driveFileId);
+
+                  return (
+                    <div
+                      key={doc.id}
+                      role="listitem"
+                      className={styles.documentCardSm}
+                      tabIndex={0}
+                      onClick={() => handleRowClick(index)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleRowClick(index);
+                        }
+                      }}
+                    >
+                      <div className={styles.cardSmTop}>
+                        <span className={styles.pdfBadge} aria-hidden="true">
+                          <DocumentIcon size={18} />
+                        </span>
+                        <div className={styles.rowActions}>
+                          {isDevActive && (
+                            <Button
+                              type="button"
+                              variant="admin"
+                              size="xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingDocument(doc);
+                              }}
+                              aria-label={`Edit ${doc.title}`}
+                            >
+                              ✎ Edit
+                            </Button>
+                          )}
+                          <Button
+                            as="a"
+                            variant="secondary"
+                            size="xs"
+                            href={viewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Open ${doc.title} in Google Drive`}
+                          >
+                            Open ↗
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className={styles.cardSmBody}>
+                        <span className={styles.cardSmTitle}>{doc.title}</span>
                         {(displayDate || doc.size) && (
                           <div className={styles.rowSubMeta}>
                             {displayDate && <span>{displayDate}</span>}
@@ -220,40 +327,80 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
                           </div>
                         )}
                       </div>
-                    </div>
 
-                    <div className={styles.rowActions}>
-                      {isDevActive && (
-                        <Button
-                          type="button"
-                          variant="admin"
-                          size="xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingDocument(doc);
-                          }}
-                          aria-label={`Edit ${doc.title}`}
-                        >
-                          ✎ Edit
-                        </Button>
-                      )}
-                      <Button
-                        as="a"
-                        variant="secondary"
-                        size="xs"
-                        href={viewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Open ${doc.title} in Google Drive`}
-                      >
-                        Open ↗
-                      </Button>
+                      <span className={styles.cardSmCue}>Preview PDF →</span>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className={styles.documentList} role="list" aria-label={currentFolderTitle}>
+                {syncedDocuments.map((doc, index) => {
+                  const displayDate = doc.date || doc.dateStamp;
+                  const viewUrl = doc.viewUrl || buildDriveViewUrl(doc.driveFileId);
+
+                  return (
+                    <div
+                      key={doc.id}
+                      role="listitem"
+                      className={styles.documentRow}
+                      tabIndex={0}
+                      onClick={() => handleRowClick(index)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleRowClick(index);
+                        }
+                      }}
+                    >
+                      <div className={styles.rowLeft}>
+                        <span className={styles.pdfBadge} aria-hidden="true">
+                          <DocumentIcon size={18} />
+                        </span>
+                        <div className={styles.rowMeta}>
+                          <span className={styles.rowTitle}>{doc.title}</span>
+                          {(displayDate || doc.size) && (
+                            <div className={styles.rowSubMeta}>
+                              {displayDate && <span>{displayDate}</span>}
+                              {doc.size && <span>{doc.size}</span>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className={styles.rowActions}>
+                        {isDevActive && (
+                          <Button
+                            type="button"
+                            variant="admin"
+                            size="xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingDocument(doc);
+                            }}
+                            aria-label={`Edit ${doc.title}`}
+                          >
+                            ✎ Edit
+                          </Button>
+                        )}
+                        <Button
+                          as="a"
+                          variant="secondary"
+                          size="xs"
+                          href={viewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Open ${doc.title} in Google Drive`}
+                        >
+                          Open ↗
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
           ) : isSyncing ? (
             <div
               className={styles.skeletonList}

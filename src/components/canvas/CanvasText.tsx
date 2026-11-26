@@ -47,7 +47,7 @@ export const CanvasText: React.FC<CanvasTextProps> = memo(({
   const Component = isQuote ? 'blockquote' : 'p';
 
   const quoteStyle = isQuote && accentColor
-    ? ({ borderLeftColor: accentColor, color: accentColor } as React.CSSProperties)
+    ? ({ color: accentColor } as React.CSSProperties)
     : undefined;
 
   const textStyleClass = isQuote ? styles.quoteText : styles.content;

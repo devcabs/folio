@@ -4,6 +4,8 @@ import { Button } from '../ui/Button';
 import { FormField } from '../ui/FormField';
 import { Input } from '../ui/Input';
 import { InlineAlert } from '../ui/InlineAlert';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import type { DocumentsLayout } from '../../types/canvas';
 import { isValidDriveFolderUrl } from '../../utils/source';
 import {
   verifyDriveFolderUrl,
@@ -20,12 +22,21 @@ export interface LinkFolderModalProps {
   pointId: string;
   initialTitle?: string;
   initialUrl?: string;
+  showLayoutOption?: boolean;
+  initialLayout?: DocumentsLayout;
   onClose: () => void;
   onSuccess?: (
     updatedUrl: string,
-    updatedTitle: string
+    updatedTitle: string,
+    updatedLayout?: DocumentsLayout
   ) => Promise<{ ok: boolean; error?: string } | void> | void;
 }
+
+const DOCUMENTS_LAYOUT_OPTIONS = [
+  { value: 'list', label: 'List' },
+  { value: 'sm', label: 'Small' },
+  { value: 'full', label: 'Full Page' },
+] as const;
 
 /**
  * LinkFolderModal Component
@@ -45,6 +56,8 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
   pointId,
   initialTitle = '',
   initialUrl = '',
+  showLayoutOption = false,
+  initialLayout = 'list',
   onClose,
   onSuccess,
 }) => {
@@ -52,6 +65,7 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
 
   const [folderTitle, setFolderTitle] = useState(initialTitle);
   const [folderUrl, setFolderUrl] = useState(initialUrl);
+  const [layout, setLayout] = useState<DocumentsLayout>(initialLayout);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState<'idle' | 'verifying' | 'saving'>('idle');
   const [verificationResult, setVerificationResult] = useState<DriveVerificationResult | null>(null);
@@ -77,6 +91,7 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
         initialTitle === 'Attach Drive Folder';
       setFolderTitle(isUrlEmpty || isDefaultTitle ? '' : initialTitle);
       setFolderUrl(initialUrl);
+      setLayout(initialLayout);
       setIsProcessing(false);
       setProcessingStage('idle');
       setVerificationResult(null);
@@ -87,13 +102,17 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, initialTitle, initialUrl]);
+  }, [isOpen, initialTitle, initialUrl, initialLayout]);
 
   // Synchronous dirty state calculation for beforeunload reload protection
   const isFormDirty = useMemo(() => {
     if (!isOpen) return false;
-    return folderTitle.trim() !== initialTitle.trim() || folderUrl.trim() !== initialUrl.trim();
-  }, [isOpen, folderTitle, folderUrl, initialTitle, initialUrl]);
+    return (
+      folderTitle.trim() !== initialTitle.trim() ||
+      folderUrl.trim() !== initialUrl.trim() ||
+      (showLayoutOption && layout !== initialLayout)
+    );
+  }, [isOpen, folderTitle, folderUrl, initialTitle, initialUrl, showLayoutOption, layout, initialLayout]);
 
   // Prevent accidental reload or navigation when folder form has unsaved modifications
   useUnsavedChangesPrompt(isOpen && isFormDirty, `link-folder-${pointId}`);
@@ -166,7 +185,11 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
       const finalTitle =
         folderTitle.trim() || currentResult.folderTitle || 'Official Google Drive Folder';
 
-      const persistResult = await onSuccess?.(trimmedUrl, finalTitle);
+      const persistResult = await onSuccess?.(
+        trimmedUrl,
+        finalTitle,
+        showLayoutOption ? layout : undefined
+      );
       if (
         persistResult &&
         typeof persistResult === 'object' &&
@@ -191,6 +214,8 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
     verificationResult,
     folderTitle,
     pointId,
+    showLayoutOption,
+    layout,
     onSuccess,
     onClose,
   ]);
@@ -287,6 +312,20 @@ export const LinkFolderModal: React.FC<LinkFolderModalProps> = ({
             <InlineAlert variant="error">
               {errorMessage}
             </InlineAlert>
+          )}
+
+          {/* Display Layout Option (Documents Canvas Element) */}
+          {showLayoutOption && (
+            <FormField id="documents-layout-input" label="Display Layout" role="group">
+              <SegmentedControl
+                label="Display Layout"
+                aria-label="Display Layout"
+                options={DOCUMENTS_LAYOUT_OPTIONS}
+                value={layout}
+                onChange={(nextLayout) => setLayout(nextLayout)}
+                disabled={isProcessing}
+              />
+            </FormField>
           )}
 
           {/* Actions Footer */}
