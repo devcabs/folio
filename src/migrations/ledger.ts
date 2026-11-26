@@ -1342,6 +1342,45 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.3.6',
+    releaseDate: '2026-11-26',
+    title: 'Interchangeable Section/Subsection Modal & Documents Layout Alignment',
+    summary:
+      'Unifies Section and Subsection creation/editing inside a single heading modal with in-place type conversion, and aligns DocumentsElementSchema layout options ("list" | "sm") across source and edge contracts.',
+    breakingChanges: [
+      'No breaking API changes; DocumentsElementSchema.layout narrows to "list" | "sm" to match SourceDocuments UI capabilities.',
+    ],
+    codeActions: [],
+    contentChanges: [
+      {
+        id: 'interchangeable-section-subsection-0.3.6',
+        title: 'Interchangeable Section & Subsection Heading Modal',
+        required: false,
+        description:
+          'CanvasElementFields, CanvasAddModal, and UniversalEditModal now share a unified Heading Level (Section / Subsection) SegmentedControl, allowing editors to switch between Section and Subsection during creation or convert existing headings in place via DocumentCanvas without altering CanvasAddBar hover toolbar UX.',
+        affectedEntities: [
+          'CanvasElementFields',
+          'CanvasAddModal',
+          'UniversalEditModal',
+          'DocumentCanvas',
+          'CanvasElementFormData',
+        ],
+        migrationPrompt:
+          'No migration required; existing section and subsection AST elements remain fully compatible.',
+      },
+      {
+        id: 'content-version-watermark-0.3.6',
+        title: 'Advance contentVersion Watermark to 0.3.6',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.3.6 to acknowledge the unified Section/Subsection heading modal and Documents layout alignment, clearing pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.3.6"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

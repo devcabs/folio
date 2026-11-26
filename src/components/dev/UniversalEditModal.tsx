@@ -219,8 +219,16 @@ function buildInitialCanvasDraft(
   initialData: CanvasElementFormData | undefined,
   elementType: CanvasModalElementType | null
 ): CanvasElementFormData {
+  const defaultHeadingType =
+    elementType === 'subsection'
+      ? 'subsection'
+      : elementType === 'section'
+        ? 'section'
+        : undefined;
+
   if (!initialData) {
     return {
+      headingType: defaultHeadingType,
       title: '',
       isNumbered: true,
       content: '',
@@ -267,6 +275,7 @@ function buildInitialCanvasDraft(
   }
 
   return {
+    headingType: initialData.headingType ?? defaultHeadingType,
     title: initialData.title || '',
     isNumbered: initialData.isNumbered !== false,
     content: stripInstructionalPlaceholder(initialData.content),
@@ -424,6 +433,7 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
       const init = buildInitialCanvasDraft(initialData, elementType);
 
       return (
+        (canvasDraft.headingType ?? undefined) !== (init.headingType ?? undefined) ||
         (canvasDraft.title || '') !== (init.title || '') ||
         (canvasDraft.content || '') !== (init.content || '') ||
         (canvasDraft.src || '') !== (init.src || '') ||
@@ -753,11 +763,18 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
     onClose();
   };
 
+  const effectiveElementType = useMemo(() => {
+    if (elementType === 'section' || elementType === 'subsection') {
+      return canvasDraft.headingType ?? elementType;
+    }
+    return elementType;
+  }, [elementType, canvasDraft.headingType]);
+
   // Compute Modal Header Title
   const modalHeaderTitle = useMemo(() => {
     if (title) return title;
-    if (isCanvasDomain && elementType) {
-      const noun = getSubmitNoun(elementType);
+    if (isCanvasDomain && effectiveElementType) {
+      const noun = getSubmitNoun(effectiveElementType);
       return mode === 'add' ? `Add ${noun}` : `Edit ${noun}`;
     }
     if (isSectionItem) return 'Edit Section';
@@ -765,15 +782,15 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
     if (type === 'link') return 'Edit Link';
     if (type === 'file') return 'Edit Document';
     return 'Edit Text';
-  }, [title, isCanvasDomain, elementType, mode, isSectionItem, type]);
+  }, [title, isCanvasDomain, effectiveElementType, mode, isSectionItem, type]);
 
   // Compute Submit Button Label
   const submitButtonLabel = useMemo(() => {
     if (isCanvasDomain && mode === 'add') {
-      return `Add ${getSubmitNoun(elementType)}`;
+      return `Add ${getSubmitNoun(effectiveElementType)}`;
     }
     return 'Save Changes';
-  }, [isCanvasDomain, mode, elementType]);
+  }, [isCanvasDomain, mode, effectiveElementType]);
 
   const modalFooter = (
     <ModalActions

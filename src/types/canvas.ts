@@ -112,7 +112,7 @@ export interface VideoElement extends CanvasElementBase {
   showCaption?: boolean;
 }
 
-export type DocumentsLayout = 'list' | 'sm' | 'full';
+export type DocumentsLayout = 'list' | 'sm';
 
 export interface DocumentsElement extends CanvasElementBase {
   type: 'documents';
@@ -125,7 +125,7 @@ export interface DocumentsElement extends CanvasElementBase {
   description?: string;
   lastVerified?: string;
   syncedDocuments?: SyncedDocumentItem[];
-  /** Display layout variant: 'list' (default), 'sm' (2-column compact cards), or 'full' (full page height inline PDF) */
+  /** Display layout variant: 'list' (default) or 'sm' (2-column compact cards) */
   layout?: DocumentsLayout;
 }
 
@@ -263,6 +263,8 @@ export type CanvasModalElementType =
   | 'page-link';
 
 export interface CanvasElementFormData {
+  /** Selected heading level when adding/editing section or subsection */
+  headingType?: 'section' | 'subsection';
   /** For section, subsection, gallery, pdf, documents, or text title */
   title?: string;
   /** For section, subsection, gallery, or documents subtitle */

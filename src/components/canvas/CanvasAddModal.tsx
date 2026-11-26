@@ -14,6 +14,7 @@ import styles from './CanvasAddModal.module.css';
 export type AddModalElementType = CanvasElementType | 'gallery';
 
 export interface CanvasAddElementPayload {
+  headingType?: 'section' | 'subsection';
   title?: string;
   isNumbered?: boolean;
   content?: string;
@@ -84,7 +85,10 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
   // Reset drafts whenever modal opens or element type changes
   useEffect(() => {
     if (isOpen) {
-      setDraft(INITIAL_DRAFT);
+      setDraft({
+        ...INITIAL_DRAFT,
+        headingType: type === 'subsection' ? 'subsection' : type === 'section' ? 'section' : undefined,
+      });
 
       const timer = setTimeout(() => {
         initialFocusRef.current?.focus();
@@ -113,12 +117,17 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
 
   if (!isOpen || !type) return null;
 
+  const effectiveType: AddModalElementType =
+    type === 'section' || type === 'subsection'
+      ? (draft.headingType ?? type)
+      : type;
+
   // Validation rules: require each element to be filled out before enabling Add
   let canSubmit = false;
   let modalTitle = 'Add Element';
   let submitLabel = 'Add Element';
 
-  switch (type) {
+  switch (effectiveType) {
     case 'section':
       canSubmit = Boolean(draft.title?.trim());
       modalTitle = 'Add Section';
@@ -160,11 +169,15 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
     if (e) e.preventDefault();
     if (!canSubmit) return;
 
-    const resolvedVideo = type === 'video'
+    const resolvedVideo = effectiveType === 'video'
       ? resolveSingleVideoUrl(draft.videoUrl || draft.src || '')
       : null;
 
     const payload: CanvasAddElementPayload = {
+      headingType:
+        effectiveType === 'section' || effectiveType === 'subsection'
+          ? effectiveType
+          : undefined,
       title: (draft.title || '').trim(),
       isNumbered: draft.isNumbered !== false,
       content: (draft.content || '').trim(),
@@ -179,7 +192,7 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
       subtitle: (draft.subtitle || '').trim(),
     };
 
-    onConfirmAdd(type, payload, targetSectionId, targetIndex, targetSubsectionId);
+    onConfirmAdd(effectiveType, payload, targetSectionId, targetIndex, targetSubsectionId);
     showToast('Element added to canvas.', 'success');
     onClose();
   };

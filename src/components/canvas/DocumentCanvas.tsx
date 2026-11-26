@@ -583,7 +583,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         pointId: leaf.pointId || leaf.id,
         initialTitle: leaf.title || '',
         initialUrl: leaf.driveUrl || '',
-        initialLayout: leaf.layout ?? 'list',
+        initialLayout: leaf.layout === 'sm' ? 'sm' : 'list',
       });
       return;
     }
@@ -660,7 +660,12 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     targetIndex?: number,
     _targetSubsectionId?: string
   ) => {
-    if (type === 'section') {
+    const resolvedType =
+      type === 'section' || type === 'subsection'
+        ? (payload.headingType ?? type)
+        : type;
+
+    if (resolvedType === 'section') {
       const secId = generateCanvasId('section');
       const titlePointId = `node.${nodeId}.section.${secId}.title`;
       const isNumbered = payload.isNumbered !== false;
@@ -676,7 +681,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       return;
     }
 
-    if (type === 'subsection') {
+    if (resolvedType === 'subsection') {
       const subId = generateCanvasId('subsection');
       const titlePointId = `node.${nodeId}.subsection.${subId}.title`;
       const newSub: SubsectionElement = {
@@ -882,15 +887,20 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
     }
 
     // mode === 'edit': Canvas AST is the sole authority
-    if (elementType === 'section' && itemId) {
-      updateItem<SectionElement>(itemId, {
-        title: data.title?.trim(),
-        isNumbered: data.isNumbered !== false,
-      });
-    } else if (elementType === 'subsection' && itemId) {
-      updateItem<SubsectionElement>(itemId, {
-        title: data.title?.trim(),
-      });
+    if ((elementType === 'section' || elementType === 'subsection') && itemId) {
+      const targetHeadingType = data.headingType ?? elementType;
+      if (targetHeadingType === 'section') {
+        updateItem<SectionElement>(itemId, {
+          type: 'section',
+          title: data.title?.trim(),
+          isNumbered: data.isNumbered !== false,
+        });
+      } else {
+        updateItem<SubsectionElement>(itemId, {
+          type: 'subsection',
+          title: data.title?.trim(),
+        });
+      }
     } else if (elementType === 'text' && itemId) {
       updateItem<TextElement>(itemId, {
         content: data.content?.trim(),
@@ -965,6 +975,9 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       }
       if ('syncedDocuments' in updates) {
         cleanUpdates.syncedDocuments = updates.syncedDocuments;
+      }
+      if ('layout' in updates) {
+        cleanUpdates.layout = updates.layout;
       }
       return updateItem<DocumentsElement>(itemId, cleanUpdates);
     },
@@ -1314,14 +1327,14 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
               const isDocs = activeGalleryModal.elementType === 'documents';
               const result = isDocs
                 ? await handleUpdateDocuments(activeGalleryModal.itemId, {
-                    driveUrl: newUrl,
-                    title: newTitle,
-                    ...(newLayout ? { layout: newLayout } : {}),
-                  })
+                  driveUrl: newUrl,
+                  title: newTitle,
+                  ...(newLayout ? { layout: newLayout } : {}),
+                })
                 : await handleUpdateGallery(activeGalleryModal.itemId, {
-                    driveUrl: newUrl,
-                    title: newTitle,
-                  });
+                  driveUrl: newUrl,
+                  title: newTitle,
+                });
               if (result && !result.ok) {
                 return result;
               }

@@ -4,7 +4,7 @@ import type { DocumentsLayout } from '../../types/canvas';
 import type { DocumentsElementUpdates } from '../canvas/CanvasDocuments';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useDriveDocumentSync } from '../../hooks/useDriveDocumentSync';
-import { buildDrivePreviewUrl, buildDriveViewUrl } from '../../utils/mediaUrl';
+import { buildDriveViewUrl } from '../../utils/mediaUrl';
 import { formatDriveSyncError } from '../../utils/driveErrors';
 import { EmptyState } from '../feedback/EmptyState';
 import { Button } from '../ui/Button';
@@ -191,80 +191,7 @@ export const SourceDocuments: React.FC<SourceDocumentsProps> = ({
           className={`${styles.documentsCardBody} ${isEditHovered ? styles.highlightedDocuments : ''}`.trim()}
         >
           {hasItems ? (
-            layout === 'full' ? (
-              <div className={styles.documentFullList} role="list" aria-label={currentFolderTitle}>
-                {syncedDocuments.map((doc, index) => {
-                  const displayDate = doc.date || doc.dateStamp;
-                  const viewUrl = doc.viewUrl || buildDriveViewUrl(doc.driveFileId);
-                  const previewUrl = doc.previewUrl || buildDrivePreviewUrl(doc.driveFileId);
-
-                  return (
-                    <div key={doc.id} role="listitem" className={styles.documentFullCard}>
-                      <div className={styles.documentFullHeader}>
-                        <div className={styles.rowLeft}>
-                          <span className={styles.pdfBadge} aria-hidden="true">
-                            <DocumentIcon size={18} />
-                          </span>
-                          <div className={styles.rowMeta}>
-                            <span className={styles.rowTitle}>{doc.title}</span>
-                            {(displayDate || doc.size) && (
-                              <div className={styles.rowSubMeta}>
-                                {displayDate && <span>{displayDate}</span>}
-                                {doc.size && <span>{doc.size}</span>}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className={styles.rowActions}>
-                          {isDevActive && (
-                            <Button
-                              type="button"
-                              variant="admin"
-                              size="xs"
-                              onClick={() => setEditingDocument(doc)}
-                              aria-label={`Edit ${doc.title}`}
-                            >
-                              ✎ Edit
-                            </Button>
-                          )}
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="xs"
-                            onClick={() => handleRowClick(index)}
-                            aria-label={`Expand ${doc.title} preview`}
-                          >
-                            Expand ⤢
-                          </Button>
-                          <Button
-                            as="a"
-                            variant="secondary"
-                            size="xs"
-                            href={viewUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={`Open ${doc.title} in Google Drive`}
-                          >
-                            Open ↗
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className={styles.documentFullFrame}>
-                        <iframe
-                          src={previewUrl}
-                          title={doc.title}
-                          className={styles.documentFullIframe}
-                          loading="lazy"
-                          allow="autoplay"
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : layout === 'sm' ? (
+            layout === 'sm' ? (
               <div className={styles.documentGrid} role="list" aria-label={currentFolderTitle}>
                 {syncedDocuments.map((doc, index) => {
                   const displayDate = doc.date || doc.dateStamp;

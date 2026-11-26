@@ -35,7 +35,6 @@ export interface LinkFolderModalProps {
 const DOCUMENTS_LAYOUT_OPTIONS = [
   { value: 'list', label: 'List' },
   { value: 'sm', label: 'Small' },
-  { value: 'full', label: 'Full Page' },
 ] as const;
 
 /**

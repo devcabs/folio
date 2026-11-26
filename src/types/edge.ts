@@ -195,7 +195,7 @@ export const DocumentsElementSchema = z.object({
   description: z.string().optional(),
   lastVerified: z.string().optional(),
   syncedDocuments: z.array(z.record(z.string(), z.any())).optional(),
-  layout: z.enum(['list', 'sm', 'full']).optional(),
+  layout: z.enum(['list', 'sm']).optional(),
 }).passthrough();
 
 export const PdfElementSchema = z.object({

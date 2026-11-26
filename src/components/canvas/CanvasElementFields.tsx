@@ -30,6 +30,7 @@ export type CanvasElementFieldType =
   | 'page-link';
 
 export interface CanvasElementFieldsValue {
+  headingType?: 'section' | 'subsection';
   title?: string;
   isNumbered?: boolean;
   content?: string;
@@ -70,6 +71,11 @@ export interface CanvasElementFieldsProps {
   onPageSlugChange?: (nextSlug: string) => void;
   onResetSlugFromTitle?: () => void;
 }
+
+const HEADING_TYPE_OPTIONS = [
+  { value: 'section', label: 'Section' },
+  { value: 'subsection', label: 'Subsection' },
+] as const;
 
 const NUMBERING_OPTIONS = [
   { value: 'numbered', label: 'Numbered' },
@@ -188,66 +194,66 @@ export const CanvasElementFields: React.FC<CanvasElementFieldsProps> = ({
     [onChange]
   );
 
-  if (elementType === 'section') {
+  if (elementType === 'section' || elementType === 'subsection') {
+    const activeHeadingType: 'section' | 'subsection' =
+      value.headingType ?? (elementType === 'subsection' ? 'subsection' : 'section');
+    const isSectionHeading = activeHeadingType === 'section';
+    const titleFieldId = isSectionHeading ? 'canvas-section-title' : 'canvas-subsection-title';
+    const titleLabel = isSectionHeading ? 'Section Title' : 'Subsection Title';
+    const titlePlaceholder = isSectionHeading
+      ? 'e.g. Strategic Academic Intervention'
+      : 'e.g. Implementation Milestones';
+
     return (
       <div className={styles.panel}>
-        <FormField id="canvas-section-title" label="Section Title" required>
-          <Input
-            id="canvas-section-title"
-            ref={assignFocusRef}
-            type="text"
-            value={value.title || ''}
-            onChange={(e) =>
-              onChange((prev) => ({ ...prev, title: e.target.value }))
-            }
-            placeholder="e.g. Strategic Academic Intervention"
-            aria-label="Section Title"
-            required
-          />
-        </FormField>
-
-        <FormField
-          id="canvas-section-numbering"
-          label="Section Numbering"
-          tooltip="Adds a number before the title, like I or II."
-        >
+        <FormField id="canvas-heading-type" label="Heading Level">
           <SegmentedControl
-            aria-label="Section Numbering"
-            value={value.isNumbered !== false ? 'numbered' : 'unnumbered'}
+            aria-label="Heading Level"
+            value={activeHeadingType}
             onChange={(next) =>
               onChange((prev) => ({
                 ...prev,
-                isNumbered: next === 'numbered',
+                headingType: next as 'section' | 'subsection',
               }))
             }
-            options={NUMBERING_OPTIONS}
+            options={HEADING_TYPE_OPTIONS}
           />
         </FormField>
-      </div>
-    );
-  }
 
-  if (elementType === 'subsection') {
-    return (
-      <div className={styles.panel}>
-        <FormField
-          id="canvas-subsection-title"
-          label="Subsection Title"
-          required
-        >
+        <FormField id={titleFieldId} label={titleLabel} required>
           <Input
-            id="canvas-subsection-title"
+            id={titleFieldId}
             ref={assignFocusRef}
             type="text"
             value={value.title || ''}
             onChange={(e) =>
               onChange((prev) => ({ ...prev, title: e.target.value }))
             }
-            placeholder="e.g. Implementation Milestones"
-            aria-label="Subsection Title"
+            placeholder={titlePlaceholder}
+            aria-label={titleLabel}
             required
           />
         </FormField>
+
+        {isSectionHeading && (
+          <FormField
+            id="canvas-section-numbering"
+            label="Section Numbering"
+            tooltip="Adds a number before the title, like I or II."
+          >
+            <SegmentedControl
+              aria-label="Section Numbering"
+              value={value.isNumbered !== false ? 'numbered' : 'unnumbered'}
+              onChange={(next) =>
+                onChange((prev) => ({
+                  ...prev,
+                  isNumbered: next === 'numbered',
+                }))
+              }
+              options={NUMBERING_OPTIONS}
+            />
+          </FormField>
+        )}
       </div>
     );
   }
