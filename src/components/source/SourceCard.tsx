@@ -3,10 +3,12 @@ import type { SourceItem, CanonicalPhoto } from '../../types/node';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { SourceImage } from './SourceImage';
 import { Button } from '../ui/Button';
+import { PlayIcon } from '../ui/Icons';
 import {
   buildEdgeMediaUrl,
   buildEdgeSrcSet,
   extractDriveFileId,
+  formatVideoDuration,
 } from '../../utils/mediaUrl';
 import styles from './SourceCard.module.css';
 
@@ -19,6 +21,7 @@ export interface SourceCardProps {
   disabled?: boolean;
   className?: string;
   overlayCount?: number;
+  hasVideos?: boolean;
   aspectRatio?: 'landscape' | 'square' | 'auto';
   hideCaption?: boolean;
 }
@@ -47,6 +50,7 @@ export const SourceCard: React.FC<SourceCardProps> = ({
   disabled = false,
   className = '',
   overlayCount,
+  hasVideos = false,
   aspectRatio = 'landscape',
   hideCaption = false,
 }) => {
@@ -78,9 +82,14 @@ export const SourceCard: React.FC<SourceCardProps> = ({
 
   const isClickable = !disabled && Boolean(onClick);
   const hasOverlay = Boolean(overlayCount && overlayCount > 0);
+  const isVideo = item.mediaType === 'video';
+  const showVideoBadges = isVideo && !hasOverlay;
+  const formattedDuration = showVideoBadges ? formatVideoDuration(item.durationMs) : null;
   const captionText = photo.caption ?? item.title;
   const isCaptionVisible = Boolean((hasOverlay || photo.showCaption) && captionText);
-  const displayCaption = hasOverlay ? `+${overlayCount} more photos` : captionText;
+  const displayCaption = hasOverlay
+    ? `+${overlayCount} more ${hasVideos ? 'items' : 'photos'}`
+    : captionText;
 
   const aspectClass =
     aspectRatio === 'square'
@@ -91,8 +100,10 @@ export const SourceCard: React.FC<SourceCardProps> = ({
 
   const cardAriaLabel = isClickable
     ? hasOverlay
-      ? `View gallery photos, +${overlayCount} more in archive`
-      : `View source photo: ${captionText || item.title}`
+      ? `View gallery ${hasVideos ? 'media' : 'photos'}, +${overlayCount} more in archive`
+      : isVideo
+        ? `Play video: ${captionText || item.title}`
+        : `View source photo: ${captionText || item.title}`
     : undefined;
 
   const customStyle = accentColor
@@ -138,6 +149,22 @@ export const SourceCard: React.FC<SourceCardProps> = ({
             loading="lazy"
             decoding="async"
           />
+          {showVideoBadges && (
+            <>
+              <div
+                className={styles.videoPlayBadge}
+                data-video-play-badge="true"
+                aria-hidden="true"
+              >
+                <PlayIcon size={22} />
+              </div>
+              {formattedDuration && (
+                <span className={styles.videoDurationPill} aria-hidden="true">
+                  {formattedDuration}
+                </span>
+              )}
+            </>
+          )}
           {hasOverlay && (
             <div className={styles.overflowOverlay} aria-hidden="true">
               <span className={styles.overflowBadge}>+{overlayCount}</span>

@@ -144,6 +144,10 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
 
   const isConfirmedEmpty = syncState === 'synced_empty';
   const hasItems = !isConfirmedEmpty && displayItems.length > 0;
+  const hasVideos = useMemo(
+    () => displayItems.some((item) => item.mediaType === 'video'),
+    [displayItems]
+  );
 
   // Manual Photo Sync Trigger for Developer Mode with Toast reporting (Task 6.3.3)
   const handleManualSync = useCallback(async () => {
@@ -340,6 +344,7 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
                       item={card.item}
                       accentColor={accentColor}
                       aspectRatio={card.aspectRatio}
+                      hasVideos={hasVideos}
                       hideCaption={true}
                       onClick={() => handleCardClick(card.originalIndex)}
                       onEditPhoto={(targetItem) => setEditingPhoto(targetItem)}
@@ -360,6 +365,7 @@ export const SourceGallery: React.FC<SourceGalleryProps> = ({
                       item={card.item}
                       accentColor={accentColor}
                       aspectRatio={card.aspectRatio}
+                      hasVideos={hasVideos}
                       hideCaption={true}
                       overlayCount={'overlayCount' in card ? card.overlayCount : undefined}
                       onClick={() => handleCardClick(card.originalIndex)}

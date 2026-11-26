@@ -2,6 +2,7 @@ import React, { memo, useState, useRef, useEffect, useCallback } from 'react';
 import type { CanvasElementType } from '../../types/canvas';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { PageIcon } from '../ui/PageIcon';
+import { VideoIcon } from '../ui/Icons';
 import styles from './CanvasControls.module.css';
 
 export interface CanvasAddBarProps {
@@ -216,7 +217,7 @@ const PALETTE_OPTIONS: readonly PaletteOptionItem[] = [
   { type: 'section', label: 'Section', IconComponent: SectionIcon },
   { type: 'subsection', label: 'Subsection', IconComponent: SubsectionIcon },
   { type: 'text', label: 'Text', IconComponent: TextIcon },
-  { type: 'photo', label: 'Photo', IconComponent: PhotoIcon },
+  { type: 'photo', label: 'Media', IconComponent: PhotoIcon },
   { type: 'pdf', label: 'Document', IconComponent: DocumentIcon },
   { type: 'chart', label: 'Chart', IconComponent: ChartIcon },
   { type: 'page-link', label: 'Page', IconComponent: PageIcon },
@@ -358,7 +359,10 @@ export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
       clearPhotoLeaveTimer();
       clearDocumentLeaveTimer();
       // Viewport proximity calculation (dropup vs dropdown)
-      const rect = buttonRef.current?.getBoundingClientRect();
+      const rect =
+        typeof buttonRef.current?.getBoundingClientRect === 'function'
+          ? buttonRef.current.getBoundingClientRect()
+          : null;
       const spaceBelow = rect ? window.innerHeight - rect.bottom : 300;
       setIsDropup(spaceBelow < 280);
       setInternalIsOpen(true);
@@ -474,7 +478,7 @@ export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
                   {isPhotoSubMenuOpen && (
                     <div
                       role="menu"
-                      aria-label="Photo Element Options"
+                      aria-label="Media Element Options"
                       className={`${styles.subMenu} ${isDropup ? styles.dropupSubMenu : ''}`}
                       onMouseEnter={handlePhotoMouseEnter}
                       onMouseLeave={handlePhotoMouseLeave}
@@ -498,6 +502,20 @@ export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
                         type="button"
                         className={styles.subOption}
                         onClick={() => {
+                          onAddElement('video');
+                          closeMenu();
+                        }}
+                      >
+                        <span className={styles.subOptionIcon} aria-hidden="true">
+                          <VideoIcon size={15} />
+                        </span>
+                        <span>Single Video</span>
+                      </button>
+                      <button
+                        role="menuitem"
+                        type="button"
+                        className={styles.subOption}
+                        onClick={() => {
                           onAddElement('gallery');
                           closeMenu();
                         }}
@@ -505,7 +523,7 @@ export const CanvasAddBar: React.FC<CanvasAddBarProps> = memo(({
                         <span className={styles.subOptionIcon} aria-hidden="true">
                           <GalleryIcon />
                         </span>
-                        <span>Photo Gallery</span>
+                        <span>Media Gallery</span>
                       </button>
                     </div>
                   )}

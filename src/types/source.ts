@@ -18,6 +18,11 @@ export interface DrivePhotoFile {
   webContentLink?: string;
   createdTime?: string;
   modifiedTime?: string;
+  videoMediaMetadata?: {
+    durationMillis?: string | number;
+    width?: number;
+    height?: number;
+  };
 }
 
 /**
@@ -31,6 +36,7 @@ export interface SyncedSourceItem extends SourceItem {
   originalFileName: string;
   thumbnailUrl: string;
   fullImageUrl: string;
+  mimeType?: string;
   isCustomTitle?: boolean;
   orderIndex: number;
   category?: string;

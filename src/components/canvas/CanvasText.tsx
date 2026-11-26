@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import type { TextElement } from '../../types/canvas';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { isAuthoringPlaceholder } from '../../utils/canvasDefaults';
+import { Button } from '../ui/Button';
 import styles from './CanvasLeaf.module.css';
 
 export interface CanvasTextProps {
@@ -52,19 +53,38 @@ export const CanvasText: React.FC<CanvasTextProps> = memo(({
   const textStyleClass = isQuote ? styles.quoteText : styles.content;
 
   return (
-    <div
-      className={isQuote ? `${styles.quoteWrapper} ${className || ''}`.trim() : `${styles.textWrapper} ${className || ''}`.trim()}
-      style={quoteStyle}
-      onClick={isDevMode && onEdit ? onEdit : undefined}
-      role={isDevMode && onEdit ? 'button' : undefined}
-      tabIndex={isDevMode && onEdit ? 0 : undefined}
-      aria-label={isDevMode && isPlaceholder ? 'Click to edit narrative text' : undefined}
-    >
-      <Component
-        className={`${textStyleClass} ${isPlaceholder ? styles.devPlaceholderText : ''}`.trim()}
+    <div className={`${styles.textCardContainer} ${className || ''}`.trim()}>
+      <div
+        className={`${styles.textCardBody} ${isQuote ? styles.quoteWrapper : styles.textWrapper}`.trim()}
+        style={quoteStyle}
+        onClick={isDevMode && onEdit ? onEdit : undefined}
+        role={isDevMode && onEdit ? 'button' : undefined}
+        tabIndex={isDevMode && onEdit ? 0 : undefined}
+        aria-label={isDevMode && isPlaceholder ? 'Click to edit narrative text' : undefined}
       >
-        {element.content}
-      </Component>
+        <Component
+          className={`${textStyleClass} ${isPlaceholder ? styles.devPlaceholderText : ''}`.trim()}
+        >
+          {element.content}
+        </Component>
+      </div>
+
+      {isDevMode && onEdit ? (
+        <div className={styles.sideEditWrapper}>
+          <Button
+            type="button"
+            variant="admin"
+            size="xs"
+            data-dev-edit-trigger="true"
+            data-canvas-edit-trigger={element.id}
+            onClick={onEdit}
+            aria-label="Edit text content"
+            title="Edit text content"
+          >
+            ✎ Edit
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 });

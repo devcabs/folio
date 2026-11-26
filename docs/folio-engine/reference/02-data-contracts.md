@@ -140,7 +140,7 @@ export interface GalleryElement extends CanvasElementBase {
   driveUrl?: string;                        // Synchronized Google Drive folder URL
   description?: string;                     // Embedded gallery description
   lastVerified?: string;                    // ISO timestamp of last Drive verification
-  syncedPhotos?: SyncedSourceItem[];        // Embedded synced Drive photo items
+  syncedPhotos?: SyncedSourceItem[];        // Embedded synced Drive photo & video items
 }
 
 export interface ChartElement extends CanvasElementBase {
@@ -150,6 +150,19 @@ export interface ChartElement extends CanvasElementBase {
   subtitle?: string;
   config?: SheetChartConfig | PublicChartConfig; // Embedded chart config (sheetUrl stripped in public KV)
   dataset?: ChartDataset;                   // Embedded chart dataset
+}
+
+export type VideoProvider = 'drive' | 'youtube';
+
+export interface VideoElement extends CanvasElementBase {
+  type: 'video';
+  pointId: string;
+  src?: string;                             // Resolved Drive /preview or YouTube youtube-nocookie.com/embed/{id} URL
+  provider?: VideoProvider;                 // Detected provider ('drive' | 'youtube')
+  videoUrl?: string;                        // Original pasted share link for "Open in New Tab ↗" fallback
+  title?: string;                           // Optional editorial title
+  caption?: string;                         // Optional caption below the player
+  showCaption?: boolean;
 }
 
 export interface PdfElement extends CanvasElementBase {

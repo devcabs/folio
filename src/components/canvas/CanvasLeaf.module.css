@@ -7,6 +7,37 @@
  * Universal Zero Outline Policy: outline: none across all interactive states.
  */
 
+.textCardContainer {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  gap: var(--space-3);
+  position: relative;
+  margin-bottom: var(--space-4);
+}
+
+.textCardBody {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--radius-md);
+  transition: box-shadow var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+}
+
+.textCardBody .textWrapper {
+  margin-bottom: 0;
+}
+
+.textCardBody .quoteWrapper {
+  margin: 0;
+}
+
+.textCardContainer:has(.sideEditWrapper button:hover) .textCardBody {
+  box-shadow: 0 0 0 6px var(--brand-accent-tint) !important;
+  background-color: var(--brand-accent-tint) !important;
+  border-radius: var(--radius-md);
+}
+
 .textWrapper {
   margin-bottom: var(--space-4);
   color: var(--text-primary);

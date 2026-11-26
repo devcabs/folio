@@ -126,7 +126,7 @@ When entered:
 When `isDevMode` is active (on desktop viewports):
 1. Inline text elements wrap with `DevActionAffordance` and display subtle `✎` edit triggers.
 2. Clicking edit opens `UniversalEditModal`, allowing instant copy, link, or image modifications.
-3. Canvas sections expose `CanvasAddBar`, allowing coordinators to insert sections, subsections, text, photos, galleries, and charts.
+3. Canvas sections expose `CanvasAddBar`, allowing coordinators to insert sections, subsections, text, media (`Single Photo`, `Single Video`, `Media Gallery`), documents, charts, and page links.
 4. Changes write directly to `PUT /api/draft` (`draft:workspace` in Cloudflare KV) with optimistic concurrency (`expectedRevision` / `expectedUpdatedAt` → HTTP 409 on conflict) and `Authorization: Bearer <lockToken>`.
 
 ---

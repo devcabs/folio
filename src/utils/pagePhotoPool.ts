@@ -46,6 +46,31 @@ export function shuffleList<T>(items: readonly T[], random: () => number = Math.
   return out;
 }
 
+/** Simple numeric hash from a string key (safe for negative numbers). */
+export function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Computes a randomized starting index for a photo pool.
+ * Combines a seed key (e.g. targetPageId) with Math.random() so that even
+ * two empty pages mounted simultaneously diverge in their starting photo.
+ */
+export function getStartingPhotoIndex(
+  poolLength: number,
+  seedKey?: string,
+  random: () => number = Math.random
+): number {
+  if (poolLength <= 0) return 0;
+  const seedOffset = seedKey ? hashString(seedKey) : 0;
+  const randOffset = Math.floor(random() * poolLength);
+  return (seedOffset + randOffset) % poolLength;
+}
+
 /** Returns the page id followed by all of its descendant page ids (cycle-safe, breadth-first). */
 export function getPageAndDescendantIds(pageId: string, pages: PageRegistry): string[] {
   const result = [pageId];

@@ -4,6 +4,8 @@ import {
   PAGE_PHOTO_SHUFFLE_INTERVAL_MS,
   STOCK_PAGE_PHOTOS,
   collectPagePhotos,
+  getStartingPhotoIndex,
+  hashString,
   shuffleList,
 } from '../utils/pagePhotoPool';
 import type { NodeCanvasDocument } from '../types/canvas';
@@ -17,9 +19,21 @@ import type { NodeCanvasDocument } from '../types/canvas';
 export function usePageShufflePhoto(pageIds: readonly string[], enabled: boolean): string | null {
   const { isDevMode, lockToken } = useDeveloperMode();
   const [pagePhotos, setPagePhotos] = useState<string[] | null>(null);
-  const [index, setIndex] = useState(0);
 
   const idsKey = pageIds.join('|');
+  const primaryId = pageIds[0] || '';
+
+  const order = useMemo(() => {
+    if (!enabled) return [];
+    if (pagePhotos === null) {
+      return shuffleList(STOCK_PAGE_PHOTOS);
+    }
+    return shuffleList(pagePhotos.length > 0 ? pagePhotos : STOCK_PAGE_PHOTOS);
+  }, [pagePhotos, enabled]);
+
+  const [index, setIndex] = useState(() =>
+    getStartingPhotoIndex(STOCK_PAGE_PHOTOS.length, primaryId)
+  );
 
   useEffect(() => {
     setPagePhotos(null);
@@ -62,13 +76,13 @@ export function usePageShufflePhoto(pageIds: readonly string[], enabled: boolean
     };
   }, [idsKey, enabled, isDevMode, lockToken]);
 
-  const order = useMemo(() => {
-    if (pagePhotos === null) return [];
-    return shuffleList(pagePhotos.length > 0 ? pagePhotos : STOCK_PAGE_PHOTOS);
-  }, [pagePhotos]);
+  useEffect(() => {
+    if (order.length > 0) {
+      setIndex(getStartingPhotoIndex(order.length, primaryId));
+    }
+  }, [order, primaryId]);
 
   useEffect(() => {
-    setIndex(0);
     if (!enabled || order.length < 2) return;
     if (
       typeof window !== 'undefined' &&
@@ -77,12 +91,15 @@ export function usePageShufflePhoto(pageIds: readonly string[], enabled: boolean
     ) {
       return;
     }
+    const jitter = (hashString(primaryId) % 1000) - 500;
+    const intervalMs = Math.max(3000, PAGE_PHOTO_SHUFFLE_INTERVAL_MS + jitter);
+
     const id = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       setIndex((i) => (i + 1) % order.length);
-    }, PAGE_PHOTO_SHUFFLE_INTERVAL_MS);
+    }, intervalMs);
     return () => clearInterval(id);
-  }, [order, enabled]);
+  }, [order, enabled, primaryId]);
 
   return order.length > 0 ? order[index % order.length] : null;
 }

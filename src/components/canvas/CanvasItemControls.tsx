@@ -133,11 +133,6 @@ export const CanvasItemControls: React.FC<CanvasItemControlsProps> = memo(({
     }
   };
 
-  const floatingBarClass =
-    itemType === 'section' || itemType === 'subsection'
-      ? `${styles.itemControlsFloatingBar} ${styles.sectionFloatingBar}`
-      : styles.itemControlsFloatingBar;
-
   const isHoverSuppressed = suppressHover || isDeleteModalOpen;
 
   return (
@@ -152,7 +147,7 @@ export const CanvasItemControls: React.FC<CanvasItemControlsProps> = memo(({
         onDrop={handleDrop}
       >
         <div
-          className={floatingBarClass}
+          className={styles.itemControlsFloatingBar}
           role="toolbar"
           aria-label="Item authoring controls"
         >

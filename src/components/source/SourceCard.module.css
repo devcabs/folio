@@ -155,6 +155,53 @@
   transform: scale(1.02);
 }
 
+.videoPlayBadge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--video-play-size);
+  height: var(--video-play-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background-color: var(--video-badge-bg);
+  color: var(--video-badge-fg);
+  border: 1px solid var(--video-play-ring);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  pointer-events: none;
+  z-index: 1;
+  transition: transform var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+}
+
+.clickable:hover .videoPlayBadge {
+  transform: translate(-50%, -50%) scale(1.08);
+  background-color: var(--overlay-overflow);
+}
+
+.videoDurationPill {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--video-badge-bg);
+  color: var(--video-badge-fg);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: var(--tracking-mono);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  pointer-events: none;
+  z-index: 1;
+  user-select: none;
+}
+
 .captionWrapper {
   display: flex;
   align-items: center;

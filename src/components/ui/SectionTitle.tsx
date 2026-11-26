@@ -1,4 +1,6 @@
 import React, { memo } from 'react';
+import { useDeveloperMode } from '../../hooks/useDeveloperMode';
+import { Button } from './Button';
 import styles from './SectionTitle.module.css';
 
 export interface SectionTitleProps {
@@ -52,9 +54,10 @@ export const SectionTitle: React.FC<SectionTitleProps> = memo(({
   accentColor,
   className,
   children,
-  editTriggerId: _editTriggerId,
-  onEdit: _onEdit,
+  editTriggerId,
+  onEdit,
 }) => {
+  const { isDevMode, isDesktop } = useDeveloperMode();
   const Heading = HeadingTag as React.ElementType;
   const isNumbered = defaultNumbered !== undefined
     ? defaultNumbered
@@ -72,15 +75,36 @@ export const SectionTitle: React.FC<SectionTitleProps> = memo(({
       className={`${styles.sectionHeader} ${className || ''}`}
       style={{ '--section-accent': accentColor } as React.CSSProperties}
     >
-      {formattedNumber && (
-        <span className={styles.sectionNumber}>
-          Section {formattedNumber}
-        </span>
-      )}
+      <div className={styles.titleRow}>
+        <div className={styles.titleColumn}>
+          {formattedNumber && (
+            <span className={styles.sectionNumber}>
+              Section {formattedNumber}
+            </span>
+          )}
 
-      <Heading id={id} className={styles.sectionTitle}>
-        {title}
-      </Heading>
+          <Heading id={id} className={styles.sectionTitle}>
+            {title}
+          </Heading>
+        </div>
+
+        {isDevMode && isDesktop && onEdit ? (
+          <div className={styles.sideEditWrapper}>
+            <Button
+              type="button"
+              variant="admin"
+              size="xs"
+              data-dev-edit-trigger="true"
+              data-canvas-edit-trigger={editTriggerId}
+              onClick={onEdit}
+              aria-label={`Edit ${HeadingTag === 'h3' ? 'subsection' : 'section'}`}
+              title={`Edit ${HeadingTag === 'h3' ? 'subsection' : 'section'}`}
+            >
+              ✎ Edit
+            </Button>
+          </div>
+        ) : null}
+      </div>
 
       {/* Subtitles removed for sections: only the page title (PageTitle) gets a subtitle */}
 

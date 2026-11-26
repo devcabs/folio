@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { SourceItem } from '../../types/node';
 import { buildEdgeMediaUrl, extractDriveFileId } from '../../utils/mediaUrl';
+import { PlayIcon } from '../ui/Icons';
 import styles from './LightboxPhotoStrip.module.css';
 
 export interface LightboxPhotoStripProps {
@@ -35,7 +36,7 @@ export const LightboxPhotoStrip: React.FC<LightboxPhotoStripProps> = ({
 
   // Auto-scroll active thumbnail into center of the visible strip
   useEffect(() => {
-    if (activeThumbRef.current) {
+    if (activeThumbRef.current && typeof activeThumbRef.current.scrollIntoView === 'function') {
       activeThumbRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'nearest',
@@ -100,7 +101,9 @@ export const LightboxPhotoStrip: React.FC<LightboxPhotoStripProps> = ({
           ? buildEdgeMediaUrl(driveFileId, { width: 320 })
           : existingThumb;
 
-        const captionText = item.photo?.caption || item.title || `Photo ${index + 1}`;
+        const isVideo = item.mediaType === 'video';
+        const captionText =
+          item.photo?.caption || item.title || `${isVideo ? 'Video' : 'Photo'} ${index + 1}`;
         const hasFailed = failedImages[index];
 
         return (
@@ -110,7 +113,7 @@ export const LightboxPhotoStrip: React.FC<LightboxPhotoStripProps> = ({
             type="button"
             role="tab"
             aria-selected={isActive}
-            aria-label={`Photo ${index + 1} of ${items.length}: ${captionText}`}
+            aria-label={`${isVideo ? 'Video' : 'Photo'} ${index + 1} of ${items.length}: ${captionText}`}
             className={`${styles.thumbButton} ${isActive ? styles.thumbActive : ''}`}
             onClick={(e) => {
               e.stopPropagation();
@@ -137,6 +140,15 @@ export const LightboxPhotoStrip: React.FC<LightboxPhotoStripProps> = ({
             ) : (
               <span className={styles.thumbFallback} aria-hidden="true">
                 {index + 1}
+              </span>
+            )}
+            {isVideo && (
+              <span
+                className={styles.videoThumbBadge}
+                data-video-thumb-badge="true"
+                aria-hidden="true"
+              >
+                <PlayIcon size={12} />
               </span>
             )}
           </button>

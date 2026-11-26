@@ -18,7 +18,7 @@ import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUndoRedo } from '../../hooks/useUndoRedo';
 import { useUnsavedChangesPrompt } from '../../hooks/useUnsavedChangesPrompt';
 import { usePortalChrome } from '../../context/PortalChromeContext';
-import { resolveSingleDrivePhotoUrl, resolveSingleDrivePdfUrl } from '../../utils/mediaUrl';
+import { resolveSingleDrivePhotoUrl, resolveSingleDrivePdfUrl, resolveSingleVideoUrl } from '../../utils/mediaUrl';
 import {
   MAX_PAGE_SUMMARY_WORDS,
   countSummaryWords,
@@ -204,6 +204,8 @@ function getSubmitNoun(type: CanvasModalElementType | null): string {
       return 'Gallery';
     case 'pdf':
       return 'PDF';
+    case 'video':
+      return 'Video';
     case 'documents':
       return 'Document Folder';
     case 'page-link':
@@ -228,6 +230,8 @@ function buildInitialCanvasDraft(
       caption: '',
       showCaption: false,
       driveUrl: '',
+      videoUrl: '',
+      provider: undefined,
       slug: '',
       summary: '',
       cardSize: 'md',
@@ -236,12 +240,22 @@ function buildInitialCanvasDraft(
 
   let resolvedSrc = initialData.src || '';
   let resolvedDriveUrl = initialData.driveUrl || '';
+  let resolvedVideoUrl = initialData.videoUrl || '';
+  let resolvedProvider = initialData.provider;
 
   if (elementType === 'pdf') {
     const resolvedPdf = initialData.src ? resolveSingleDrivePdfUrl(initialData.src) : null;
     if (resolvedPdf) {
       resolvedSrc = resolvedPdf.previewUrl;
       resolvedDriveUrl = resolvedDriveUrl || initialData.src || '';
+    }
+  } else if (elementType === 'video') {
+    const candidateVideo = initialData.videoUrl || initialData.src || '';
+    const resolvedVideo = candidateVideo ? resolveSingleVideoUrl(candidateVideo) : null;
+    if (resolvedVideo) {
+      resolvedSrc = resolvedVideo.embedUrl;
+      resolvedVideoUrl = resolvedVideoUrl || resolvedVideo.rawUrl;
+      resolvedProvider = resolvedProvider ?? resolvedVideo.provider;
     }
   } else {
     const resolvedPhoto = initialData.src ? resolveSingleDrivePhotoUrl(initialData.src) : null;
@@ -264,6 +278,8 @@ function buildInitialCanvasDraft(
       (initialData.caption && initialData.caption.trim().length > 0)
     ),
     driveUrl: resolvedDriveUrl,
+    videoUrl: resolvedVideoUrl,
+    provider: resolvedProvider,
     slug: initialData.slug || '',
     summary: initialData.summary || '',
     cardSize: initialData.cardSize ?? 'md',
@@ -313,10 +329,10 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
   const isCanvasDomain = Boolean(elementType || onSubmit);
   const isCanvasElement = Boolean(
     isCanvasDomain ||
-    (elementType && ['section', 'subsection', 'text', 'photo', 'gallery', 'pdf', 'documents', 'page-link'].includes(elementType)) ||
+    (elementType && ['section', 'subsection', 'text', 'photo', 'gallery', 'pdf', 'video', 'documents', 'page-link'].includes(elementType)) ||
     (pointId && (
-      /^(node\.[^.]+\.(section|subsection|text|photo|gallery|pdf|documents|page-link)|canvas\.)/i.test(pointId) ||
-      /\.(section|subsection|text|photo|gallery|pdf|documents|page-link)(\.|$)/i.test(pointId)
+      /^(node\.[^.]+\.(section|subsection|text|photo|gallery|pdf|video|documents|page-link)|canvas\.)/i.test(pointId) ||
+      /\.(section|subsection|text|photo|gallery|pdf|video|documents|page-link)(\.|$)/i.test(pointId)
     ))
   );
 
@@ -533,10 +549,15 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
     setCanvasDraft((prev) => ({ ...prev, slug: uniqueSlug }));
   };
 
+  const isVideoValid =
+    !isCanvasDomain ||
+    elementType !== 'video' ||
+    Boolean(resolveSingleVideoUrl((canvasDraft.videoUrl || canvasDraft.src || '').trim()));
+
   // Submit Handler
   const handleSave = async () => {
     if (isCanvasDomain && onSubmit) {
-      if (!canSubmitPageLink || isSubmitting) return;
+      if (!canSubmitPageLink || !isVideoValid || isSubmitting) return;
       const result = onSubmit(canvasDraft);
       if (result && typeof (result as Promise<void>).then === 'function') {
         setIsSubmitting(true);
@@ -780,7 +801,7 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
         variant="primary"
         size="sm"
         onClick={handleSave}
-        disabled={!canSubmitPageLink || isSubmitting}
+        disabled={!canSubmitPageLink || !isVideoValid || isSubmitting}
       >
         {submitButtonLabel}
       </Button>
@@ -791,7 +812,7 @@ export const UniversalEditModal: React.FC<UniversalEditModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      onConfirm={canSubmitPageLink && !isSubmitting ? handleSave : undefined}
+      onConfirm={canSubmitPageLink && isVideoValid && !isSubmitting ? handleSave : undefined}
       title={modalHeaderTitle}
       maxWidth="500px"
       ariaLabel={modalHeaderTitle}

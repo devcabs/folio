@@ -549,4 +549,13 @@
    --color-danger-border: rgba(225, 29, 72, 0.25);
    --color-success: var(--color-node-4);
 
+   /* ==========================================================================
+     17. Inline Video & Mixed-Media Gallery Tokens (Epic 15)
+     ========================================================================== */
+   --video-player-aspect-ratio: 16 / 9;
+   --video-badge-bg: var(--lightbox-chrome-bg);
+   --video-badge-fg: var(--text-inverse);
+   --video-play-size: 56px;
+   --video-play-ring: var(--border-inverse-strong);
+
 }

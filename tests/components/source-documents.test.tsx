@@ -376,7 +376,9 @@ describe('11.5 SourceDocuments, PdfPreviewModal, CanvasAddBar Submenu & Document
     expect(screen.queryByRole('dialog')).toBeNull();
 
     // 2. Click floating toolbar Edit button (index 0 is Section, index 1 is DocumentsElement)
-    const toolbarEditBtns = screen.getAllByRole('button', { name: 'Edit' });
+    const toolbarEditBtns = screen
+      .getAllByRole('button', { name: 'Edit' })
+      .filter((btn) => btn.getAttribute('aria-label') === 'Edit');
     expect(toolbarEditBtns.length).toBeGreaterThanOrEqual(2);
     await act(async () => {
       fireEvent.click(toolbarEditBtns[1]);

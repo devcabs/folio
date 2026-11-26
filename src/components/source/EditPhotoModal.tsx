@@ -73,6 +73,7 @@ export const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
   }
 
   const syncedItem = activeItem as Partial<SyncedSourceItem>;
+  const isVideo = activeItem.mediaType === 'video';
   const previewSrc = activeItem.photo?.src || activeItem.imageSrc || syncedItem.thumbnailUrl || '';
   const originalFileName = syncedItem.originalFileName;
 
@@ -83,11 +84,19 @@ export const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
     setIsSaving(true);
     try {
       await onSave(activeItem.id, title.trim());
-      showToast('Photo title saved to draft successfully.', 'success');
+      showToast(
+        isVideo
+          ? 'Video title saved to draft successfully.'
+          : 'Photo title saved to draft successfully.',
+        'success'
+      );
       onClose();
     } catch (err) {
-      console.error('Failed to save photo title:', err);
-      showToast('Failed to save photo title.', 'error');
+      console.error('Failed to save media title:', err);
+      showToast(
+        isVideo ? 'Failed to save video title.' : 'Failed to save photo title.',
+        'error'
+      );
     } finally {
       setIsSaving(false);
     }
@@ -98,7 +107,7 @@ export const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       onConfirm={!isSaving && title.trim() ? () => { void handleSubmit(); } : undefined}
-      title="Edit Photo Title"
+      title={isVideo ? 'Edit Video' : 'Edit Photo'}
       maxWidth="540px"
     >
       <form onSubmit={handleSubmit} className={styles.modalBody}>

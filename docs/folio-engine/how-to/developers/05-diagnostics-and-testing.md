@@ -165,6 +165,15 @@ The diagnostic routine uses monorepo-safe resolution (`src/diagnostics/packageRe
 
 For consumer AI workflows, copy or import `.agents/rules/folio-engine-migration.md` into your consumer application so AI assistants automatically run `npx folio-engine doctor` after every `@devcabs/folio-engine` upgrade.
 
+### Consumer App Migration Checklist (0.3.3 → 0.3.4)
+
+1. **Custom AST Traversal / Switch Compatibility (0.3.4)**:
+   - `CanvasElementType` and `CanvasLeafElement` now include `'video'` (`VideoElement`).
+   - Consumers with exhaustive `switch (leaf.type)` statements should handle `'video'` (or delegate rendering to `<DocumentCanvas>`).
+   - `GalleryElement.syncedPhotos` now supports mixed `image/*` and `video/*` Drive items; legacy items without `mediaType` default to `'image'`.
+2. **EngineConfig Watermark Sync (0.3.4)**:
+   - Set `contentVersion: '0.3.4'` in `EngineConfig` (`src/engine-setup.ts` or `src/App.tsx`) to clear doctor and Dev Mode migration notices.
+
 ### Consumer App Migration Checklist (0.2.5 → 0.2.6)
 
 1. **Custom AST Traversal / Switch Compatibility (0.2.6)**:

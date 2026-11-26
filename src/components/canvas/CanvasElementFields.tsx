@@ -6,13 +6,15 @@ import {
   Input,
   RefreshIcon,
   SegmentedControl,
+  StatusPill,
   Textarea,
 } from '../ui';
 import {
   resolveSingleDrivePdfUrl,
   resolveSingleDrivePhotoUrl,
+  resolveSingleVideoUrl,
 } from '../../utils/mediaUrl';
-import type { PageLinkCardSize } from '../../types/canvas';
+import type { PageLinkCardSize, VideoProvider } from '../../types/canvas';
 import styles from './CanvasElementFields.module.css';
 
 export type CanvasElementFieldType =
@@ -22,6 +24,7 @@ export type CanvasElementFieldType =
   | 'photo'
   | 'gallery'
   | 'pdf'
+  | 'video'
   | 'chart'
   | 'documents'
   | 'page-link';
@@ -36,6 +39,8 @@ export interface CanvasElementFieldsValue {
   caption?: string;
   showCaption?: boolean;
   driveUrl?: string;
+  videoUrl?: string;
+  provider?: VideoProvider;
   subtitle?: string;
   slug?: string;
   summary?: string;
@@ -148,6 +153,28 @@ export const CanvasElementFields: React.FC<CanvasElementFieldsProps> = ({
             ...prev,
             src: rawValue,
             driveUrl: rawValue,
+          }
+      );
+    },
+    [onChange]
+  );
+
+  const handleVideoUrlChange = useCallback(
+    (rawValue: string) => {
+      const resolved = resolveSingleVideoUrl(rawValue);
+      onChange((prev) =>
+        resolved
+          ? {
+            ...prev,
+            videoUrl: resolved.rawUrl,
+            src: resolved.embedUrl,
+            provider: resolved.provider,
+          }
+          : {
+            ...prev,
+            videoUrl: rawValue,
+            src: rawValue,
+            provider: undefined,
           }
       );
     },
@@ -425,6 +452,83 @@ export const CanvasElementFields: React.FC<CanvasElementFieldsProps> = ({
                 onChange((prev) => ({ ...prev, caption: e.target.value }))
               }
               placeholder="Optional document caption or context"
+              aria-label="Caption"
+            />
+          </FormField>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (elementType === 'video') {
+    const rawVideoInput = (value.videoUrl ?? value.src ?? '').trim();
+    const resolvedVideo = rawVideoInput ? resolveSingleVideoUrl(rawVideoInput) : null;
+    const videoUrlError =
+      rawVideoInput && !resolvedVideo
+        ? 'Paste a valid YouTube or Google Drive video link (folders are not supported).'
+        : null;
+
+    return (
+      <div className={styles.panel}>
+        <FormField
+          id="canvas-video-url"
+          label="Video Link"
+          required
+          error={videoUrlError}
+          hint={
+            resolvedVideo ? (
+              <StatusPill
+                variant={resolvedVideo.provider === 'youtube' ? 'primary' : 'blue'}
+                size="sm"
+                label={resolvedVideo.provider === 'youtube' ? 'YouTube' : 'Google Drive'}
+              />
+            ) : undefined
+          }
+        >
+          <Input
+            id="canvas-video-url"
+            ref={assignFocusRef}
+            type="text"
+            invalid={Boolean(videoUrlError)}
+            value={value.videoUrl ?? value.src ?? ''}
+            onChange={(e) => handleVideoUrlChange(e.target.value)}
+            placeholder="Paste a YouTube or Google Drive video link"
+            aria-label="Video Link"
+            required
+          />
+        </FormField>
+
+        <FormField id="canvas-video-title" label="Title">
+          <Input
+            id="canvas-video-title"
+            type="text"
+            value={value.title || ''}
+            onChange={(e) =>
+              onChange((prev) => ({ ...prev, title: e.target.value }))
+            }
+            placeholder="e.g. Program Briefing"
+            aria-label="Title"
+          />
+        </FormField>
+
+        <Checkbox
+          checked={Boolean(value.showCaption)}
+          onChange={(checked) =>
+            onChange((prev) => ({ ...prev, showCaption: checked }))
+          }
+          label="Show caption below video"
+        />
+
+        {value.showCaption ? (
+          <FormField id="canvas-video-caption" label="Caption">
+            <Input
+              id="canvas-video-caption"
+              type="text"
+              value={value.caption || ''}
+              onChange={(e) =>
+                onChange((prev) => ({ ...prev, caption: e.target.value }))
+              }
+              placeholder="Optional video caption or context"
               aria-label="Caption"
             />
           </FormField>

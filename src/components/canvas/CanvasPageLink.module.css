@@ -168,7 +168,9 @@
   align-self: center;
 }
 
-.rowWrapper:has(.sideEditWrapper button:hover) .cardLink {
+.rowWrapper:has(.sideEditWrapper button:hover) .cardLink,
+.cardLgWrapper:has(.sideEditWrapper button:hover) .cardLg,
+.cardSmWrapper:has(.sideEditWrapper button:hover) .cardSm {
   box-shadow: 0 0 0 6px var(--brand-accent-tint);
   background-color: var(--brand-accent-tint);
 }
@@ -201,6 +203,7 @@
   }
 
   .cardLink,
+  .cardLg,
   .readCue,
   .arrow {
     transition: none;
@@ -208,6 +211,8 @@
 
   .cardLink:hover,
   .cardLink:active,
+  .cardLg:hover,
+  .cardLg:active,
   .cardLink:hover .arrow,
   .cardLink:focus-visible .arrow {
     transform: none;
@@ -220,12 +225,15 @@
 
 .cardSmWrapper {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   width: 100%;
   box-sizing: border-box;
+  gap: var(--space-3);
 }
 
 .cardSm {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -312,30 +320,38 @@
 
 .cardLgWrapper {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   width: 100%;
   box-sizing: border-box;
+  gap: var(--space-3);
   margin: var(--space-6) 0;
 }
 
 .cardLg {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   width: 100%;
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-surface);
+  text-decoration: none;
   box-sizing: border-box;
-  transition: box-shadow var(--duration-fast) var(--ease-out);
+  transition:
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .cardLg:hover {
   box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .cardLg:active {
   box-shadow: none;
   outline: none;
+  transform: translateY(1px);
 }
 
 .cardLg:focus,
@@ -393,6 +409,3 @@
   margin: 0;
 }
 
-.cardLgCta {
-  align-self: flex-start;
-}

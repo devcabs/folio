@@ -14,6 +14,20 @@
 | **Epic 12** | [Canonical UI Primitives & Anti-Duplication Consolidation](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-12.md) | `docs/task/TASKS-EPIC-12.md` | Completed |
 | **Epic 13** | [Dynamic Multi-Page & Nested Subpage Architecture](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-13.md) | `docs/task/TASKS-EPIC-13.md` | Completed |
 | **Epic 14** | [PageLinkElement Card Size Variants (Small 2-Col & Large Hero)](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-14.md) | `docs/task/TASKS-EPIC-14.md` | Planned |
+| **Epic 15** | [Unified Media Support — Inline `video` Block & Mixed Photo/Video Drive Galleries](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-15.md) | `docs/task/TASKS-EPIC-15.md` | Completed |
+
+---
+
+## 🎬 Epic 15: Unified Media Support (`TASKS-EPIC-15.md`)
+
+**Canonical Document:** [TASKS-EPIC-15.md](file:///Users/francisdave/Documents/folio/docs/task/TASKS-EPIC-15.md)
+
+| Subtask ID | Phase | Title | Scope | File Reference | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **15.1** | Phase 1 (Contracts & Tokens) | [Video & Mixed-Media Contracts, URL Resolver & Design Tokens](file:///Users/francisdave/Documents/folio/docs/task/15.1-video-contracts-url-resolver-and-tokens.md) | `VideoElement` + `VideoElementSchema` + `createDefaultVideoElement`; optional video fields on `SourceItem`/`SyncedSourceItem`/`DrivePhotoFile`; `resolveSingleVideoUrl` (Drive + YouTube) & `formatVideoDuration` in `mediaUrl.ts`; video/badge tokens in `tokens.css` | `docs/task/15.1-video-contracts-url-resolver-and-tokens.md` | Completed |
+| **15.2** | Phase 2 (Inline Video & Add Bar) | [Inline `<CanvasVideo>` Component & Unified `Media` Authoring](file:///Users/francisdave/Documents/folio/docs/task/15.2-canvas-video-and-unified-media-authoring.md) | `<CanvasVideo>` iframe player mirroring `<CanvasPdf>`; shared `VideoIcon`/`PlayIcon` in `ui/Icons.tsx`; `CanvasAddBar` `Photo` → `Media` submenu (`Single Photo`, `Single Video`, `Media Gallery`); `'video'` wiring in `CanvasElementFields`, modals, and `DocumentCanvas` | `docs/task/15.2-canvas-video-and-unified-media-authoring.md` | Completed |
+| **15.3** | Phase 3 (Mixed Drive Galleries) | [Mixed Photo/Video Drive Sync, Card Badges & Playable `SourceLightbox`](file:///Users/francisdave/Documents/folio/docs/task/15.3-mixed-media-drive-sync-and-lightbox.md) | Extend `drivePhotoSyncService` for `video/*` & `videoMediaMetadata(durationMillis)`; add play badge + `MM:SS` duration pill in `SourceCard` & `LightboxPhotoStrip`; play Drive `/preview` iframe in `SourceLightbox`; adapt `EditPhotoModal` & `SourceGallery` copy | `docs/task/15.3-mixed-media-drive-sync-and-lightbox.md` | Completed |
+| **15.4** | Phase 4 (Exports & Verification) | [Public Exports, Version Doctor Ledger, Docs Sync & Full Verification](file:///Users/francisdave/Documents/folio/docs/task/15.4-verification-exports-ledger-and-docs.md) | Export `VideoElement`, `CanvasVideo`, `resolveSingleVideoUrl`, `formatVideoDuration`; update `src/migrations/ledger.ts`, `CHANGELOG.md`, and Diátaxis docs; run all quality/token/canonical-UI/build gates | `docs/task/15.4-verification-exports-ledger-and-docs.md` | Completed |
 
 ---
 

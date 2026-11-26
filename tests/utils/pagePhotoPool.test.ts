@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { getPageAndDescendantIds, collectPagePhotos, shuffleList, STOCK_PAGE_PHOTOS } from '../../src/utils/pagePhotoPool';
+import {
+  getPageAndDescendantIds,
+  collectPagePhotos,
+  shuffleList,
+  STOCK_PAGE_PHOTOS,
+  hashString,
+  getStartingPhotoIndex,
+} from '../../src/utils/pagePhotoPool';
 import type { CanvasElement } from '../../src/types/canvas';
 
 describe('pagePhotoPool', () => {
@@ -42,5 +49,22 @@ describe('pagePhotoPool', () => {
       x: { id: 'x', parentId: 'other' },
     } as never;
     expect(getPageAndDescendantIds('a', pages)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('hashString produces deterministic non-negative hashes', () => {
+    expect(hashString('')).toBe(0);
+    const h1 = hashString('page-mwolcteh-niojk');
+    const h2 = hashString('page-mwty9n80-csaa3');
+    expect(h1).toBeGreaterThan(0);
+    expect(h2).toBeGreaterThan(0);
+    expect(h1).not.toBe(h2);
+  });
+
+  it('getStartingPhotoIndex stays within bounds and incorporates seed offsets', () => {
+    expect(getStartingPhotoIndex(0)).toBe(0);
+    expect(getStartingPhotoIndex(5, 'page-1', () => 0)).toBe(hashString('page-1') % 5);
+    const idx = getStartingPhotoIndex(5, 'page-abc', () => 0.8);
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(idx).toBeLessThan(5);
   });
 });

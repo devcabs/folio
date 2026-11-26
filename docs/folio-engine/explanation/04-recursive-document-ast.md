@@ -21,6 +21,7 @@ NodeCanvasDocument
         │   └── elements: CanvasLeafElement[]
         │       ├── TextElement (content: string, as: 'p' | 'blockquote')
         │       ├── PhotoElement (src: string, alt: string, caption: string)
+        │       ├── VideoElement (src: string, provider: 'drive' | 'youtube', videoUrl?: string, title?: string)
         │       ├── PdfElement (src: string, driveFileId: string, driveUrl: string, title?: string)
         │       └── DocumentsElement (driveUrl, title, syncedDocuments)
         ├── GalleryElement (driveUrl, title, description, lastVerified, syncedPhotos)
@@ -76,7 +77,8 @@ Folio Engine solves this with `useDynamicSectionNumbers.ts`:
 | :--- | :--- | :--- |
 | **`text`** | `TextElement` | Renders typography paragraphs or quotes with accent parser syntax (`*bold emphasis*`). |
 | **`photo`** | `PhotoElement` | Responsive image rendering with aspect-ratio preservation and fullscreen lightbox click triggers. |
-| **`gallery`** | `GalleryElement` | Horizontal photo strip or grid synchronized with Google Drive media folders. |
+| **`video`** | `VideoElement` | Embeds a single Google Drive (`/preview`) or YouTube (`youtube-nocookie.com/embed/{id}`) video in a responsive 16:9 `<iframe>` with an `"Open in New Tab ↗"` link. |
+| **`gallery`** | `GalleryElement` | Horizontal mixed-media strip or grid synchronized with Google Drive photo (`image/*`) and video (`video/*`) folders. |
 | **`chart`** | `ChartElement` | Resolves chart configuration by `chartId` and embeds a responsive SVG chart. |
 | **`pdf`** | `PdfElement` | Embeds a single Google Drive PDF inline via `/preview` `<iframe>` with an `"Open in New Tab ↗"` escape hatch. |
 | **`documents`** | `DocumentsElement` | Synchronizes `application/pdf` files from a Google Drive folder and opens `<PdfPreviewModal>` on row click. |

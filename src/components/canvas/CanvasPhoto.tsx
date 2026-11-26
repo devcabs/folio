@@ -10,6 +10,7 @@ import {
   extractDriveFileId,
 } from '../../utils/mediaUrl';
 import { isAuthoringPlaceholder } from '../../utils/canvasDefaults';
+import { Button } from '../ui/Button';
 import styles from './CanvasLeaf.module.css';
 
 export interface CanvasPhotoProps {
@@ -251,6 +252,23 @@ export const CanvasPhoto: React.FC<CanvasPhotoProps> = memo(({
         <div className={styles.photoCardBody}>
           {renderCardContent()}
         </div>
+
+        {isDevActive && onEdit ? (
+          <div className={styles.sideEditWrapper}>
+            <Button
+              type="button"
+              variant="admin"
+              size="xs"
+              data-dev-edit-trigger="true"
+              data-canvas-edit-trigger={element.id}
+              onClick={onEdit}
+              aria-label="Edit photo attachment"
+              title="Edit photo attachment"
+            >
+              ✎ Edit
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {hasPhoto && isLightboxOpen ? (

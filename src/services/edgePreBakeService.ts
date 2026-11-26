@@ -34,6 +34,7 @@ import {
   isGalleryElement,
   isChartElement,
   isPdfElement,
+  isVideoElement,
   isDocumentsElement,
   isPageLinkElement,
 } from '../types/canvas';
@@ -165,6 +166,9 @@ function transformLeafElement(leaf: CanvasLeafElement): CanvasLeafElement {
   }
   if (isPdfElement(leaf)) {
     return transformPdfElement(leaf);
+  }
+  if (isVideoElement(leaf)) {
+    return leaf;
   }
   if (isDocumentsElement(leaf)) {
     return leaf;

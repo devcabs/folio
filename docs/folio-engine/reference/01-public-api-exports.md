@@ -30,7 +30,7 @@ import { ... } from '@devcabs/folio-engine';
 ### Data Contracts & Types
 - **Node Contracts**: `NodeItem`, `NodeCode`, `NodeHeroImage`, `CanonicalPhoto`, `SourceItem`, `StageStory`.
 - **Page Tree Contracts**: `PageNode`, `PageRegistry`, `PageAncestorItem`, `ResolvePathResult`, `PageMatchCandidate`, `PageNodeSchema`, `PageRegistrySchema`, `PAGE_ID_REGEX`, `PAGE_SLUG_REGEX`.
-- **Canvas AST Contracts**: `CanvasElement`, `CanvasElementType`, `CanvasElementBase`, `SectionElement`, `SubsectionElement`, `CanvasLeafElement`, `CanvasChildElement`, `TextElement`, `PhotoElement`, `GalleryElement`, `ChartElement`, `PdfElement`, `DocumentsElement`, `PageLinkElement`, `NodeCanvasDocument`, `isPdfElement`, `isDocumentsElement`.
+- **Canvas AST Contracts**: `CanvasElement`, `CanvasElementType`, `CanvasElementBase`, `SectionElement`, `SubsectionElement`, `CanvasLeafElement`, `CanvasChildElement`, `TextElement`, `PhotoElement`, `VideoElement`, `VideoProvider`, `GalleryElement`, `ChartElement`, `PdfElement`, `DocumentsElement`, `PageLinkElement`, `NodeCanvasDocument`, `isPdfElement`, `isDocumentsElement`, `isVideoElement`.
 - **Source & Document Sync Contracts**: `SyncedSourceItem`, `SyncedDocumentItem`, `DriveDocumentFile`, `DriveDocumentReconciliationResult`, `SyncFolderDocumentsResult`, `UseDriveDocumentSyncOptions`, `UseDriveDocumentSyncResult`.
 - **Chart Contracts**: `ChartType`, `ChartConfig`, `ChartSeries`, `ScatterPoint`, `HistogramBin`, `ChartVisualConfig`.
 - **Developer & History Contracts**: `CoordinatorLock`, `HistoryEntry`, `HistoryLedger`, `DraftDiff`.
@@ -49,7 +49,7 @@ import { ... } from '@devcabs/folio-engine';
 - **UI Primitives**: `Button`, `IconButton`, `Modal`, `ModalActions`, `Drawer`, `StatusPill`, `Breadcrumb`, `ParametricShape`, `EditableText`, `PageTitle`, `PageIcon`, `RevolvingButton`, `DrawerTier`, `TieredSlider`, `FAB`, `AccordionSection`, `Toast`, `InlineAlert`, `FormField`, `Input`, `Textarea`, `Select`, `Checkbox`, `SegmentedControl`, `DocumentIcon`, `EditIcon`, `TrashIcon`, `CloseIcon`, `SearchIcon`, `ArrowRightIcon`, `AlertCircleIcon`.
 - **Layout Shell**: `AppHeader`, `AppFooter`, `EditorialSection`, `EditorialSidebar`, `HeroWelcome`, `SearchField`.
 - **Stepped Sequence**: `RoadmapTrack`, `RoadmapSection`, `RoadmapNode`, `PhotoFlightEngine`.
-- **Document Canvas**: `DocumentCanvas`, `NodeCanvas`, `CanvasSection`, `CanvasSubsection`, `CanvasText`, `CanvasPhoto`, `CanvasGallery`, `CanvasChart`, `CanvasPdf`, `CanvasDocuments`, `CanvasPageLink`, `HeroPhoto`.
+- **Document Canvas**: `DocumentCanvas`, `NodeCanvas`, `CanvasSection`, `CanvasSubsection`, `CanvasText`, `CanvasPhoto`, `CanvasVideo`, `CanvasGallery`, `CanvasChart`, `CanvasPdf`, `CanvasDocuments`, `CanvasPageLink`, `HeroPhoto`.
 - **Vector Chart Studio**: `ChartRouter`, `BarChart`, `LineChart`, `DonutChart`, `ScatterPlot`, `HistogramChart`, `ChartConfigDrawer`, `ChartLegend`, `ChartTooltip`, `RangePreviewMatrix`, `ChartTableModal`.
 - **Developer Chrome**: `DevModeBadge`, `DevPinModal`, `DevPublishModal`, `DevLockBlockedModal`, `DevExitConfirmModal`, `UniversalEditModal`, `HistoryHubModal`.
 
@@ -78,6 +78,7 @@ import { ... } from '@devcabs/folio-engine';
 - **`unsavedChangesService`**: Tracks dirty drafts and intercepts uncommitted browser exits.
 - **`contentDb`**: In-memory + React-hydrated key-value text accessor backed by Cloudflare KV (`portal:manifest` / `draft:workspace`).
 - **`watermarkResolver`**: Single-source content watermark resolver reading strictly from `EngineConfig.contentVersion`.
+- **`resolveSingleVideoUrl(input: string)` / `extractYouTubeVideoId(input: string)` / `formatVideoDuration(durationMs?: number)`**: Resolves Google Drive and YouTube single-video URLs into embed/view URLs and formats video durations (`M:SS` / `H:MM:SS`).
 - **`smoothScrollTo(target: string | number)`**: Eased programmatic scrolling.
 - **`lockScroll() / unlockScroll()`**: Body scroll management for modal and drawer overlays.
 - **`parseAccentText(text: string): React.ReactNode`**: Parses markdown accent syntax (`*highlight*`).

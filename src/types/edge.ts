@@ -210,6 +210,18 @@ export const PdfElementSchema = z.object({
   aspectRatio: z.string().optional(),
 }).passthrough();
 
+export const VideoElementSchema = z.object({
+  id: z.string(),
+  type: z.literal('video'),
+  pointId: z.string(),
+  src: z.string().optional(),
+  provider: z.enum(['drive', 'youtube']).optional(),
+  videoUrl: z.string().optional(),
+  title: z.string().optional(),
+  caption: z.string().optional(),
+  showCaption: z.boolean().optional(),
+}).passthrough();
+
 export const PageLinkElementSchema = z.object({
   id: z.string(),
   type: z.literal('page-link'),
@@ -222,6 +234,7 @@ export const CanvasLeafElementSchema = z.union([
   GalleryElementSchema,
   DocumentsElementSchema,
   PdfElementSchema,
+  VideoElementSchema,
   PageLinkElementSchema,
   z.object({
     id: z.string(),

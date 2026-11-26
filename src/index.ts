@@ -112,3 +112,11 @@ export {
   useDriveDocumentSync,
   type UseDriveDocumentSyncOptions,
 } from './hooks/useDriveDocumentSync';
+
+// Media URL & Video Resolution Utilities (Epic 15)
+export {
+  resolveSingleVideoUrl,
+  extractYouTubeVideoId,
+  formatVideoDuration,
+  type ResolvedSingleVideo,
+} from './utils/mediaUrl';

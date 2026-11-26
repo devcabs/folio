@@ -25,6 +25,10 @@ export interface SourceItem {
   photo?: CanonicalPhoto;
   imageSrc?: string;
   reference?: string;
+  mediaType?: 'image' | 'video';
+  videoPreviewUrl?: string;
+  videoViewUrl?: string;
+  durationMs?: number;
 }
 
 export interface StageStory {

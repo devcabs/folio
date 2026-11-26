@@ -35,6 +35,8 @@ function getItemTypeLabel(type: CanvasElementType): { title: string; noun: strin
       return { title: 'Delete Photo Gallery', noun: 'photo gallery' };
     case 'pdf':
       return { title: 'Delete PDF Document', noun: 'PDF document' };
+    case 'video':
+      return { title: 'Delete Video', noun: 'video' };
     case 'documents':
       return { title: 'Delete Document Folder', noun: 'document folder' };
     case 'chart':

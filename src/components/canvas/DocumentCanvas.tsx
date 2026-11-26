@@ -13,6 +13,7 @@ import type {
   GalleryElement,
   ChartElement,
   PdfElement,
+  VideoElement,
   DocumentsElement,
   PageLinkElement,
   CanvasElement,
@@ -40,7 +41,7 @@ import {
 } from '../../services/pageTreeService';
 import { getDraftWorkspace } from '../../services/draftService';
 import { createWorkspaceUndoAction } from '../../services/undoRedoService';
-import { resolveSingleDrivePdfUrl } from '../../utils/mediaUrl';
+import { resolveSingleDrivePdfUrl, resolveSingleVideoUrl } from '../../utils/mediaUrl';
 import { CanvasSection } from './CanvasSection';
 import { CanvasSubsection } from './CanvasSubsection';
 import { CanvasText } from './CanvasText';
@@ -48,6 +49,7 @@ import { CanvasPhoto } from './CanvasPhoto';
 import { CanvasGallery, type GalleryElementUpdates } from './CanvasGallery';
 import { CanvasChart } from './CanvasChart';
 import { CanvasPdf } from './CanvasPdf';
+import { CanvasVideo } from './CanvasVideo';
 import { CanvasDocuments, type DocumentsElementUpdates } from './CanvasDocuments';
 import { CanvasPageLink } from './CanvasPageLink';
 import { CanvasAddBar } from './CanvasAddBar';
@@ -186,6 +188,15 @@ function renderCanvasLeaf(
           onEdit={onEditLeaf ? () => onEditLeaf(leaf) : undefined}
         />
       );
+    case 'video':
+      return (
+        <CanvasVideo
+          element={leaf}
+          nodeId={nodeId}
+          accentColor={accentColor}
+          onEdit={onEditLeaf ? () => onEditLeaf(leaf) : undefined}
+        />
+      );
     case 'documents':
       return (
         <CanvasDocuments
@@ -223,6 +234,19 @@ function buildPdfElementFields(data: CanvasElementFormData): Omit<PdfElement, 'i
     src: resolved ? resolved.previewUrl : (data.src?.trim() || undefined),
     driveFileId: resolved?.fileId,
     driveUrl: resolved ? resolved.rawUrl : (data.driveUrl?.trim() || undefined),
+    caption: data.showCaption ? (data.caption?.trim() || undefined) : undefined,
+    showCaption: Boolean(data.showCaption),
+  };
+}
+
+function buildVideoElementFields(data: CanvasElementFormData): Omit<VideoElement, 'id' | 'type' | 'pointId'> {
+  const rawInput = data.videoUrl?.trim() || data.src?.trim() || '';
+  const resolved = resolveSingleVideoUrl(rawInput);
+  return {
+    title: data.title?.trim() || undefined,
+    src: resolved ? resolved.embedUrl : (data.src?.trim() || undefined),
+    provider: resolved?.provider ?? data.provider,
+    videoUrl: resolved ? resolved.rawUrl : (data.videoUrl?.trim() || undefined),
     caption: data.showCaption ? (data.caption?.trim() || undefined) : undefined,
     showCaption: Boolean(data.showCaption),
   };
@@ -583,7 +607,7 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       return;
     }
 
-    if (leaf.type !== 'text' && leaf.type !== 'pdf') {
+    if (leaf.type !== 'text' && leaf.type !== 'pdf' && leaf.type !== 'video') {
       return;
     }
 
@@ -597,10 +621,19 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
           caption: leaf.caption || '',
           showCaption: Boolean(leaf.showCaption || (leaf.caption && leaf.caption.trim().length > 0)),
         }
-        : {
-          content: leaf.content,
-          as: leaf.as || 'p',
-        };
+        : leaf.type === 'video'
+          ? {
+            title: leaf.title || '',
+            src: leaf.src || '',
+            videoUrl: leaf.videoUrl || '',
+            provider: leaf.provider,
+            caption: leaf.caption || '',
+            showCaption: Boolean(leaf.showCaption || (leaf.caption && leaf.caption.trim().length > 0)),
+          }
+          : {
+            content: leaf.content,
+            as: leaf.as || 'p',
+          };
 
     setActiveModal({
       isOpen: true,
@@ -681,6 +714,15 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
         type: 'pdf',
         pointId,
         ...buildPdfElementFields(payload),
+      };
+    } else if (type === 'video') {
+      const videoId = generateCanvasId('video');
+      const pointId = `node.${nodeId}.video.${videoId}`;
+      leaf = {
+        id: videoId,
+        type: 'video',
+        pointId,
+        ...buildVideoElementFields(payload),
       };
     } else {
       const galleryId = generateCanvasId('gallery');
@@ -861,6 +903,8 @@ export const DocumentCanvas: React.FC<NodeCanvasProps> = memo(({
       });
     } else if (elementType === 'pdf' && itemId) {
       updateItem<PdfElement>(itemId, buildPdfElementFields(data));
+    } else if (elementType === 'video' && itemId) {
+      updateItem<VideoElement>(itemId, buildVideoElementFields(data));
     }
 
     setActiveModal(null);

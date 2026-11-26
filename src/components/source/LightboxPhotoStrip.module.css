@@ -107,6 +107,23 @@
   background-color: var(--lightbox-thumb-bg);
 }
 
+.videoThumbBadge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background-color: var(--video-badge-bg);
+  color: var(--video-badge-fg);
+  border: 1px solid var(--video-play-ring);
+  pointer-events: none;
+}
+
 @media (max-width: 640px) {
   .stripContainer {
     padding: var(--space-1) var(--space-2);

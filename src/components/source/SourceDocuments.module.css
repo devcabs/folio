@@ -32,10 +32,11 @@
     background-color var(--duration-fast) var(--ease-out);
 }
 
+.documentsCardContainer:has(button:hover) .documentsCardBody,
 .highlightedDocuments {
   border-radius: var(--radius-lg);
-  box-shadow: 0 0 0 6px var(--brand-accent-tint);
-  background-color: var(--brand-accent-tint);
+  box-shadow: 0 0 0 6px var(--brand-accent-tint) !important;
+  background-color: var(--brand-accent-tint) !important;
 }
 
 @keyframes spin {

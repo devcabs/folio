@@ -49,7 +49,7 @@ describe('Subtask 2.2: Google Drive Photo Sync Pagination & Resilience', () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
       const url = fetchMock.mock.calls[0][0] as string;
-      expect(url).toContain('fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,modifiedTime)'));
+      expect(url).toContain('fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,modifiedTime,videoMediaMetadata(durationMillis,width,height))'));
       expect(url).toContain('pageSize=100');
       expect(url).not.toContain('pageToken=');
       expect(result).toHaveLength(2);
@@ -92,7 +92,7 @@ describe('Subtask 2.2: Google Drive Photo Sync Pagination & Resilience', () => {
 
       // Verify page 1 URL
       const url1 = fetchMock.mock.calls[0][0] as string;
-      expect(url1).toContain('fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,modifiedTime)'));
+      expect(url1).toContain('fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,modifiedTime,videoMediaMetadata(durationMillis,width,height))'));
       expect(url1).not.toContain('pageToken=');
 
       // Verify page 2 URL

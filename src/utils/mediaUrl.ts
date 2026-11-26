@@ -4,6 +4,8 @@
  * Specification: docs/tasks/task15_2_edge_media_proxy_and_stream_transcoder.md
  */
 
+import type { VideoProvider } from '../types/canvas';
+
 export const ALLOWED_EDGE_WIDTHS = [320, 400, 600, 800, 1200, 1600] as const;
 export type EdgeWidth = (typeof ALLOWED_EDGE_WIDTHS)[number];
 
@@ -51,6 +53,155 @@ export interface ResolvedSinglePdf {
   previewUrl: string;
   viewUrl: string;
   rawUrl: string;
+}
+
+export interface ResolvedSingleVideo {
+  provider: VideoProvider;
+  fileId: string;
+  embedUrl: string;
+  viewUrl: string;
+  rawUrl: string;
+}
+
+const YOUTUBE_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
+const YOUTUBE_HOSTS = new Set([
+  'youtube.com',
+  'www.youtube.com',
+  'm.youtube.com',
+  'music.youtube.com',
+  'youtube-nocookie.com',
+  'www.youtube-nocookie.com',
+]);
+
+function sanitizeUrlInput(input: string): string {
+  return input.trim().replace(/^[<"']+|[>"']+$/g, '').trim();
+}
+
+function parseYouTubeUrl(input: string): URL | null {
+  if (!input || typeof input !== 'string') return null;
+  const trimmed = sanitizeUrlInput(input);
+  if (!trimmed) return null;
+
+  const withScheme = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+
+  try {
+    return new URL(withScheme);
+  } catch {
+    return null;
+  }
+}
+
+function parseYouTubeStartSeconds(raw: string | null): number | null {
+  if (!raw) return null;
+  const trimmed = raw.trim().toLowerCase();
+  if (!trimmed) return null;
+
+  if (/^\d+$/.test(trimmed)) {
+    const secs = Number.parseInt(trimmed, 10);
+    return secs > 0 ? secs : null;
+  }
+
+  const match = trimmed.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+  if (!match) return null;
+
+  const hours = match[1] ? Number.parseInt(match[1], 10) : 0;
+  const minutes = match[2] ? Number.parseInt(match[2], 10) : 0;
+  const seconds = match[3] ? Number.parseInt(match[3], 10) : 0;
+  const total = hours * 3600 + minutes * 60 + seconds;
+  return total > 0 ? total : null;
+}
+
+/**
+ * Extracts an 11-character YouTube video ID from standard watch, shortlink,
+ * shorts, live, or embed URLs. Returns null for non-YouTube or invalid URLs.
+ */
+export function extractYouTubeVideoId(input: string): string | null {
+  const url = parseYouTubeUrl(input);
+  if (!url) return null;
+
+  const host = url.hostname.toLowerCase();
+  const segments = url.pathname.split('/').filter(Boolean);
+  let candidate: string | null = null;
+
+  if (host === 'youtu.be') {
+    candidate = segments[0] ?? null;
+  } else if (YOUTUBE_HOSTS.has(host)) {
+    if (segments[0] === 'watch') {
+      candidate = url.searchParams.get('v');
+    } else if (
+      (segments[0] === 'shorts' || segments[0] === 'live' || segments[0] === 'embed') &&
+      segments[1]
+    ) {
+      candidate = segments[1];
+    }
+  }
+
+  return candidate && YOUTUBE_ID_REGEX.test(candidate) ? candidate : null;
+}
+
+/**
+ * Resolves a standard YouTube or Google Drive single-video share link into
+ * canonical embed and view URLs without external API calls.
+ * Explicitly rejects Google Drive folder URLs and unsupported video hosts.
+ */
+export function resolveSingleVideoUrl(input: string): ResolvedSingleVideo | null {
+  if (!input || typeof input !== 'string') return null;
+  const rawUrl = input.trim();
+  if (!rawUrl) return null;
+
+  const ytId = extractYouTubeVideoId(rawUrl);
+  if (ytId) {
+    const parsed = parseYouTubeUrl(rawUrl);
+    const startSeconds = parsed
+      ? parseYouTubeStartSeconds(
+          parsed.searchParams.get('start') ?? parsed.searchParams.get('t')
+        )
+      : null;
+
+    const embedBase = `https://www.youtube-nocookie.com/embed/${ytId}`;
+    return {
+      provider: 'youtube',
+      fileId: ytId,
+      embedUrl: startSeconds ? `${embedBase}?start=${startSeconds}` : embedBase,
+      viewUrl: `https://www.youtube.com/watch?v=${ytId}`,
+      rawUrl,
+    };
+  }
+
+  const driveFileId = extractDriveFileId(rawUrl);
+  if (driveFileId) {
+    return {
+      provider: 'drive',
+      fileId: driveFileId,
+      embedUrl: buildDrivePreviewUrl(driveFileId),
+      viewUrl: buildDriveViewUrl(driveFileId),
+      rawUrl,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Formats video duration in milliseconds as `M:SS` or `H:MM:SS`.
+ * Returns `null` for undefined, non-finite, or `<= 0` values.
+ */
+export function formatVideoDuration(durationMs?: number): string | null {
+  if (typeof durationMs !== 'number' || !Number.isFinite(durationMs) || durationMs <= 0) {
+    return null;
+  }
+
+  const totalSeconds = Math.floor(durationMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 /**

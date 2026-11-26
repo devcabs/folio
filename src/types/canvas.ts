@@ -15,6 +15,7 @@ export type CanvasElementType =
   | 'gallery'
   | 'chart'
   | 'pdf'
+  | 'video'
   | 'documents'
   | 'page-link';
 
@@ -89,6 +90,24 @@ export interface PdfElement extends CanvasElementBase {
   aspectRatio?: string;
 }
 
+export type VideoProvider = 'drive' | 'youtube';
+
+export interface VideoElement extends CanvasElementBase {
+  type: 'video';
+  pointId: string;
+  /** Resolved embed URL: Drive /preview or YouTube youtube-nocookie.com/embed/{id} */
+  src?: string;
+  /** Detected provider ('drive' | 'youtube') */
+  provider?: VideoProvider;
+  /** Original pasted share link for "Open in New Tab ↗" fallback */
+  videoUrl?: string;
+  /** Optional editorial title */
+  title?: string;
+  /** Optional caption below the player */
+  caption?: string;
+  showCaption?: boolean;
+}
+
 export interface DocumentsElement extends CanvasElementBase {
   type: 'documents';
   pointId: string;
@@ -117,6 +136,7 @@ export type CanvasLeafElement =
   | GalleryElement
   | ChartElement
   | PdfElement
+  | VideoElement
   | DocumentsElement
   | PageLinkElement;
 
@@ -179,6 +199,7 @@ export function isLeafElement(el: CanvasElement): el is CanvasLeafElement {
     el.type === 'gallery' ||
     el.type === 'chart' ||
     el.type === 'pdf' ||
+    el.type === 'video' ||
     el.type === 'documents' ||
     el.type === 'page-link'
   );
@@ -204,6 +225,10 @@ export function isPdfElement(el: CanvasElement): el is PdfElement {
   return el.type === 'pdf';
 }
 
+export function isVideoElement(el: CanvasElement): el is VideoElement {
+  return el.type === 'video';
+}
+
 export function isDocumentsElement(el: CanvasElement): el is DocumentsElement {
   return el.type === 'documents';
 }
@@ -225,6 +250,7 @@ export type CanvasModalElementType =
   | 'photo'
   | 'gallery'
   | 'pdf'
+  | 'video'
   | 'documents'
   | 'page-link';
 
@@ -253,6 +279,10 @@ export interface CanvasElementFormData {
   aspectRatio?: string;
   /** For photo, gallery, pdf, or documents Google Drive URL */
   driveUrl?: string;
+  /** Original video share link for video add/edit (YouTube or Google Drive) */
+  videoUrl?: string;
+  /** Detected video provider ('drive' | 'youtube') */
+  provider?: VideoProvider;
   /** Optional cover image URL for page-link add/edit */
   coverImage?: string;
   /** URL segment name for page-link add/edit */

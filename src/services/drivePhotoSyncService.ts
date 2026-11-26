@@ -18,7 +18,11 @@ import type {
   DriveReconciliationResult,
   SyncFolderPhotosResult,
 } from '../types/source';
-import { buildEdgeMediaUrl } from '../utils/mediaUrl';
+import {
+  buildDrivePreviewUrl,
+  buildDriveViewUrl,
+  buildEdgeMediaUrl,
+} from '../utils/mediaUrl';
 
 /**
  * Safely retrieves the configured Google Drive API key from environment variables.
@@ -43,13 +47,36 @@ export function cleanDriveFileName(rawName: string): string {
     return 'Source Photo';
   }
 
-  let cleaned = rawName.replace(/\.(jpe?g|png|webp|gif|heic|tiff)$/i, '');
-  cleaned = cleaned.replace(/^IMG_\d+_/i, '');
+  let cleaned = rawName.replace(
+    /\.(jpe?g|png|webp|gif|heic|tiff|bmp|avif|mp4|mov|webm|m4v|avi|mkv)$/i,
+    ''
+  );
+  cleaned = cleaned.replace(/^(?:IMG|VID|MOV)_\d+_/i, '');
   cleaned = cleaned.replace(/^\d+[\s_-]+/, '');
   cleaned = cleaned.replace(/[_-]+/g, ' ');
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
 
   return cleaned.length > 0 ? cleaned : 'Source Photo';
+}
+
+function isVideoDriveFile(file: DrivePhotoFile): boolean {
+  return Boolean(
+    (file.mimeType && file.mimeType.startsWith('video/')) ||
+    /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(file.name)
+  );
+}
+
+function parseVideoDurationMs(file: DrivePhotoFile): number | undefined {
+  const raw = file.videoMediaMetadata?.durationMillis;
+  const parsed =
+    typeof raw === 'number'
+      ? raw
+      : typeof raw === 'string' && raw.trim() !== ''
+        ? Number(raw)
+        : undefined;
+  return typeof parsed === 'number' && Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : undefined;
 }
 
 /**
@@ -132,12 +159,24 @@ export function reconcileDrivePhotos(
     const existing = existingMap.get(file.id);
     const thumbUrl = formatThumbnailDriveUrl(file.thumbnailLink, file.id);
     const highResUrl = formatHighResDriveUrl(file.thumbnailLink, file.id);
+    const isVideo = isVideoDriveFile(file);
+    const durationMs = isVideo ? parseVideoDurationMs(file) : undefined;
+    const videoMetadata = isVideo
+      ? {
+        mediaType: 'video' as const,
+        mimeType: file.mimeType,
+        videoPreviewUrl: buildDrivePreviewUrl(file.id),
+        videoViewUrl: buildDriveViewUrl(file.id),
+        ...(durationMs !== undefined ? { durationMs } : {}),
+      }
+      : {};
 
     if (existing) {
       // Retain existing item instance (preserves isCustomTitle, custom title/caption)
       retained++;
       reconciled.push({
         ...existing,
+        ...videoMetadata,
         orderIndex: i,
         thumbnailUrl: thumbUrl,
         fullImageUrl: highResUrl,
@@ -161,7 +200,7 @@ export function reconcileDrivePhotos(
         driveFileId: file.id,
         originalFileName: file.name,
         title: cleanTitle,
-        category: 'MOV Photo',
+        category: isVideo ? 'MOV Video' : 'MOV Photo',
         date: dateIso,
         dateStamp: dateIso,
         imageSrc: highResUrl,
@@ -175,6 +214,7 @@ export function reconcileDrivePhotos(
         },
         orderIndex: i,
         isCustomTitle: false,
+        ...videoMetadata,
       });
     }
   }
@@ -233,7 +273,8 @@ export async function fetchDriveFolderImages(folderUrlOrId: string): Promise<Dri
   }
 
   const query = `'${folderId}' in parents and trashed = false`;
-  const fields = 'nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,modifiedTime)';
+  const fields =
+    'nextPageToken,files(id,name,mimeType,thumbnailLink,createdTime,modifiedTime,videoMediaMetadata(durationMillis,width,height))';
 
   let pageToken: string | undefined = undefined;
   let pageCount = 0;
@@ -299,13 +340,13 @@ export async function fetchDriveFolderImages(folderUrlOrId: string): Promise<Dri
     pageCount++;
   } while (pageToken && pageCount < MAX_SYNC_PAGES);
 
-  const isImageFile = (f: DrivePhotoFile) =>
+  const isMediaFile = (f: DrivePhotoFile) =>
     Boolean(
-      (f.mimeType && f.mimeType.startsWith('image/')) ||
-      /\.(jpe?g|png|webp|gif|heic|tiff|bmp|avif)$/i.test(f.name)
+      (f.mimeType && (f.mimeType.startsWith('image/') || f.mimeType.startsWith('video/'))) ||
+      /\.(jpe?g|png|webp|gif|heic|tiff|bmp|avif|mp4|mov|webm|m4v|avi|mkv)$/i.test(f.name)
     );
 
-  const directImages = allFiles.filter(isImageFile);
+  const directImages = allFiles.filter(isMediaFile);
 
   // If there are subfolders in this directory, probe 1st-level subfolders for images
   const subfolders = allFiles.filter(
@@ -329,7 +370,7 @@ export async function fetchDriveFolderImages(folderUrlOrId: string): Promise<Dri
         );
       }
       const subData = (await subResp.json()) as { files?: DrivePhotoFile[] };
-      return (subData.files ?? []).filter(isImageFile);
+      return (subData.files ?? []).filter(isMediaFile);
     });
 
     const subfolderResults = await Promise.all(subfolderPromises);

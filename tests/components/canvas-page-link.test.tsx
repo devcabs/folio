@@ -13,7 +13,7 @@ import * as developerModeHook from '../../src/hooks/useDeveloperMode';
 import * as engineConfigModule from '../../src/config/engine.config';
 import { buildTwoLevelNavTree } from '../../src/services/pageTreeService';
 import type { PageLinkElement, NodeCanvasDocument } from '../../src/types/canvas';
-import type { PageRegistry } from '../../src/types/page';
+import type { PageRegistry, PageNode } from '../../src/types/page';
 import type { NodeItem } from '../../src/types/node';
 
 function createMockPortalChrome(pages: PageRegistry): PortalChromeContextValue {
@@ -118,9 +118,9 @@ describe('13.12 <CanvasPageLink> Editorial Card & Canvas Reorder Order-Sync', ()
     expect(screen.getByText('Research Findings')).toBeTruthy();
     expect(screen.getByText('Longitudinal outcomes across partner sites.')).toBeTruthy();
 
-    // Contains PageIcon + ArrowRightIcon SVGs
-    const svgs = link.querySelectorAll('svg');
-    expect(svgs.length).toBe(2);
+    // Contains cycling cover photo or ArrowRightIcon SVG
+    expect(link.querySelector('img') || link.querySelector('svg')).toBeTruthy();
+    expect(link.querySelectorAll('svg').length).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(link);
     expect(onNavigate).toHaveBeenCalledTimes(1);
@@ -545,15 +545,66 @@ describe('13.12 <CanvasPageLink> Editorial Card & Canvas Reorder Order-Sync', ()
       expect(container.querySelector('[class*="cardLg"]')).toBeNull();
     });
 
-    it('lg variant renders Explore CTA button', () => {
+    it('lg variant makes the card clickable as a link without Explore CTA button and navigates on click', () => {
+      const onNavigate = vi.fn();
       render(
         <CanvasPageLink
           element={{ ...baseElement, cardSize: 'lg' }}
           page={mockPage}
+          onNavigate={onNavigate}
           isDevMode={false}
         />
       );
-      expect(screen.getByText(/Explore/i)).toBeInTheDocument();
+
+      // Explore CTA button is removed
+      expect(screen.queryByText(/Explore/i)).toBeNull();
+
+      // Card is clickable anchor element
+      const cardLink = document.querySelector('a[class*="cardLg"]');
+      expect(cardLink).toBeTruthy();
+      expect(cardLink?.getAttribute('href')).toBe('/node/access/research/');
+
+      // Clicking card calls onNavigate
+      fireEvent.click(cardLink!);
+      expect(onNavigate).toHaveBeenCalledWith('page-research');
+    });
+
+    it('lg variant renders edit button in dev mode alongside the card', () => {
+      const onEdit = vi.fn();
+      render(
+        <CanvasPageLink
+          element={{ ...baseElement, cardSize: 'lg' }}
+          page={mockPage}
+          onEdit={onEdit}
+          isDevMode={true}
+        />
+      );
+
+      const editBtn = screen.getByRole('button', { name: /Edit/i });
+      expect(editBtn).toBeInTheDocument();
+      expect(editBtn.getAttribute('data-canvas-edit-trigger')).toBe('page-link-test-size');
+
+      fireEvent.click(editBtn);
+      expect(onEdit).toHaveBeenCalled();
+    });
+
+    it('sm variant renders edit button in dev mode alongside the card', () => {
+      const onEdit = vi.fn();
+      render(
+        <CanvasPageLink
+          element={{ ...baseElement, cardSize: 'sm' }}
+          page={mockPage}
+          onEdit={onEdit}
+          isDevMode={true}
+        />
+      );
+
+      const editBtn = screen.getByRole('button', { name: /Edit/i });
+      expect(editBtn).toBeInTheDocument();
+      expect(editBtn.getAttribute('data-canvas-edit-trigger')).toBe('page-link-test-size');
+
+      fireEvent.click(editBtn);
+      expect(onEdit).toHaveBeenCalled();
     });
 
     it('sm variant renders Read cue', () => {
@@ -565,6 +616,54 @@ describe('13.12 <CanvasPageLink> Editorial Card & Canvas Reorder Order-Sync', ()
         />
       );
       expect(screen.getByText(/Read/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('photo randomizer starting point', () => {
+    it('immediately renders a photo on empty pages without flashing identical ParametricShape placeholders', () => {
+      const emptyPage1: PageNode = {
+        id: 'page-empty-1',
+        parentId: 'access',
+        slug: 'page-1',
+        title: 'Empty Page 1',
+        order: 0,
+        createdAt: '2026-11-24T00:00:00.000Z',
+        updatedAt: '2026-11-24T00:00:00.000Z',
+      };
+      const emptyPage2: PageNode = {
+        id: 'page-empty-2',
+        parentId: 'access',
+        slug: 'page-2',
+        title: 'Empty Page 2',
+        order: 1,
+        createdAt: '2026-11-24T00:00:00.000Z',
+        updatedAt: '2026-11-24T00:00:00.000Z',
+      };
+
+      const testPages: PageRegistry = {
+        'page-empty-1': emptyPage1,
+        'page-empty-2': emptyPage2,
+      };
+
+      const { container } = render(
+        <PortalChromeContext.Provider value={createMockPortalChrome(testPages)}>
+          <div>
+            <CanvasPageLink
+              element={{ id: 'link-1', type: 'page-link', targetPageId: 'page-empty-1', cardSize: 'sm' }}
+              page={emptyPage1}
+            />
+            <CanvasPageLink
+              element={{ id: 'link-2', type: 'page-link', targetPageId: 'page-empty-2', cardSize: 'sm' }}
+              page={emptyPage2}
+            />
+          </div>
+        </PortalChromeContext.Provider>
+      );
+
+      const imgs = container.querySelectorAll('img[data-shuffle-photo="true"]');
+      expect(imgs.length).toBe(2);
+      expect(imgs[0].getAttribute('src')).toBeTruthy();
+      expect(imgs[1].getAttribute('src')).toBeTruthy();
     });
   });
 });

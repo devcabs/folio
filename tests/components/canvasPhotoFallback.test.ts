@@ -390,12 +390,12 @@ describe('Subtask 3.6: Resilient Image Fallback Card & Latency Elimination', () 
       expect(textContent).toContain('Source image inaccessible. Verify Google Drive sharing permissions');
       expect(textContent).toContain('Re-link Photo');
 
-      // Verify onEdit button is clickable
+      // Verify onEdit button is clickable (fallback Re-link Photo + side Edit button both carry this aria-label)
       const editButtons = dom.findElements(
         container,
         (el) => el.tagName === 'BUTTON' && el.getAttribute('aria-label') === 'Edit photo attachment'
       );
-      expect(editButtons.length).toBe(1);
+      expect(editButtons.length).toBeGreaterThanOrEqual(1);
 
       act(() => {
         editButtons[0].click();

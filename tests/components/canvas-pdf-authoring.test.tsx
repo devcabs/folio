@@ -212,7 +212,7 @@ describe('11.3 Single PDF Authoring & Modal Wiring', () => {
     render(<DocumentCanvas nodeId="access" nodeTitle="Access" />);
 
     // 1. Click floating toolbar Edit button on the PDF leaf (index 0 is Section, index 1 is PdfElement)
-    const toolbarEditBtns = screen.getAllByRole('button', { name: 'Edit' });
+    const toolbarEditBtns = screen.getAllByRole('button', { name: /^Edit$/ });
     expect(toolbarEditBtns.length).toBeGreaterThanOrEqual(2);
     fireEvent.click(toolbarEditBtns[1]);
 
@@ -232,7 +232,10 @@ describe('11.3 Single PDF Authoring & Modal Wiring', () => {
     expect(screen.queryByRole('heading', { name: 'Edit PDF' })).toBeNull();
 
     // 2. Click side "✎ Edit" button on <CanvasPdf>
-    const sideEditBtn = screen.getByRole('button', { name: /✎ Edit/i });
+    const sideEditBtns = screen.getAllByRole('button', { name: /✎ Edit/i });
+    const sideEditBtn = sideEditBtns.find(
+      (btn) => btn.getAttribute('data-canvas-edit-trigger') === 'pdf-elem-1'
+    ) || sideEditBtns[sideEditBtns.length - 1];
     fireEvent.click(sideEditBtn);
 
     expect(screen.getByRole('heading', { name: 'Edit PDF' })).toBeTruthy();

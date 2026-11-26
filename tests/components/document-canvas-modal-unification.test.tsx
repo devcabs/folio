@@ -336,9 +336,9 @@ describe('9.4 Floating Toolbar & Side Edit Modal Unification', () => {
       height: 30,
     });
     fireEvent.click(addElementBtns[1]);
-    const photoMenuTrigger = screen.getByRole('menuitem', { name: /Photo/i });
-    fireEvent.click(photoMenuTrigger);
-    fireEvent.click(screen.getByRole('menuitem', { name: /Photo Gallery/i }));
+    const mediaMenuTrigger = screen.getByRole('menuitem', { name: /Media/i });
+    fireEvent.click(mediaMenuTrigger);
+    fireEvent.click(screen.getByRole('menuitem', { name: /Media Gallery/i }));
 
     // LinkFolderModal should open in add mode
     expect(screen.getByRole('heading', { name: 'Link Folder' })).toBeTruthy();

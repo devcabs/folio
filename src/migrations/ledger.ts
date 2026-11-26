@@ -1221,6 +1221,56 @@ const _RAW_LEDGER: MigrationEntryInput[] = [
       },
     ],
   },
+  {
+    version: '0.3.4',
+    releaseDate: '2026-11-26',
+    title: 'Unified Media Support — Inline Video Block & Mixed Photo/Video Drive Galleries',
+    summary:
+      'Added inline VideoElement (Google Drive & YouTube nocookie iframe embeds), unified CanvasAddBar Photo into a Media submenu (Single Photo, Single Video, Media Gallery), and extended drivePhotoSyncService, SourceCard, and SourceLightbox to sync and play both image/* and video/* items in GalleryElement.',
+    breakingChanges: [
+      'No breaking API changes; additive VideoElement AST type, CanvasVideo component, and optional SourceItem/SyncedSourceItem video fields only. Legacy GalleryElement.syncedPhotos items without mediaType default to "image".',
+    ],
+    codeActions: [
+      {
+        description:
+          'Advance EngineConfig contentVersion watermark to 0.3.4 to acknowledge unified video and mixed-media gallery support.',
+        affectedFiles: ['src/engine-setup.ts', 'src/App.tsx'],
+        exampleBefore: 'setEngineConfig({ contentVersion: "0.3.3" });',
+        exampleAfter: 'setEngineConfig({ contentVersion: "0.3.4" });',
+      },
+    ],
+    contentChanges: [
+      {
+        id: 'unified-media-support-0.3.4',
+        title: 'Inline VideoElement & Mixed Photo/Video Drive Galleries',
+        required: false,
+        description:
+          'CanvasLeafElement now includes VideoElement ("video") rendered via <CanvasVideo> for Google Drive and YouTube URLs. SourceItem and SyncedSourceItem gain optional mediaType ("image" | "video"), embedUrl, durationMs, and mimeType fields so GalleryElement syncs both photos and videos from Google Drive folders.',
+        affectedEntities: [
+          'VideoElement',
+          'VideoProvider',
+          'CanvasVideo',
+          'GalleryElement',
+          'SourceItem',
+          'SyncedSourceItem',
+          'drivePhotoSyncService',
+          'SourceLightbox',
+        ],
+        migrationPrompt:
+          'No migration required. Legacy GalleryElement.syncedPhotos entries without mediaType default to "image". If your consumer app implements an exhaustive switch over CanvasLeafElement.type, add a case for "video" or delegate rendering to <DocumentCanvas>.',
+      },
+      {
+        id: 'content-version-watermark-0.3.4',
+        title: 'Advance contentVersion Watermark to 0.3.4',
+        required: true,
+        description:
+          'Update the contentVersion watermark in EngineConfig to 0.3.4 to acknowledge unified video and mixed-media gallery support and clear pending migration warnings in Dev Mode and doctor reports.',
+        affectedEntities: ['EngineConfig', 'src/engine-setup.ts', 'src/App.tsx'],
+        migrationPrompt:
+          'Set `contentVersion: "0.3.4"` in your application EngineConfig to clear pending migration warnings in Dev Mode and doctor reports.',
+      },
+    ],
+  },
 ];
 
 /**

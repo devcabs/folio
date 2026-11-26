@@ -80,10 +80,10 @@ export const CanvasPageLink: React.FC<CanvasPageLinkProps> = memo(({
     shufflePageIds,
     Boolean(targetPage) && !coverSrc
   );
-  const [shuffleState, setShuffleState] = useState<{ current: string | null; previous: string | null }>({
-    current: null,
+  const [shuffleState, setShuffleState] = useState<{ current: string | null; previous: string | null }>(() => ({
+    current: shuffleSrc,
     previous: null,
-  });
+  }));
   useEffect(() => {
     setShuffleState((s) =>
       s.current === shuffleSrc ? s : { current: shuffleSrc, previous: s.current }
@@ -213,7 +213,14 @@ export const CanvasPageLink: React.FC<CanvasPageLinkProps> = memo(({
   if (size === 'lg') {
     return (
       <div className={`${styles.cardLgWrapper} ${className || ''}`.trim()}>
-        <div className={styles.cardLg}>
+        <a
+          href={href}
+          className={styles.cardLg}
+          onClick={(e) => {
+            e.preventDefault();
+            onNavigate?.(targetPage.id);
+          }}
+        >
           {coverSrc && !imageFailed ? (
             <img
               src={coverSrc}
@@ -246,21 +253,8 @@ export const CanvasPageLink: React.FC<CanvasPageLinkProps> = memo(({
             {targetPage.summary ? (
               <p className={styles.cardLgSummary}>{targetPage.summary}</p>
             ) : null}
-            <div className={styles.cardLgCta}>
-              <Button
-                variant="primary"
-                as="a"
-                href={href}
-                onClick={(e) => {
-                  e.preventDefault();
-                  onNavigate?.(targetPage.id);
-                }}
-              >
-                Explore &rarr;
-              </Button>
-            </div>
           </div>
-        </div>
+        </a>
 
         {isDevActive && onEdit ? (
           <div className={styles.sideEditWrapper}>

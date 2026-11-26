@@ -16,6 +16,7 @@ import type {
   GalleryElement,
   ChartElement,
   PdfElement,
+  VideoElement,
   DocumentsElement,
   PageLinkElement,
   PageLinkCardSize,
@@ -31,6 +32,8 @@ export const AUTHORING_PLACEHOLDERS = new Set<string>([
   'Photo documentation.',
   'Document Title',
   'PDF document attachment.',
+  'Video Title',
+  'Video documentation.',
   'Document Repository',
   'Supporting PDF documents and references',
   'Milestone initiatives and summary of progress',
@@ -126,6 +129,21 @@ export function createDefaultPdf(nodeId: string): PdfElement {
     pointId: `node.${nodeId}.pdf.${id}`,
     title: 'Document Title',
     caption: 'PDF document attachment.',
+    showCaption: true,
+  };
+}
+
+/**
+ * Generate a default inline video player block.
+ */
+export function createDefaultVideoElement(pointId: string): VideoElement {
+  const id = generateCanvasId('video');
+  return {
+    id,
+    type: 'video',
+    pointId: `node.${pointId}.video.${id}`,
+    title: 'Video Title',
+    caption: 'Video documentation.',
     showCaption: true,
   };
 }

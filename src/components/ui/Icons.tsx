@@ -177,3 +177,38 @@ export const RefreshIcon: React.FC<IconProps> = ({ className, size = 15 }) => (
     <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
   </svg>
 );
+
+export const VideoIcon: React.FC<IconProps> = ({ className, size = 18 }) => (
+  <svg
+    className={className}
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <polygon points="23 7 16 12 23 17 23 7" />
+    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+  </svg>
+);
+
+export const PlayIcon: React.FC<IconProps> = ({ className, size = 18 }) => (
+  <svg
+    className={className}
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <polygon points="5 3 19 12 5 21 5 3" />
+  </svg>
+);

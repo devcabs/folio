@@ -8,7 +8,11 @@ import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { SourceImage } from './SourceImage';
 import { LightboxPhotoStrip } from './LightboxPhotoStrip';
-import { buildEdgeMediaUrl, extractDriveFileId } from '../../utils/mediaUrl';
+import {
+  buildDrivePreviewUrl,
+  buildEdgeMediaUrl,
+  extractDriveFileId,
+} from '../../utils/mediaUrl';
 import styles from './SourceLightbox.module.css';
 
 export interface SourceLightboxProps {
@@ -63,6 +67,7 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
   const hasItems = items.length > 0;
   const safeIndex = Math.max(0, Math.min(currentIndex, Math.max(0, items.length - 1)));
   const currentItem = hasItems ? items[safeIndex] : null;
+  const isVideo = currentItem?.mediaType === 'video';
 
   // Reset zoom on slide change
   useEffect(() => {
@@ -108,7 +113,8 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
     // Save previous active element for focus restoration
     previouslyFocusedElement.current = document.activeElement as HTMLElement | null;
 
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const scrollbarWidth =
+      window.innerWidth - (document.documentElement?.clientWidth ?? window.innerWidth);
     const originalOverflow = document.body.style.overflow;
     const originalPaddingRight = document.body.style.paddingRight;
 
@@ -201,8 +207,10 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
     lastClickTimeRef.current = now;
 
     if (timeSinceLastClick < 300) {
-      // Double click: toggle zoom
-      setIsZoomed((prev) => !prev);
+      // Double click: toggle zoom (photos only)
+      if (!isVideo) {
+        setIsZoomed((prev) => !prev);
+      }
     } else {
       // Single click: toggle chrome
       setIsChromeVisible((prev) => {
@@ -215,7 +223,7 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
         return next;
       });
     }
-  }, [resetIdleTimer, wasSwipeJustTriggered]);
+  }, [isVideo, resetIdleTimer, wasSwipeJustTriggered]);
 
   if (!isOpen || !currentItem) {
     return null;
@@ -233,6 +241,10 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
   const highResSrc = driveFileId && !imageSrc.includes('/api/media/drive/')
     ? buildEdgeMediaUrl(driveFileId, { width: 1600 })
     : imageSrc;
+
+  const videoEmbedSrc = isVideo
+    ? currentItem.videoPreviewUrl || (driveFileId ? buildDrivePreviewUrl(driveFileId) : '')
+    : '';
 
   const content = (
     <div
@@ -266,7 +278,7 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
     >
       {/* Screen Reader Live Announcement */}
       <div aria-live="polite" className={styles.srOnly}>
-        Showing photo {safeIndex + 1} of {items.length}: {captionText}
+        Showing {isVideo ? 'video' : 'photo'} {safeIndex + 1} of {items.length}: {captionText}
       </div>
 
       {/* Top Header Bar */}
@@ -295,7 +307,7 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
 
       {/* Main Photographic Stage */}
       <div
-        className={`${styles.stage} ${isZoomed ? styles.stageZoomed : ''}`}
+        className={`${styles.stage} ${isVideo ? styles.stageVideo : ''} ${!isVideo && isZoomed ? styles.stageZoomed : ''}`}
         onClick={handleStageClick}
       >
         {/* Navigation Chevrons */}
@@ -329,19 +341,32 @@ export const SourceLightbox: React.FC<SourceLightboxProps> = ({
           </IconButton>
         )}
 
-        <div className={`${styles.imageFrame} ${isZoomed ? styles.imageFrameZoomed : ''}`}>
-          <div className={styles.lightboxImageWrapper}>
-            <SourceImage
-              src={highResSrc}
-              alt={imageAlt}
-              className={styles.lightboxImage}
-              imageClassName={styles.lightboxImage}
-              objectFit="contain"
-              loading="eager"
-              decoding="async"
-              showRetry={true}
-            />
-          </div>
+        <div className={`${styles.imageFrame} ${!isVideo && isZoomed ? styles.imageFrameZoomed : ''}`}>
+          {isVideo ? (
+            <div className={styles.videoFrame}>
+              <iframe
+                key={currentItem.id}
+                src={videoEmbedSrc}
+                title={captionText}
+                className={styles.lightboxVideoIframe}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <div className={styles.lightboxImageWrapper}>
+              <SourceImage
+                src={highResSrc}
+                alt={imageAlt}
+                className={styles.lightboxImage}
+                imageClassName={styles.lightboxImage}
+                objectFit="contain"
+                loading="eager"
+                decoding="async"
+                showRetry={true}
+              />
+            </div>
+          )}
         </div>
       </div>
 

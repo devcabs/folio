@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import type { CanvasElementType } from '../../types/canvas';
+import type { CanvasElementType, VideoProvider } from '../../types/canvas';
+import { resolveSingleVideoUrl } from '../../utils/mediaUrl';
 import { useDeveloperMode } from '../../hooks/useDeveloperMode';
 import { useUnsavedChangesPrompt } from '../../hooks/useUnsavedChangesPrompt';
 import {
@@ -22,6 +23,8 @@ export interface CanvasAddElementPayload {
   caption?: string;
   showCaption?: boolean;
   driveUrl?: string;
+  videoUrl?: string;
+  provider?: VideoProvider;
   subtitle?: string;
 }
 
@@ -52,6 +55,8 @@ const INITIAL_DRAFT: CanvasElementFieldsValue = {
   caption: '',
   showCaption: false,
   driveUrl: '',
+  videoUrl: '',
+  provider: undefined,
   subtitle: '',
 };
 
@@ -98,6 +103,7 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
       draft.alt?.trim() ||
       draft.caption?.trim() ||
       draft.driveUrl?.trim() ||
+      draft.videoUrl?.trim() ||
       draft.subtitle?.trim()
     );
   }, [isOpen, draft]);
@@ -138,6 +144,11 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
       modalTitle = 'Add Photo Gallery';
       submitLabel = 'Add Gallery';
       break;
+    case 'video':
+      canSubmit = Boolean(resolveSingleVideoUrl(draft.videoUrl || draft.src || ''));
+      modalTitle = 'Add Video';
+      submitLabel = 'Add Video';
+      break;
     case 'chart':
       canSubmit = Boolean(draft.title?.trim());
       modalTitle = 'Add Indicator Chart';
@@ -149,16 +160,22 @@ export const CanvasAddModal: React.FC<CanvasAddModalProps> = ({
     if (e) e.preventDefault();
     if (!canSubmit) return;
 
+    const resolvedVideo = type === 'video'
+      ? resolveSingleVideoUrl(draft.videoUrl || draft.src || '')
+      : null;
+
     const payload: CanvasAddElementPayload = {
       title: (draft.title || '').trim(),
       isNumbered: draft.isNumbered !== false,
       content: (draft.content || '').trim(),
       as: draft.as || 'p',
-      src: (draft.src || '').trim(),
+      src: resolvedVideo ? resolvedVideo.embedUrl : (draft.src || '').trim(),
       alt: (draft.alt || '').trim(),
       caption: (draft.caption || '').trim(),
       showCaption: Boolean(draft.showCaption),
       driveUrl: (draft.driveUrl || '').trim(),
+      videoUrl: resolvedVideo ? resolvedVideo.rawUrl : (draft.videoUrl || '').trim(),
+      provider: resolvedVideo?.provider ?? draft.provider,
       subtitle: (draft.subtitle || '').trim(),
     };
 

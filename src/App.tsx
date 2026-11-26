@@ -420,7 +420,7 @@ const AppContent: React.FC = () => {
 
             <main id="node-content" className={styles.contentColumn}>
               {/* Node Overview & Page Title */}
-              <section id="node-overview" className={styles.overviewSection} aria-label="Node Overview">
+              <section id="node-overview" className={styles.overviewSection} aria-label="Node Overview" data-toc="false">
                 {isSubpage && pageNode ? (
                   <PageTitle
                     title={pageNode.title}

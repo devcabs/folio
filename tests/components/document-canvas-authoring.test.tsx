@@ -483,6 +483,7 @@ describe('9.2 Eliminate Subsection Ghost Hover Zone & Duplicate Insertion Bars',
     });
     expect(toolbars).toHaveLength(2);
     expect(toolbars[1].className).toBe(toolbars[0].className);
-    expect(toolbars[1].className).toContain('sectionFloatingBar');
+    expect(toolbars[1].className).toContain('itemControlsFloatingBar');
+    expect(toolbars[1].className).not.toContain('sectionFloatingBar');
   });
 });
